@@ -57,33 +57,34 @@ export function Overview() {
             <span className="sr-only">Acme Inc</span>
           </Link>
           <Link
-            href="#"
+            to="/"
             className="text-foreground transition-colors hover:text-foreground"
           >
-            Dashboard
+            Overview
           </Link>
           <Link
+            to="/Shop"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
-            Orders
+           Shop
           </Link>
           <Link
-             to="/ProductPage"
+             
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
-            Products
-          </Link>
-          <Link
-            href="#"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Customers
+           Messages
           </Link>
           <Link
             href="#"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
-            Analytics
+          Chatbot
+          </Link>
+          <Link
+            href="#"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Payments
           </Link>
         </nav>
         <Sheet>
@@ -106,32 +107,32 @@ export function Overview() {
                 <Package2 className="h-6 w-6" />
                 <span className="sr-only">Acme Inc</span>
               </Link>
-              <Link href="#" className="hover:text-foreground">
-                Dashboard
+              <Link to="/" className="hover:text-foreground">
+               Overview
+              </Link>
+              <Link
+                to="/Shop"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Shop
+              </Link>
+              <Link
+                
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Messages
               </Link>
               <Link
                 href="#"
                 className="text-muted-foreground hover:text-foreground"
               >
-                Orders
+               Chatbot
               </Link>
               <Link
                 href="#"
                 className="text-muted-foreground hover:text-foreground"
               >
-                Products
-              </Link>
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Customers
-              </Link>
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Analytics
+                Payments
               </Link>
             </nav>
           </SheetContent>
