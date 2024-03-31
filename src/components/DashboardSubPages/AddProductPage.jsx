@@ -69,6 +69,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export function AddProductPage() {
   return (
@@ -252,8 +261,8 @@ export function AddProductPage() {
                 size="icon"
                 className="overflow-hidden rounded-full"
               >
-                <image
-                  src="/placeholder-user.jpg"
+                <img
+                  src="/Images/testimage.png"
                   width={36}
                   height={36}
                   alt="Avatar"
@@ -318,6 +327,41 @@ export function AddProductPage() {
                           defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl nec ultricies ultricies, nunc nisl ultricies nunc, nec ultricies nunc nisl nec nunc."
                           className="min-h-32"
                         />
+                      </div>
+                      <div className="grid gap-3">
+                        <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Price</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell>
+                            <Label htmlFor="stock-1" className="sr-only">
+                              Stock
+                            </Label>
+                            <Input
+                              id="stock-1"
+                              type="number"
+                              defaultValue="100"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Label htmlFor="price-1" className="sr-only">
+                              Price
+                            </Label>
+                            <Input
+                              id="price-1"
+                              type="number"
+                              defaultValue="99.99"
+                            />
+                          </TableCell>
+                         
+                        </TableRow>
+                           </TableBody>
+                           </Table>
                       </div>
                     </div>
                   </CardContent>
@@ -452,10 +496,74 @@ export function AddProductPage() {
                     </Table>
                   </CardContent>
                   <CardFooter className="justify-center border-t p-4">
+                  <Dialog>
+                 <DialogTrigger asChild>
                     <Button size="sm" variant="ghost" className="gap-1">
                       <PlusCircle className="h-3.5 w-3.5" />
                       Add Variant
                     </Button>
+                    </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Variant</DialogTitle>
+          <DialogDescription>
+            Create different size or color variation for your product.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">
+              Size
+            </Label>
+            <Input
+              id="name"
+              defaultValue="large"
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="username" className="text-right">
+             color
+            </Label>
+            <Input
+              id="username"
+              defaultValue="green"
+              className="col-span-3"
+            />
+
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="username" className="text-right">
+             Qty
+            </Label>
+            <Input
+              id="username"
+              defaultValue="0"
+              className="col-span-3"
+            />
+            
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="username" className="text-right">
+             img
+            </Label>
+             <button>
+                          <image
+                            alt="Product image"
+                            className="aspect-square w-full rounded-md object-cover"
+                            height="84"
+                            src="/placeholder.svg"
+                            width="84"
+                          />
+                        </button>
+            
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="submit">Add</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
                   </CardFooter>
                 </Card>
                 <Card>
@@ -540,29 +648,29 @@ export function AddProductPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-2">
-                      <image
+                      <img
                         alt="Product image"
                         className="aspect-square w-full rounded-md object-cover"
                         height="300"
-                        src="/placeholder.svg"
+                        src="/Images/testimage.png"
                         width="300"
                       />
                       <div className="grid grid-cols-3 gap-2">
                         <button>
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square w-full rounded-md object-cover"
                             height="84"
-                            src="/placeholder.svg"
+                            src="/Images/testimage.png"
                             width="84"
                           />
                         </button>
                         <button>
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square w-full rounded-md object-cover"
                             height="84"
-                            src="/placeholder.svg"
+                            src="/Images/testimage.png"
                             width="84"
                           />
                         </button>

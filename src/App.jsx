@@ -4,6 +4,7 @@ import ProductPage from './components/DashboardSubPages/ProductPage';
 import Shop from './components/Dashboard/Shop';
 import ServicesPage from './components/DashboardSubPages/ServicesPage';
 import AddProductPage from './components/DashboardSubPages/AddProductPage';
+import Customers from './components/DashboardSubPages/Customers';
 
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
    <Route exact path="/Shop" element={<Shop/>}/> 
    <Route exact path="/ServicesPage" element={<ServicesPage/>}/> 
    <Route exact path="/AddProductPage" element={<AddProductPage/>}/> 
+   <Route exact path="/Customers" element={<Customers/>}/> 
    </Routes>
  </div>
  </Router>

@@ -246,8 +246,8 @@ export function ProductPage() {
                 size="icon"
                 className="overflow-hidden rounded-full"
               >
-                <image
-                  src="/placeholder-user.jpg"
+                <img
+                  src="/Images/testimage.png"
                   width={36}
                   height={36}
                   alt="Avatar"
@@ -348,7 +348,7 @@ export function ProductPage() {
                     <TableBody>
                       <TableRow>
                         <TableCell className="hidden sm:table-cell">
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square rounded-md object-cover"
                             height="64"
@@ -393,11 +393,11 @@ export function ProductPage() {
                       </TableRow>
                       <TableRow>
                         <TableCell className="hidden sm:table-cell">
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square rounded-md object-cover"
                             height="64"
-                            src="/placeholder.svg"
+                            src="/Images/testimage.png"
                             width="64"
                           />
                         </TableCell>
@@ -438,11 +438,11 @@ export function ProductPage() {
                       </TableRow>
                       <TableRow>
                         <TableCell className="hidden sm:table-cell">
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square rounded-md object-cover"
                             height="64"
-                            src="/placeholder.svg"
+                            src="/Images/testimage.png"
                             width="64"
                           />
                         </TableCell>
@@ -483,11 +483,11 @@ export function ProductPage() {
                       </TableRow>
                       <TableRow>
                         <TableCell className="hidden sm:table-cell">
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square rounded-md object-cover"
                             height="64"
-                            src="/placeholder.svg"
+                            src="/Images/testimage.png"
                             width="64"
                           />
                         </TableCell>
@@ -528,11 +528,11 @@ export function ProductPage() {
                       </TableRow>
                       <TableRow>
                         <TableCell className="hidden sm:table-cell">
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square rounded-md object-cover"
                             height="64"
-                            src="/placeholder.svg"
+                            src="/Images/testimage.png"
                             width="64"
                           />
                         </TableCell>
@@ -573,11 +573,11 @@ export function ProductPage() {
                       </TableRow>
                       <TableRow>
                         <TableCell className="hidden sm:table-cell">
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square rounded-md object-cover"
                             height="64"
-                            src="/placeholder.svg"
+                            src="/Images/testimage.png"
                             width="64"
                           />
                         </TableCell>

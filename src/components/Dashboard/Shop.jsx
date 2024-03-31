@@ -160,7 +160,7 @@ export function Shop () {
             </CardHeader>
           </Card>
           </Link>
-          <Link>
+          <Link to="/Customers">
           <Card>
           <CardHeader className=" items-center  space-y-0 pb-2">       
                <Users className="h-10 w-10  font-bold" />
