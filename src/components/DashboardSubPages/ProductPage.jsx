@@ -363,7 +363,7 @@ export function ProductPage() {
                           <Badge variant="outline">Draft</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $499.99
+                          ₦499.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           25
@@ -408,7 +408,7 @@ export function ProductPage() {
                           <Badge variant="outline">Active</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $129.99
+                          ₦129.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           100
@@ -453,7 +453,7 @@ export function ProductPage() {
                           <Badge variant="outline">Active</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $39.99
+                          ₦39.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           50
@@ -498,7 +498,7 @@ export function ProductPage() {
                           <Badge variant="secondary">Draft</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $2.99
+                          ₦2.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           0
@@ -543,7 +543,7 @@ export function ProductPage() {
                           <Badge variant="outline">Active</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $59.99
+                          ₦59.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           75
@@ -588,7 +588,7 @@ export function ProductPage() {
                           <Badge variant="outline">Active</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $199.99
+                          ₦199.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           30

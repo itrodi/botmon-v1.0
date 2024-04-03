@@ -283,16 +283,16 @@ export function AddProductPage() {
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           <div className="mx-auto grid max-w-[59rem] flex-1 auto-rows-max gap-4">
             <div className="flex items-center gap-4">
+              <Link to="/ProductPage">
               <Button variant="outline" size="icon" className="h-7 w-7">
                 <ChevronLeft className="h-4 w-4" />
                 <span className="sr-only">Back</span>
               </Button>
+              </Link>
               <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-                Pro Controller
+                Edit Product
               </h1>
-              <Badge variant="outline" className="ml-auto sm:ml-0">
-                In stock
-              </Badge>
+              
               <div className="hidden items-center gap-2 md:ml-auto md:flex">
                 <Button variant="outline" size="sm">
                   Discard
@@ -363,14 +363,24 @@ export function AddProductPage() {
                            </TableBody>
                            </Table>
                       </div>
+                      <div className="grid gap-3">
+                        <Label htmlFor="name">Product link</Label>
+                        <Input
+                          id="Productlink"
+                          type="text"
+                          className="w-full"
+                          defaultValue="https://googledrive.com"
+                        />
+                      </div>
                     </div>
+                    
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Stock</CardTitle>
+                    <CardTitle>Product variation</CardTitle>
                     <CardDescription>
-                      Lipsum dolor sit amet, consectetur adipiscing elit
+                      Enter the properties for different variation of your products
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -408,16 +418,8 @@ export function AddProductPage() {
                               defaultValue="99.99"
                             />
                           </TableCell>
-                          <TableCell>
-                            <ToggleGroup
-                              type="single"
-                              defaultValue="s"
-                              variant="outline"
-                            >
-                              <ToggleGroupItem value="s">S</ToggleGroupItem>
-                              <ToggleGroupItem value="m">M</ToggleGroupItem>
-                              <ToggleGroupItem value="l">L</ToggleGroupItem>
-                            </ToggleGroup>
+                          <TableCell className="font-semibold">
+                           large
                           </TableCell>
                         </TableRow>
                         <TableRow>
@@ -444,16 +446,8 @@ export function AddProductPage() {
                               defaultValue="99.99"
                             />
                           </TableCell>
-                          <TableCell>
-                            <ToggleGroup
-                              type="single"
-                              defaultValue="m"
-                              variant="outline"
-                            >
-                              <ToggleGroupItem value="s">S</ToggleGroupItem>
-                              <ToggleGroupItem value="m">M</ToggleGroupItem>
-                              <ToggleGroupItem value="l">L</ToggleGroupItem>
-                            </ToggleGroup>
+                          <TableCell className="font-semibold">
+                            36
                           </TableCell>
                         </TableRow>
                         <TableRow>
@@ -480,16 +474,8 @@ export function AddProductPage() {
                               defaultValue="99.99"
                             />
                           </TableCell>
-                          <TableCell>
-                            <ToggleGroup
-                              type="single"
-                              defaultValue="s"
-                              variant="outline"
-                            >
-                              <ToggleGroupItem value="s">S</ToggleGroupItem>
-                              <ToggleGroupItem value="m">M</ToggleGroupItem>
-                              <ToggleGroupItem value="l">L</ToggleGroupItem>
-                            </ToggleGroup>
+                          <TableCell className="font-semibold">
+                            small
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -548,11 +534,11 @@ export function AddProductPage() {
              img
             </Label>
              <button>
-                          <image
+                          <img
                             alt="Product image"
                             className="aspect-square w-full rounded-md object-cover"
                             height="84"
-                            src="/placeholder.svg"
+                            src="/public/Images/testimage.png"
                             width="84"
                           />
                         </button>
@@ -588,6 +574,9 @@ export function AddProductPage() {
                             </SelectItem>
                             <SelectItem value="accessories">
                               Accessories
+                            </SelectItem>
+                            <SelectItem value="DigitalProduct">
+                              Digital product
                             </SelectItem>
                           </SelectContent>
                         </Select>
@@ -680,20 +669,6 @@ export function AddProductPage() {
                         </button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Archive Product</CardTitle>
-                    <CardDescription>
-                      Lipsum dolor sit amet, consectetur adipiscing elit.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div></div>
-                    <Button size="sm" variant="secondary">
-                      Archive Product
-                    </Button>
                   </CardContent>
                 </Card>
               </div>

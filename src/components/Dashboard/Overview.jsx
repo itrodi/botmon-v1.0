@@ -176,7 +176,7 @@ export function Overview() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231.89</div>
+              <div className="text-2xl font-bold">₦45,231.89</div>
               <p className="text-xs text-muted-foreground">
                 +20.1% from last month
               </p>
@@ -273,7 +273,7 @@ export function Overview() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-23
                     </TableCell>
-                    <TableCell className="text-right">$250.00</TableCell>
+                    <TableCell className="text-right">₦250.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
@@ -293,7 +293,7 @@ export function Overview() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-24
                     </TableCell>
-                    <TableCell className="text-right">$150.00</TableCell>
+                    <TableCell className="text-right">₦150.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
@@ -313,7 +313,7 @@ export function Overview() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-25
                     </TableCell>
-                    <TableCell className="text-right">$350.00</TableCell>
+                    <TableCell className="text-right">₦350.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
@@ -333,7 +333,7 @@ export function Overview() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-26
                     </TableCell>
-                    <TableCell className="text-right">$450.00</TableCell>
+                    <TableCell className="text-right">₦450.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
@@ -353,7 +353,7 @@ export function Overview() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-27
                     </TableCell>
-                    <TableCell className="text-right">$550.00</TableCell>
+                    <TableCell className="text-right">₦550.00</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -377,7 +377,7 @@ export function Overview() {
                     olivia.martin@email.com
                   </p>
                 </div>
-                <div className="ml-auto font-medium">+$1,999.00</div>
+                <div className="ml-auto font-medium">+₦1,999.00</div>
               </div>
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
@@ -392,7 +392,7 @@ export function Overview() {
                     jackson.lee@email.com
                   </p>
                 </div>
-                <div className="ml-auto font-medium">+$39.00</div>
+                <div className="ml-auto font-medium">+₦39.00</div>
               </div>
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
@@ -407,7 +407,7 @@ export function Overview() {
                     isabella.nguyen@email.com
                   </p>
                 </div>
-                <div className="ml-auto font-medium">+$299.00</div>
+                <div className="ml-auto font-medium">+₦299.00</div>
               </div>
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
@@ -422,7 +422,7 @@ export function Overview() {
                     will@email.com
                   </p>
                 </div>
-                <div className="ml-auto font-medium">+$99.00</div>
+                <div className="ml-auto font-medium">+₦99.00</div>
               </div>
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
@@ -437,7 +437,7 @@ export function Overview() {
                     sofia.davis@email.com
                   </p>
                 </div>
-                <div className="ml-auto font-medium">+$39.00</div>
+                <div className="ml-auto font-medium">+₦39.00</div>
               </div>
             </CardContent>
           </Card>

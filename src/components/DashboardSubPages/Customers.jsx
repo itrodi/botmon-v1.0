@@ -8,9 +8,9 @@ import {
   Package,
   Package2,
   PanelLeft,
-  PlusCircle,
   Search,
   Settings,
+  PlusCircle,
   ShoppingCart,
   Users2,
 } from "lucide-react"
@@ -240,8 +240,8 @@ export function Customers() {
                 size="icon"
                 className="overflow-hidden rounded-full"
               >
-                <image
-                  src="/placeholder-user.jpg"
+                <img
+                  src="/Public/Images/testimage.png"
                   width={36}
                   height={36}
                   alt="Avatar"
@@ -259,7 +259,23 @@ export function Customers() {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
+        
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        <Tabs defaultValue="all">
+            <div className="flex items-center">
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+              </TabsList>
+              <div className="ml-auto flex items-center gap-2">
+                <Button size="sm" variant="outline" className="h-8 gap-1">
+                  <File className="h-3.5 w-3.5" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    Export List
+                  </span>
+                </Button>
+              </div>
+            </div>
+            </Tabs>
               <Card>
                 <CardHeader>
                   <CardTitle>Customers</CardTitle>
@@ -275,12 +291,12 @@ export function Customers() {
                           <span className="sr-only">Image</span>
                         </TableHead>
                         <TableHead>Customer Name</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Address</TableHead>
                         <TableHead className="hidden md:table-cell">
-                          Price
+                         Transaction Volume
                         </TableHead>
                         <TableHead className="hidden md:table-cell">
-                          Total Sales
+                          Total items bought
                         </TableHead>
                         <TableHead className="hidden md:table-cell">
                           Created at
@@ -302,13 +318,13 @@ export function Customers() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          Laser Lemonade Machine
+                         John Fisher
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">Draft</Badge>
+                          No 15 gbagada express ore lagos state
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $499.99
+                          ₦499.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           25
@@ -330,6 +346,7 @@ export function Customers() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem>View details</DropdownMenuItem>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -347,13 +364,13 @@ export function Customers() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          Hypernova Headphones
+                          James scott
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">Active</Badge>
+                        No 15 gbagada express ore lagos state
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $129.99
+                        ₦129.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           100
@@ -375,6 +392,7 @@ export function Customers() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem>View details</DropdownMenuItem>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -392,13 +410,13 @@ export function Customers() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          AeroGlow Desk Lamp
+                          Tobi adegoke
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">Active</Badge>
+                         No 15 gbagada express ore lagos state
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $39.99
+                         ₦39.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           50
@@ -420,6 +438,7 @@ export function Customers() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem>View details</DropdownMenuItem>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -437,13 +456,13 @@ export function Customers() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          TechTonic Energy Drink
+                          Yetunde Ali
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">Draft</Badge>
+                         No 15 gbagada express ore lagos state
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $2.99
+                          ₦2.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           0
@@ -465,6 +484,7 @@ export function Customers() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem>View details</DropdownMenuItem>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -482,13 +502,13 @@ export function Customers() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          Gamer Gear Pro Controller
+                         adanma anifite
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">Active</Badge>
+                        No 15 gbagada express ore lagos state
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $59.99
+                        ₦59.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           75
@@ -510,6 +530,7 @@ export function Customers() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem>View details</DropdownMenuItem>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -527,13 +548,13 @@ export function Customers() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          Luminous VR Headset
+                          Akpang james
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">Active</Badge>
+                        No 15 gbagada express ore lagos state
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $199.99
+                        ₦199.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           30
@@ -555,6 +576,7 @@ export function Customers() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem>View details</DropdownMenuItem>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>

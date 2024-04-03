@@ -363,7 +363,7 @@ export function ServicesPage() {
                           <Badge variant="outline">Draft</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $499.99
+                           ₦499.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           25
@@ -408,7 +408,7 @@ export function ServicesPage() {
                           <Badge variant="outline">Active</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          $129.99
+                          ₦129.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           100
