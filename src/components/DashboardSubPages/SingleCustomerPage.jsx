@@ -279,7 +279,7 @@ export function SingleCustomerPage() {
             </Tabs>
               <Card>
                 <CardHeader>
-                  <CardTitle>Customers</CardTitle>
+                  
                 </CardHeader>
                 <CardContent>
                 <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
@@ -290,7 +290,82 @@ export function SingleCustomerPage() {
               </div>
             </CardHeader>
             <CardContent>
-              
+            <div className="flex flex-col items-start max-w-[549px]">
+  <div className="self-stretch mt-8 w-full max-md:max-w-full">
+    <div className="flex gap-5 max-md:flex-col max-md:gap-0">
+      <div className="flex flex-col w-[19%] max-md:ml-0 max-md:w-full">
+        <img
+          loading="lazy"
+          src="https://cdn.builder.io/api/v1/image/assets/TEMP/77b3f86e123c4396a0c693f7dee92e9c988986d893f6053a52550453d3941f3a?apiKey=2c70127cfa78431083e64757115c9f8b&"
+          className="shrink-0 max-w-full rounded-full aspect-square w-[100px] max-md:mt-6"
+        />
+      </div>
+      <div className="flex flex-col ml-0 w-[81%] max-md:ml-0 max-md:w-full">
+        <div className="flex flex-col self-stretch  my-auto max-md:mt-10 max-md:max-w-full">
+          <div className="text-xl font-medium text-slate-900 max-md:max-w-full">
+            Ahmad Garba
+          </div>
+          <div className="flex gap-2  mt-4 text-base text-neutral-400 max-md:flex-wrap">
+            <div className="flex gap-1 justify-center whitespace-nowrap">
+              <img
+                loading="lazy"
+                src="https://cdn.builder.io/api/v1/image/assets/TEMP/465ef6195979eddd22307e6b5345501f607fd4ee318ec3d2ab9248e0a372dc1a?apiKey=2c70127cfa78431083e64757115c9f8b&"
+                className="shrink-0 self-start w-5 aspect-square"
+              />
+              <h6>ahmady012@gmail.com</h6>
+            </div>
+            <div className="flex gap-1 justify-center">
+              <img
+                loading="lazy"
+                src="https://cdn.builder.io/api/v1/image/assets/TEMP/61339394ee84bca66148d37669457fba04042cbe551527eab3ea4a6e3db2502c?apiKey=2c70127cfa78431083e64757115c9f8b&"
+                className="shrink-0 self-start w-5 aspect-square"
+              />
+              <div>09025100200 </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div className="mt-12 text-base font-medium tracking-wider uppercase text-slate-900 max-md:mt-10">
+    address
+  </div>
+  <div className="flex gap-5 justify-center pr-5 mt-6 text-base text-slate-900">
+    <img
+      loading="lazy"
+      src="https://cdn.builder.io/api/v1/image/assets/TEMP/8054c7884b562a0d9d450099082f8c29c4b25af2986d0dd87cafec53a98bbaa9?apiKey=2c70127cfa78431083e64757115c9f8b&"
+      className="shrink-0 self-start w-5 aspect-square"
+    />
+    <div>No 20, Palmgroove road, Lagos, Nigeria</div>
+  </div>
+  <div className="mt-10 text-base font-medium tracking-wider uppercase text-slate-900">
+    other details
+  </div>
+  <div className="flex gap-5 justify-center pr-5 mt-6 text-base text-slate-900">
+    <img
+      loading="lazy"
+      src="https://cdn.builder.io/api/v1/image/assets/TEMP/928c5183422172c7b73cc5017da82cbe98c409ba76b96163fa222b33d5a1857e?apiKey=2c70127cfa78431083e64757115c9f8b&"
+      className="shrink-0 self-start w-5 aspect-square"
+    />
+    <div>24 Product</div>
+  </div>
+  <div className="flex gap-5 justify-between pr-5 mt-6 text-base whitespace-nowrap text-slate-900">
+    <img
+      loading="lazy"
+      src="https://cdn.builder.io/api/v1/image/assets/TEMP/e8c18061c1749457df8ee19232955fcd7097fcc243f29f7f6c5c79782f6f3adc?apiKey=2c70127cfa78431083e64757115c9f8b&"
+      className="shrink-0 self-start w-5 aspect-square"
+    />
+    <div>@joe2023</div>
+  </div>
+  <div className="flex gap-5 justify-center pr-5 mt-6 text-base whitespace-nowrap text-slate-900">
+    <img
+      loading="lazy"
+      src="https://cdn.builder.io/api/v1/image/assets/TEMP/9f54e375c3a690ecb03ad3cf3f70f96497fa334db221da40944aed1c467976f6?apiKey=2c70127cfa78431083e64757115c9f8b&"
+      className="shrink-0 self-start w-5 aspect-square"
+    />
+    <div>@joe2023</div>
+  </div>
+</div>
             </CardContent>
           </Card>
           <Card className="xl:col-span-2">
@@ -328,9 +403,9 @@ export function SingleCustomerPage() {
                 <TableBody>
                   <TableRow>
                     <TableCell>
-                      <div className="font-medium">Liam Johnson</div>
+                      <div className="font-medium">Iphone pro max</div>
                       <div className="hidden text-sm text-muted-foreground md:inline">
-                        liam@example.com
+                        12th may 2022
                       </div>
                     </TableCell>
                     <TableCell className="hidden xl:table-column">
@@ -344,13 +419,13 @@ export function SingleCustomerPage() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-23
                     </TableCell>
-                    <TableCell className="text-right">₦250.00</TableCell>
+                    <TableCell className="text-right">₦250000.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
-                      <div className="font-medium">Olivia Smith</div>
+                      <div className="font-medium">Mac book pro</div>
                       <div className="hidden text-sm text-muted-foreground md:inline">
-                        olivia@example.com
+                        10th april 2022
                       </div>
                     </TableCell>
                     <TableCell className="hidden xl:table-column">
@@ -364,13 +439,13 @@ export function SingleCustomerPage() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-24
                     </TableCell>
-                    <TableCell className="text-right">₦150.00</TableCell>
+                    <TableCell className="text-right">₦150000.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
-                      <div className="font-medium">Noah Williams</div>
+                      <div className="font-medium">samsung s7 edge</div>
                       <div className="hidden text-sm text-muted-foreground md:inline">
-                        noah@example.com
+                        1 april 2022
                       </div>
                     </TableCell>
                     <TableCell className="hidden xl:table-column">
@@ -384,13 +459,13 @@ export function SingleCustomerPage() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-25
                     </TableCell>
-                    <TableCell className="text-right">₦350.00</TableCell>
+                    <TableCell className="text-right">₦350000.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
-                      <div className="font-medium">Emma Brown</div>
+                      <div className="font-medium">ps5 pro</div>
                       <div className="hidden text-sm text-muted-foreground md:inline">
-                        emma@example.com
+                        30th march 2022
                       </div>
                     </TableCell>
                     <TableCell className="hidden xl:table-column">
@@ -404,13 +479,13 @@ export function SingleCustomerPage() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-26
                     </TableCell>
-                    <TableCell className="text-right">₦450.00</TableCell>
+                    <TableCell className="text-right">₦450000.00</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
-                      <div className="font-medium">Liam Johnson</div>
+                      <div className="font-medium">Air pod Max</div>
                       <div className="hidden text-sm text-muted-foreground md:inline">
-                        liam@example.com
+                        22th march 2022
                       </div>
                     </TableCell>
                     <TableCell className="hidden xl:table-column">
@@ -424,7 +499,7 @@ export function SingleCustomerPage() {
                     <TableCell className="hidden md:table-cell lg:hidden xl:table-column">
                       2023-06-27
                     </TableCell>
-                    <TableCell className="text-right">₦550.00</TableCell>
+                    <TableCell className="text-right">₦55000.00</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>

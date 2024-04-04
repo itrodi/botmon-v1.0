@@ -170,7 +170,7 @@ export function Shop () {
             </CardHeader>
           </Card>
           </Link>
-          <Link>
+          <Link to="/Orders">
           <Card>
           <CardHeader className=" items-center  space-y-0 pb-2">       
                <ShoppingCart className="h-10 w-10  font-bold" />

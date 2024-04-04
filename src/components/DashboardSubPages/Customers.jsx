@@ -318,13 +318,13 @@ export function Customers() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                         John Fisher
+                        Ahmad Garba
                         </TableCell>
                         <TableCell>
-                          No 15 gbagada express ore lagos state
+                          No 20, Palmgroove road, Lagos, Nigeria
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          ₦499.99
+                          ₦49900000
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           25
@@ -346,7 +346,9 @@ export function Customers() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/SingleCustomerPage">
                               <DropdownMenuItem>View details</DropdownMenuItem>
+                              </Link>
                               <DropdownMenuItem>Edit</DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
