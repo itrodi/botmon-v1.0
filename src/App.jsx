@@ -6,6 +6,7 @@ import AddProductPage from './components/DashboardSubPages/AddProductPage';
 import Customers from './components/DashboardSubPages/Customers';
 import SingleCustomerPage from './components/DashboardSubPages/SingleCustomerPage';
 import Orders from './components/DashboardSubPages/Orders';
+import ServicesPage from './components/DashboardSubPages/ServicesPage';
 
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
    <Route exact path="/Customers" element={<Customers/>}/> 
    <Route exact path="/SingleCustomerPage" element={<SingleCustomerPage/>}/>
    <Route exact path="/Orders" element={<Orders/>}/>
+   <Route exact path="/ServicesPage" element={<ServicesPage/>}/>
 
    </Routes>
  </div>
