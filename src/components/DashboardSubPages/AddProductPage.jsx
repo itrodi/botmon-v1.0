@@ -242,8 +242,8 @@ export function AddProductPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[100px]">SKU</TableHead>
-                          <TableHead>Stock</TableHead>
+                          <TableHead className="w-[100px]">Color</TableHead>
+                          <TableHead>Quantity</TableHead>
                           <TableHead>Price</TableHead>
                           <TableHead className="w-[100px]">Size</TableHead>
                         </TableRow>
@@ -251,7 +251,7 @@ export function AddProductPage() {
                       <TableBody>
                         <TableRow>
                           <TableCell className="font-semibold">
-                            GGPC-001
+                            Green
                           </TableCell>
                           <TableCell>
                             <Label htmlFor="stock-1" className="sr-only">
@@ -279,7 +279,7 @@ export function AddProductPage() {
                         </TableRow>
                         <TableRow>
                           <TableCell className="font-semibold">
-                            GGPC-002
+                           yellow
                           </TableCell>
                           <TableCell>
                             <Label htmlFor="stock-2" className="sr-only">
@@ -307,7 +307,7 @@ export function AddProductPage() {
                         </TableRow>
                         <TableRow>
                           <TableCell className="font-semibold">
-                            GGPC-003
+                            blue
                           </TableCell>
                           <TableCell>
                             <Label htmlFor="stock-3" className="sr-only">
@@ -364,7 +364,7 @@ export function AddProductPage() {
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="username" className="text-right">
-             color
+             Color
             </Label>
             <Input
               id="username"
@@ -383,10 +383,22 @@ export function AddProductPage() {
               className="col-span-3"
             />
             
+            
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="username" className="text-right">
-             img
+             Price
+            </Label>
+            <Input
+              id="username"
+              defaultValue="0"
+              className="col-span-3"
+            />
+            
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="username" className="text-right">
+             Img
             </Label>
              <button>
                           <img

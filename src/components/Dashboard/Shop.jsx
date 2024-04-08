@@ -49,12 +49,12 @@ export function Shop () {
             </CardHeader>
           </Card>
           </Link>
-          <Link to="/ServicesPage">
+          <Link to="/Bookings">
           <Card>
           <CardHeader className=" items-center  space-y-0 pb-2">       
                <Users className="h-10 w-10  font-bold" />
               <CardTitle className="text-2xl font-bold ">
-               Services
+               Bookings
               </CardTitle> 
             </CardHeader>
           </Card>

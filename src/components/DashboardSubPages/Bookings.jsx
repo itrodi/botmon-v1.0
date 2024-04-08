@@ -62,10 +62,10 @@ import {
 } from "@/components/ui/dialog"
   import MobileSidebar from '../MobileSidebar';
   import Sidebar from '../Sidebar';  
-import OrderDetailSheet from '../BookingDetails';
 
 
-export function Orders() {
+
+export function Bookings() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Sidebar />
@@ -87,7 +87,7 @@ export function Orders() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Orders</BreadcrumbPage>
+                <BreadcrumbPage>Bookings</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -166,9 +166,9 @@ export function Orders() {
             <TabsContent value="all">
               <Card>
                 <CardHeader>
-                  <CardTitle>Orders</CardTitle>
+                  <CardTitle>Bookings</CardTitle>
                   <CardDescription>
-                    Manage your Orders and Bookings here.
+                    Manage your  Bookings here.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -178,7 +178,7 @@ export function Orders() {
                         <TableHead className="hidden w-[100px] sm:table-cell">
                           <span className="sr-only">Image</span>
                         </TableHead>
-                        <TableHead>Product Name</TableHead>
+                        <TableHead>Service</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="hidden md:table-cell">
                           Price
@@ -204,7 +204,7 @@ export function Orders() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          Laser Lemonade Machine
+                          Consultation
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">Pending</Badge>
@@ -216,8 +216,8 @@ export function Orders() {
                           tolu akinjobi
                         </TableCell>
                         <TableCell>
-                          <Link to="/OrdersDialog">
-                        <Button variant="outline">Manage order</Button>
+                          <Link to="/BookingDetails">
+                        <Button variant="outline">Manage Booking</Button>
                         </Link>
                         </TableCell>
                       </TableRow>
@@ -232,7 +232,7 @@ export function Orders() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          Laptop
+                          Laptop Repair
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">Active</Badge>
@@ -260,7 +260,7 @@ export function Orders() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          AeroGlow Desk Lamp
+                          Iphone Repair
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">Active</Badge>
@@ -288,7 +288,7 @@ export function Orders() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          TechTonic Energy Drink
+                          Phone swap
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">Draft</Badge>
@@ -325,7 +325,7 @@ export function Orders() {
                           ₦59.99
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                         sosa scott
+                         Phone Update
                         </TableCell>
                         <TableCell>
                         <Link to="/OrdersDialog">
@@ -344,7 +344,7 @@ export function Orders() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          Luminous VR Headset
+                          Ipad repairs
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">Active</Badge>
@@ -378,4 +378,4 @@ export function Orders() {
     </div>
   )
 }
-export default Orders;
+export default Bookings;

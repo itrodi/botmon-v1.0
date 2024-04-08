@@ -7,6 +7,9 @@ import Customers from './components/DashboardSubPages/Customers';
 import SingleCustomerPage from './components/DashboardSubPages/SingleCustomerPage';
 import Orders from './components/DashboardSubPages/Orders';
 import ServicesPage from './components/DashboardSubPages/ServicesPage';
+import OrdersDialog from './components/OrdersDialog';
+import Bookings from './components/DashboardSubPages/Bookings';
+import BookingDetails from './components/BookingDetails';
 
 
 function App() {
@@ -23,6 +26,9 @@ function App() {
    <Route exact path="/SingleCustomerPage" element={<SingleCustomerPage/>}/>
    <Route exact path="/Orders" element={<Orders/>}/>
    <Route exact path="/ServicesPage" element={<ServicesPage/>}/>
+   <Route exact path="/OrdersDialog" element={<OrdersDialog/>}/>
+   <Route exact path="/Bookings" element={<Bookings/>}/>
+   <Route exact path="/BookingDetails" element={<BookingDetails/>}/>
 
    </Routes>
  </div>
