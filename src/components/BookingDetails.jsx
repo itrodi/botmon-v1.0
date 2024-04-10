@@ -94,13 +94,15 @@ const BookingDetails = () => {
                       </span>
                       <span>$250.00</span>
                     </li>
-                    <li >
-                      <span>
-                        Booking Description 
+                  </ul>
+                  <Separator className="my-2" />
+                  <div className="font-semibold">Booking Description</div>
+                  <ul className="grid gap-3">
+                    <li className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        we need a qualified engineer to help fix our samsung mobile phone which got stucked in water.
                       </span>
-                      <div className="text-muted-foreground">
-                        We need you to help us repair our phone it fell into water
-                      </div>
+                      
                     </li>
                   </ul>
                   <Separator className="my-2" />
@@ -110,11 +112,7 @@ const BookingDetails = () => {
                       <span>$299.00</span>
                     </li>
                     <li className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Shipping</span>
-                      <span>$5.00</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Tax</span>
+                      <span className="text-muted-foreground">VAT</span>
                       <span>$25.00</span>
                     </li>
                     <li className="flex items-center justify-between font-semibold">

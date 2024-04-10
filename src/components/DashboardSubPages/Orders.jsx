@@ -168,7 +168,7 @@ export function Orders() {
                 <CardHeader>
                   <CardTitle>Orders</CardTitle>
                   <CardDescription>
-                    Manage your Orders and Bookings here.
+                    Manage your Orders here.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

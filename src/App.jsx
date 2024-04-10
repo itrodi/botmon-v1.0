@@ -10,6 +10,8 @@ import ServicesPage from './components/DashboardSubPages/ServicesPage';
 import OrdersDialog from './components/OrdersDialog';
 import Bookings from './components/DashboardSubPages/Bookings';
 import BookingDetails from './components/BookingDetails';
+import Notifications from './components/Notifications';
+import AuthenticationPage from './components/Auth/AuthenticationPage';
 
 
 function App() {
@@ -18,7 +20,8 @@ function App() {
  <Router>
  <div className="App"> 
    <Routes>
-   <Route exact path="/" element={<Overview/>}/>  
+   <Route exact path="/" element={<AuthenticationPage/>}/>  
+   <Route exact path="/Overview" element={<Overview/>}/>
    <Route exact path="/ProductPage" element={<ProductPage/>}/> 
    <Route exact path="/Shop" element={<Shop/>}/> 
    <Route exact path="/AddProductPage" element={<AddProductPage/>}/> 
@@ -29,7 +32,7 @@ function App() {
    <Route exact path="/OrdersDialog" element={<OrdersDialog/>}/>
    <Route exact path="/Bookings" element={<Bookings/>}/>
    <Route exact path="/BookingDetails" element={<BookingDetails/>}/>
-
+   <Route exact path="/Notifications" element={<Notifications/>}/>
    </Routes>
  </div>
  </Router>

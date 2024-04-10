@@ -21,86 +21,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import Header from '../Header';
-import OverviewData from '../Overviewdata';
+import { Separator } from "@/components/ui/separator"
 
-
-export function Overview() {
+const Notifications = () => {
   return (
-    <div className="flex min-h-screen w-full flex-col">
-       <div>
-        <Header />
-        </div>
-       
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Revenue
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">₦45,231.89</div>
-              <p className="text-xs text-muted-foreground">
-                +20.1% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Subscriptions
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+2350</div>
-              <p className="text-xs text-muted-foreground">
-                +180.1% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sales</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+12,234</div>
-              <p className="text-xs text-muted-foreground">
-                +19% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total visits</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+573</div>
-              <p className="text-xs text-muted-foreground">
-                +201 since last hour
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-        <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-          <Card className="xl:col-span-2">
-            <CardHeader className="flex flex-row items-center">
-              <div className="grid gap-2">
-                <CardTitle>Overview</CardTitle>                
-              </div>
-            </CardHeader>
-            <CardContent>
-              <OverviewData />
-            </CardContent>
-          </Card>
-          <Card>
+    <Card>
             <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
+              <CardTitle>Notifications</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-8">
               <div className="flex items-center gap-4">
@@ -118,6 +45,7 @@ export function Overview() {
                 </div>
                 <div className="ml-auto text-sm text-muted-foreground">2 minutes ago</div>
               </div>
+              <Separator className="my-4" />
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
                   <AvatarImage src="/avatars/02.png" alt="Avatar" />
@@ -133,6 +61,7 @@ export function Overview() {
                 </div>
                 <div className="ml-auto text-sm text-muted-foreground">15 minutes ago</div>
               </div>
+              <Separator className="my-4" />
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
                   <AvatarImage src="/avatars/03.png" alt="Avatar" />
@@ -148,6 +77,7 @@ export function Overview() {
                 </div>
                 <div className="ml-auto text-sm text-muted-foreground">30 minutes ago</div>
               </div>
+              <Separator className="my-4" />
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
                   <AvatarImage src="/avatars/04.png" alt="Avatar" />
@@ -163,6 +93,7 @@ export function Overview() {
                 </div>
                 <div className="ml-auto text-sm text-muted-foreground">1 hour ago</div>
               </div>
+              <Separator className="my-4" />
               <div className="flex items-center gap-4">
                 <Avatar className="hidden h-9 w-9 sm:flex">
                   <AvatarImage src="/avatars/05.png" alt="Avatar" />
@@ -180,10 +111,7 @@ export function Overview() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </main>
-    </div>
   )
 }
 
-export default Overview;
+export default Notifications

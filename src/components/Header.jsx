@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
+  Bell,
   CircleUser,
   Menu,
   Package2,
@@ -122,6 +123,12 @@ const Header = () => {
           />
         </div>
       </form>
+      <Link to="/Notifications">
+      <Button  variant="outline" size="icon">
+      <Bell className="h-5 w-5" />
+          <span className="sr-only">Toggle navigation menu</span>
+      </Button>
+      </Link>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full">

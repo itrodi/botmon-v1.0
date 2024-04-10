@@ -244,8 +244,8 @@ export function Bookings() {
                           alex scott
                         </TableCell>
                         <TableCell>
-                        <Link to="/OrdersDialog">
-                        <Button variant="outline">Manage order</Button>
+                        <Link to="/BookingDetails">
+                        <Button variant="outline">Manage Booking</Button>
                         </Link>
                         </TableCell>
                       </TableRow>
@@ -272,8 +272,8 @@ export function Bookings() {
                           duran jesse
                         </TableCell>
                         <TableCell>
-                        <Link to="/OrdersDialog">
-                        <Button variant="outline">Manage order</Button>
+                        <Link to="/BookingDetails">
+                        <Button variant="outline">Manage Booking</Button>
                         </Link>
                         </TableCell>
                       </TableRow>
@@ -300,8 +300,8 @@ export function Bookings() {
                           david maclean
                         </TableCell>
                         <TableCell>
-                        <Link to="/OrdersDialog">
-                        <Button variant="outline">Manage order</Button>
+                        <Link to="/BookingDetails">
+                        <Button variant="outline">Manage Booking</Button>
                         </Link>
                         </TableCell>
                       </TableRow>
@@ -328,8 +328,8 @@ export function Bookings() {
                          Phone Update
                         </TableCell>
                         <TableCell>
-                        <Link to="/OrdersDialog">
-                        <Button variant="outline">Manage order</Button>
+                        <Link to="/BookingDetails">
+                        <Button variant="outline">Manage Booking</Button>
                         </Link>
                         </TableCell>
                       </TableRow>
@@ -356,8 +356,8 @@ export function Bookings() {
                           rasmus hojlund
                         </TableCell>
                         <TableCell>
-                        <Link to="/OrdersDialog">
-                        <Button variant="outline">Manage order</Button>
+                        <Link to="/BookingDetails">
+                        <Button variant="outline">Manage Booking</Button>
                         </Link>
                         </TableCell>
                       </TableRow>
