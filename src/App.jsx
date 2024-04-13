@@ -12,6 +12,8 @@ import Bookings from './components/DashboardSubPages/Bookings';
 import BookingDetails from './components/BookingDetails';
 import Notifications from './components/Notifications';
 import AuthenticationPage from './components/Auth/AuthenticationPage';
+import Login from './components/Auth/Login';
+import Payments from './components/Dashboard/Payments';
 
 
 function App() {
@@ -20,7 +22,8 @@ function App() {
  <Router>
  <div className="App"> 
    <Routes>
-   <Route exact path="/" element={<AuthenticationPage/>}/>  
+   <Route exact path="/" element={<AuthenticationPage/>}/> 
+   <Route exact path="/Login" element={<Login/>}/>   
    <Route exact path="/Overview" element={<Overview/>}/>
    <Route exact path="/ProductPage" element={<ProductPage/>}/> 
    <Route exact path="/Shop" element={<Shop/>}/> 
@@ -33,6 +36,7 @@ function App() {
    <Route exact path="/Bookings" element={<Bookings/>}/>
    <Route exact path="/BookingDetails" element={<BookingDetails/>}/>
    <Route exact path="/Notifications" element={<Notifications/>}/>
+   <Route exact path="/Payments" element={<Payments/>}/>
    </Routes>
  </div>
  </Router>

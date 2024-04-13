@@ -56,7 +56,7 @@ const Header = () => {
       Chatbot
       </Link>
       <Link
-        href="#"
+        to="/Payments"
         className="text-muted-foreground transition-colors hover:text-foreground"
       >
         Payments
@@ -104,7 +104,7 @@ const Header = () => {
            Chatbot
           </Link>
           <Link
-            href="#"
+            to="/Payments"
             className="text-muted-foreground hover:text-foreground"
           >
             Payments
