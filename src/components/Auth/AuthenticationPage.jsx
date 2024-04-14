@@ -31,7 +31,7 @@ export function AuthenticationPage() {
               </div>
               <Input id="password" type="password" required />
             </div>
-            <Link to="/Overview">
+            <Link to="/Onboarding1">
             <Button type="submit" className="w-full">
               Sign Up
             </Button>

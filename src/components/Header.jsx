@@ -32,7 +32,7 @@ const Header = () => {
         <span className="sr-only">Acme Inc</span>
       </Link>
       <Link
-        to="/"
+        to="/Overview"
         className="text-foreground transition-colors hover:text-foreground"
       >
         Overview
@@ -50,7 +50,7 @@ const Header = () => {
        Messages
       </Link>
       <Link
-        href="#"
+        to="/Chatbot"
         className="text-muted-foreground transition-colors hover:text-foreground"
       >
       Chatbot
@@ -82,7 +82,7 @@ const Header = () => {
             <Package2 className="h-6 w-6" />
             <span className="sr-only">Acme Inc</span>
           </Link>
-          <Link to="/" className="hover:text-foreground">
+          <Link to="/Overview" className="hover:text-foreground">
            Overview
           </Link>
           <Link
@@ -98,7 +98,7 @@ const Header = () => {
             Messages
           </Link>
           <Link
-            href="#"
+            to="/Chatbot"
             className="text-muted-foreground hover:text-foreground"
           >
            Chatbot
@@ -139,7 +139,9 @@ const Header = () => {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <Link to="/Settings">
           <DropdownMenuItem>Settings</DropdownMenuItem>
+          </Link>
           <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem>Logout</DropdownMenuItem>

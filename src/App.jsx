@@ -14,6 +14,10 @@ import Notifications from './components/Notifications';
 import AuthenticationPage from './components/Auth/AuthenticationPage';
 import Login from './components/Auth/Login';
 import Payments from './components/Dashboard/Payments';
+import Onboarding1 from './components/Onboarding/Onboarding1';
+import Onboarding2 from './components/Onboarding/Onboarding2';
+import Settings from './components/Settings/Settings';
+import Chatbot from './components/Dashboard/Chatbot';
 
 
 function App() {
@@ -37,6 +41,11 @@ function App() {
    <Route exact path="/BookingDetails" element={<BookingDetails/>}/>
    <Route exact path="/Notifications" element={<Notifications/>}/>
    <Route exact path="/Payments" element={<Payments/>}/>
+   <Route exact path="/Onboarding1" element={<Onboarding1/>}/>
+   <Route exact path="/Onboarding2" element={<Onboarding2/>}/>
+   <Route exact path="/Settings" element={<Settings/>}/>
+   <Route exact path="/Chatbot" element={<Chatbot/>}/>
+
    </Routes>
  </div>
  </Router>

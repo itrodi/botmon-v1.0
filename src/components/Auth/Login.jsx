@@ -49,7 +49,7 @@ export function Login() {
           </div>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{" "}
-            <Link to="/">
+            <Link to="/Onboarding1">
               Sign Up
             </Link>
           </div>
