@@ -1,8 +1,11 @@
 import React from 'react'
 import { Link } from 'react-router-dom';
 import {
+  Bot,
+  CreditCard,
   Home,
   LineChart,
+  Mail,
   Package,
   Package2,
   PanelLeft,
@@ -26,46 +29,46 @@ const MobileSidebar = () => {
             <SheetContent side="left" className="sm:max-w-xs">
               <nav className="grid gap-6 text-lg font-medium">
                 <Link
-                  href="#"
+                  
                   className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
                 >
                   <Package2 className="h-5 w-5 transition-all group-hover:scale-110" />
-                  <span className="sr-only">Acme Inc</span>
+                  <span className="sr-only">Botmon</span>
                 </Link>
                 <Link
-                  href="#"
+                  to="/Overview"
                   className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                 >
                   <Home className="h-5 w-5" />
-                  Dashboard
+                  Overview
                 </Link>
                 <Link
-                  href="#"
+                  to="/Shop"
                   className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  Orders
+                  Shop
                 </Link>
                 <Link
-                  href="#"
+                to="/Messages"
                   className="flex items-center gap-4 px-2.5 text-foreground"
                 >
-                  <Package className="h-5 w-5" />
-                  Products
+                  <Mail className="h-5 w-5" />
+                  Messages
                 </Link>
                 <Link
-                  href="#"
+                  to="/Chatbot"
                   className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                 >
-                  <Users2 className="h-5 w-5" />
-                  Customers
+                  <Bot className="h-5 w-5" />
+                  Chatbot
                 </Link>
                 <Link
-                  href="#"
+                  to="/Payments"
                   className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                 >
-                  <LineChart className="h-5 w-5" />
-                  Settings
+                  <CreditCard className="h-5 w-5" />
+                 Payments
                 </Link>
               </nav>
             </SheetContent>

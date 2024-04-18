@@ -39,7 +39,7 @@ const Onboarding1 = () => {
         <div className="grid gap-6">
         <div className="flex items-center gap-4">
               <img
-                  src="/Images/testimage.png"
+                  src="/Images/facebook-x.svg"
                   width={32}
                   height={32}
                   alt="Avatar"
@@ -49,7 +49,7 @@ const Onboarding1 = () => {
               </div>
               <div className="flex items-center gap-4">
               <img
-                  src="/Images/testimage.png"
+                  src="/Images/x-logo.svg"
                   width={32}
                   height={32}
                   alt="Avatar"
@@ -59,7 +59,7 @@ const Onboarding1 = () => {
               </div>
               <div className="flex items-center gap-4">
               <img
-                  src="/Images/testimage.png"
+                  src="/Images/instagramx.svg"
                   width={32}
                   height={32}
                   alt="Avatar"
@@ -69,7 +69,7 @@ const Onboarding1 = () => {
               </div>
               <div className="flex items-center gap-4">
               <img
-                  src="/Images/testimage.png"
+                  src="/Images/whatsapp-x.svg"
                   width={32}
                   height={32}
                   alt="Avatar"

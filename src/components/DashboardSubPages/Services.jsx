@@ -54,7 +54,7 @@ import MobileSidebar from '../MobileSidebar';
 import Sidebar from '../Sidebar';
 
 
-export function ProductPage() {
+export function Services() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Sidebar />
@@ -71,12 +71,12 @@ export function ProductPage() {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link href="#">Products</Link>
+                  <Link href="#">Shop</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>All Products</BreadcrumbPage>
+                <BreadcrumbPage>Services</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -153,11 +153,11 @@ export function ProductPage() {
                     Export
                   </span>
                 </Button>
-               <Link to="/AddProductPage">
+               <Link to="/AddServices">
                 <Button size="sm" className="h-8 gap-1">
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Product
+                    Add Services
                   </span>
                 </Button>
                 </Link> 
@@ -166,9 +166,9 @@ export function ProductPage() {
             <TabsContent value="all">
               <Card>
                 <CardHeader>
-                  <CardTitle>Products</CardTitle>
+                  <CardTitle>Services</CardTitle>
                   <CardDescription>
-                    Manage your products and view their sales performance.
+                    Manage your Services here.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -181,10 +181,10 @@ export function ProductPage() {
                         <TableHead>Name</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="hidden md:table-cell">
-                          Price
+                          Cost
                         </TableHead>
                         <TableHead className="hidden md:table-cell">
-                          Total Sales
+                          Total Bookings
                         </TableHead>
                         <TableHead className="hidden md:table-cell">
                           Created at
@@ -234,9 +234,7 @@ export function ProductPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <Link to="/EditProduct">
                               <DropdownMenuItem>Edit</DropdownMenuItem>
-                              </Link>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -484,4 +482,4 @@ export function ProductPage() {
     </div>
   )
 }
-export default ProductPage;
+export default Services;

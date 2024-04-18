@@ -157,7 +157,7 @@ export function ServicesPage() {
                 <Button size="sm" className="h-8 gap-1">
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Product
+                    Add Service
                   </span>
                 </Button>
                 </Link> 
@@ -234,7 +234,9 @@ export function ServicesPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/EditService">
                               <DropdownMenuItem>Edit</DropdownMenuItem>
+                              </Link>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

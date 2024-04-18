@@ -11,6 +11,7 @@ import {
   Settings,
   ShoppingCart,
   Upload,
+  MoreHorizontal,
   Users2,
 } from "lucide-react"
 import {
@@ -74,6 +75,8 @@ import {
 } from "@/components/ui/dialog"
 import MobileSidebar from '../MobileSidebar';
 import Sidebar from '../Sidebar';
+import ProductVariation from '../ProductVariation';
+
 
 export function AddProductPage() {
   return (
@@ -145,7 +148,7 @@ export function AddProductPage() {
               </Button>
               </Link>
               <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-                Edit Product
+                Add Product
               </h1>
               
               <div className="hidden items-center gap-2 md:ml-auto md:flex">
@@ -189,6 +192,7 @@ export function AddProductPage() {
                         <TableRow>
                           <TableHead>Quantity</TableHead>
                           <TableHead>Price</TableHead>
+                          <TableHead>Weight&#40;Kg&#41;</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -206,6 +210,16 @@ export function AddProductPage() {
                           <TableCell>
                             <Label htmlFor="price-1" className="sr-only">
                               Price
+                            </Label>
+                            <Input
+                              id="price-1"
+                              type="number"
+                              defaultValue="99.99"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Label htmlFor="price-1" className="sr-only">
+                              Weight&#40;Kg&#41;
                             </Label>
                             <Input
                               id="price-1"
@@ -242,96 +256,135 @@ export function AddProductPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[100px]">Color</TableHead>
-                          <TableHead>Quantity</TableHead>
+                          <TableHead className="w-[100px]">Name</TableHead>
                           <TableHead>Price</TableHead>
+                          <TableHead>Quantity</TableHead>
                           <TableHead className="w-[100px]">Size</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         <TableRow>
                           <TableCell className="font-semibold">
-                            Green
-                          </TableCell>
-                          <TableCell>
-                            <Label htmlFor="stock-1" className="sr-only">
-                              Stock
-                            </Label>
-                            <Input
-                              id="stock-1"
-                              type="number"
-                              defaultValue="100"
-                            />
+                            Iphone 15 pro
                           </TableCell>
                           <TableCell>
                             <Label htmlFor="price-1" className="sr-only">
                               Price
                             </Label>
-                            <Input
-                              id="price-1"
-                              type="number"
-                              defaultValue="99.99"
-                            />
+                            <div>99.99</div>
+                          </TableCell>
+                          <TableCell>
+                            <Label htmlFor="price-2" className="sr-only">
+                              Quantity
+                            </Label>
+                            <div>10</div>
                           </TableCell>
                           <TableCell className="font-semibold">
                            large
                           </TableCell>
+                          <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/EditProduct">
+                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuItem>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell className="font-semibold">
-                           yellow
-                          </TableCell>
-                          <TableCell>
-                            <Label htmlFor="stock-2" className="sr-only">
-                              Stock
-                            </Label>
-                            <Input
-                              id="stock-2"
-                              type="number"
-                              defaultValue="143"
-                            />
+                           Iphone 15 pro max
                           </TableCell>
                           <TableCell>
                             <Label htmlFor="price-2" className="sr-only">
                               Price
                             </Label>
-                            <Input
-                              id="price-2"
-                              type="number"
-                              defaultValue="99.99"
-                            />
+                            <div>99.99</div>
+                          </TableCell>
+                          <TableCell>
+                            <Label htmlFor="price-2" className="sr-only">
+                              Quantity
+                            </Label>
+                            <div>10</div>
                           </TableCell>
                           <TableCell className="font-semibold">
                             36
                           </TableCell>
+                          <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/EditProduct">
+                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuItem>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell className="font-semibold">
-                            blue
-                          </TableCell>
-                          <TableCell>
-                            <Label htmlFor="stock-3" className="sr-only">
-                              Stock
-                            </Label>
-                            <Input
-                              id="stock-3"
-                              type="number"
-                              defaultValue="32"
-                            />
+                           Iphone 15 mini
                           </TableCell>
                           <TableCell>
                             <Label htmlFor="price-3" className="sr-only">
                               Stock
                             </Label>
-                            <Input
-                              id="price-3"
-                              type="number"
-                              defaultValue="99.99"
-                            />
+                            <div>99.99</div>
+                          </TableCell>
+                          <TableCell>
+                            <Label htmlFor="price-2" className="sr-only">
+                              Quantity
+                            </Label>
+                            <div>10</div>
                           </TableCell>
                           <TableCell className="font-semibold">
                             small
                           </TableCell>
+                          <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/EditProduct">
+                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuItem>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
@@ -344,78 +397,7 @@ export function AddProductPage() {
                       Add Variant
                     </Button>
                     </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Variant</DialogTitle>
-          <DialogDescription>
-            Create different size or color variation for your product.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Size
-            </Label>
-            <Input
-              id="name"
-              defaultValue="large"
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-             Color
-            </Label>
-            <Input
-              id="username"
-              defaultValue="green"
-              className="col-span-3"
-            />
-
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-             Qty
-            </Label>
-            <Input
-              id="username"
-              defaultValue="0"
-              className="col-span-3"
-            />
-            
-            
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-             Price
-            </Label>
-            <Input
-              id="username"
-              defaultValue="0"
-              className="col-span-3"
-            />
-            
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-             Img
-            </Label>
-             <button>
-                          <img
-                            alt="Product image"
-                            className="aspect-square w-full rounded-md object-cover"
-                            height="84"
-                            src="/public/Images/testimage.png"
-                            width="84"
-                          />
-                        </button>
-            
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="submit">Add</Button>
-        </DialogFooter>
-      </DialogContent>
+             <ProductVariation/>
     </Dialog>
                   </CardFooter>
                 </Card>

@@ -18,6 +18,11 @@ import Onboarding1 from './components/Onboarding/Onboarding1';
 import Onboarding2 from './components/Onboarding/Onboarding2';
 import Settings from './components/Settings/Settings';
 import Chatbot from './components/Dashboard/Chatbot';
+import ManageStore from './components/Dashboard/ManageStore';
+import Services from './components/DashboardSubPages/Services';
+import AddServicesPage from './components/DashboardSubPages/AddServicesPage';
+import EditProductPage from './components/DashboardSubPages/EditProductPage';
+import EditServices from './components/DashboardSubPages/EditServices';
 
 
 function App() {
@@ -45,6 +50,11 @@ function App() {
    <Route exact path="/Onboarding2" element={<Onboarding2/>}/>
    <Route exact path="/Settings" element={<Settings/>}/>
    <Route exact path="/Chatbot" element={<Chatbot/>}/>
+   <Route exact path="/ManageStore" element={<ManageStore/>}/>
+   <Route exact path="/Services" element={<Services/>}/>
+   <Route exact path="/AddServices" element={<AddServicesPage/>}/>
+   <Route exact path="/EditProduct" element={<EditProductPage/>}/>
+   <Route exact path="/EditService" element={<EditServices/>}/>
 
    </Routes>
  </div>

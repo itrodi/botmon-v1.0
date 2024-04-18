@@ -1,8 +1,11 @@
 import React from 'react'
 import { Link } from 'react-router-dom';
 import {
+  Bot,
+  CreditCard,
   Home,
   LineChart,
+  Mail,
   Package,
   Package2,
   Settings,
@@ -27,68 +30,68 @@ const Sidebar = () => {
             className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
           >
             <Package2 className="h-4 w-4 transition-all group-hover:scale-110" />
-            <span className="sr-only">Acme Inc</span>
+            <span className="sr-only">Botmon</span>
           </Link>
           <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="#"
+               to="/Overview"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
               >
                 <Home className="h-5 w-5" />
-                <span className="sr-only">Dashboard</span>
+                <span className="sr-only">Overview</span>
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">Dashboard</TooltipContent>
+            <TooltipContent side="right">Overview</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="#"
+                to="/Shop"
                 className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
               >
                 <ShoppingCart className="h-5 w-5" />
-                <span className="sr-only">Orders</span>
+                <span className="sr-only">Shop</span>
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">Orders</TooltipContent>
+            <TooltipContent side="right">Shop</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="#"
+                to="/Messages"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
               >
-                <Package className="h-5 w-5" />
-                <span className="sr-only">Products</span>
+                <Mail className="h-5 w-5" />
+                <span className="sr-only">Messages</span>
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">Products</TooltipContent>
+            <TooltipContent side="right">Messages</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="#"
+                to="/Chatbot"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
               >
-                <Users2 className="h-5 w-5" />
-                <span className="sr-only">Customers</span>
+                <Bot className="h-5 w-5" />
+                <span className="sr-only">Chatbot</span>
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">Customers</TooltipContent>
+            <TooltipContent side="right">Chatbot</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="#"
+                to="/Payments"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
               >
-                <LineChart className="h-5 w-5" />
-                <span className="sr-only">Analytics</span>
+                <CreditCard className="h-5 w-5" />
+                <span className="sr-only">Payments</span>
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">Analytics</TooltipContent>
+            <TooltipContent side="right">Payments</TooltipContent>
           </Tooltip>
           </TooltipProvider>
         </nav>

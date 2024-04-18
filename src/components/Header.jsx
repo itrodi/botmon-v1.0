@@ -61,6 +61,12 @@ const Header = () => {
       >
         Payments
       </Link>
+      <Link
+            to="/ManageStore"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Account
+          </Link>
     </nav>
     <Sheet>
       <SheetTrigger asChild>
@@ -108,6 +114,12 @@ const Header = () => {
             className="text-muted-foreground hover:text-foreground"
           >
             Payments
+          </Link>
+          <Link
+            to="/ManageStore"
+            className="text-muted-foreground hover:text-foreground"
+          >
+           Account
           </Link>
         </nav>
       </SheetContent>
