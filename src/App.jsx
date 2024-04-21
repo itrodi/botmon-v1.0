@@ -23,6 +23,8 @@ import Services from './components/DashboardSubPages/Services';
 import AddServicesPage from './components/DashboardSubPages/AddServicesPage';
 import EditProductPage from './components/DashboardSubPages/EditProductPage';
 import EditServices from './components/DashboardSubPages/EditServices';
+import Messages from './components/Dashboard/Messages';
+import Chatlist from './components/DashboardSubPages/Chatlist';
 
 
 function App() {
@@ -55,7 +57,8 @@ function App() {
    <Route exact path="/AddServices" element={<AddServicesPage/>}/>
    <Route exact path="/EditProduct" element={<EditProductPage/>}/>
    <Route exact path="/EditService" element={<EditServices/>}/>
-
+   <Route exact path="/Messages" element={<Messages/>}/>
+   <Route exact path="/Chats" element={<Chatlist/>}/>
    </Routes>
  </div>
  </Router>

@@ -44,7 +44,7 @@ const Header = () => {
        Shop
       </Link>
       <Link
-         
+        to="/Messages"   
         className="text-muted-foreground transition-colors hover:text-foreground"
       >
        Messages
@@ -98,7 +98,7 @@ const Header = () => {
             Shop
           </Link>
           <Link
-            
+              to="/Messages"    
             className="text-muted-foreground hover:text-foreground"
           >
             Messages
