@@ -25,6 +25,7 @@ import EditProductPage from './components/DashboardSubPages/EditProductPage';
 import EditServices from './components/DashboardSubPages/EditServices';
 import Messages from './components/Dashboard/Messages';
 import Chatlist from './components/DashboardSubPages/Chatlist';
+import PersonalDetails from './components/DashboardSubPages/Personaldetails';
 
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
    <Route exact path="/EditService" element={<EditServices/>}/>
    <Route exact path="/Messages" element={<Messages/>}/>
    <Route exact path="/Chats" element={<Chatlist/>}/>
+   <Route exact path="/PersonalDetails" element={<PersonalDetails/>}/>
    </Routes>
  </div>
  </Router>

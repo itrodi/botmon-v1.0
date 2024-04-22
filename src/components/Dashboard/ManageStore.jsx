@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 
 const ManageStore = () => {
@@ -45,75 +46,337 @@ const ManageStore = () => {
           <nav
             className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0"
           >
-            <Link href="#" className="font-semibold text-primary">
-              General
+            <Link to="/ManageStore" className="font-semibold text-primary">
+              Business Details
             </Link>
-            <Link href="#">Security</Link>
-            <Link href="#">Integrations</Link>
-            <Link href="#">Support</Link>
-            <Link href="#">Organizations</Link>
-            <Link href="#">Advanced</Link>
+            <Link to="/PersonalDetails">Personal details</Link>
+            <Link href="#">Store settings</Link>
+            <Link href="#">Bank Account</Link>
+            <Link href="#">Connect Social channels</Link>
+            <Link href="#">Advance</Link>
           </nav>
           <div className="grid gap-6">
-          <Card className="sm:col-span-2">
-      <CardHeader className="pb-3">
-        <CardTitle >  <img
-                  src="/Images/whatsapp-x.svg"
-                  width={50}
-                  height={50}
-                  alt="Avatar"
-                  className="overflow-hidden"
-                />
-                <div>Inioluwa Ventures</div>
-                </CardTitle>
-        <CardDescription className="max-w-lg text-balance leading-relaxed">
-          <div>50 products . <span className="text-green-600" >Active</span></div>
-          <div className="flex items-center gap-1 mt-4">
-            <Button size="sm" variant="outline" className="h-8 gap-1">
-              <Eye className="h-4 w-4" />
-                    <span className=" xl:not-sr-only xl:whitespace-nowrap">
-                    Preview
-                    </span>
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1">
-                  <Share2 className="h-4 w-4" />
-                    <span className=" xl:not-sr-only xl:whitespace-nowrap">
-                     Share
-                    </span>
-                  </Button>
-                  </div>
-        </CardDescription>
-        <CardContent>
-        <div className="grid gap-6">
-          <div className="grid gap-3 mt-5">
-            <Label htmlFor="description">Business Description</Label>
-            <Textarea
-              id="description"
-              defaultValue="Enter Business Description ."
-              className="min-h-32"
+   
+            <Card x-chunk="dashboard-04-chunk-2">
+              <CardHeader>
+                <CardTitle>Business Information</CardTitle>
+                <CardDescription>
+                 Edit your business information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+          <div className="grid gap-3">
+            <Label htmlFor="name">Business Name</Label>
+            <Input
+              id="name"
+              type="text"
+              className="w-full"
+              defaultValue="Enter Business Name"
             />
           </div>
-          <div className="grid gap-3">
-            <Label htmlFor="status">Category</Label>
-            <Select>
-              <SelectTrigger id="status" aria-label="Select business category">
-                <SelectValue placeholder="Select business category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Clothing and Acessories</SelectItem>
-                <SelectItem value="published">Electronics and Gadgets</SelectItem>
-                <SelectItem value="archived">Freelancer</SelectItem>
-                <SelectItem value="archived">food</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid gap-3 mt-4">
+            <Label htmlFor="name">Phone Number</Label>
+            <Input
+              id="name"
+              type="text"
+              className="w-full"
+              defaultValue="+2348185893"
+            />
           </div>
+          <div className="grid gap-3 mt-4">
+            <Label htmlFor="name">Country</Label>
+            <Select>
+                          <SelectTrigger
+                            id="Country"
+                            aria-label="Select country"
+                          >
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Nigeria">Nigeria</SelectItem>
+                            <SelectItem value="Ghana">
+                              Ghana
+                            </SelectItem>
+                            <SelectItem value="South Africa">
+                              South Africa
+                            </SelectItem>
+                            <SelectItem value="Kenya">
+                              Kenya
+                            </SelectItem>
+                          </SelectContent>
+              </Select>
+          </div>
+          <div className="grid gap-3 mt-4">
+            <Label htmlFor="name">Email Address</Label>
+            <Input
+              id="Email"
+              type="Email"
+              className="w-full"
+              defaultValue="inioluwaventures@gmail.com"
+            />
+          </div>
+          <div className="grid gap-3 mt-4">
+            <Label htmlFor="name">Business Address</Label>
+            <Input
+              id="Address"
+              type="text"
+              className="w-full"
+              defaultValue="No 15 granger street"
+            />
+          </div>
+          <div className="grid gap-3 mt-4">
+            <Label htmlFor="name">Business Category</Label>
+            <Select>
+                          <SelectTrigger
+                            id="category"
+                            aria-label="Select category"
+                          >
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="clothing">Clothing</SelectItem>
+                            <SelectItem value="electronics">
+                              Electronics
+                            </SelectItem>
+                            <SelectItem value="accessories">
+                              Accessories
+                            </SelectItem>
+                            <SelectItem value="DigitalProduct">
+                              Digital product
+                            </SelectItem>
+                          </SelectContent>
+                </Select>
+          </div>
+          <div className="grid gap-3 mt-4">
+            <Label htmlFor="name">Default Currency</Label>
+            <Select>
+                          <SelectTrigger
+                            id="Currency"
+                            aria-label="Select Currency"
+                          >
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Nigeria">NGN</SelectItem>
+                            <SelectItem value="Ghana">
+                              Cedis
+                            </SelectItem>
+                            <SelectItem value="South Africa">
+                              RWD
+                            </SelectItem>
+                            <SelectItem value="Kenya">
+                              KES
+                            </SelectItem>
+                          </SelectContent>
+              </Select>
+          </div>
+              </CardContent>
+              <CardFooter className="border-t px-6 py-4">
+                <Button>Save</Button>
+              </CardFooter>
+            </Card>
+            <Card x-chunk="dashboard-04-chunk-2">
+              <CardHeader>
+                <CardTitle>Working Hours</CardTitle>
+                <CardDescription>
+                  Please set the Day and Time which your business is usually Active
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+          <div className="grid gap-3">
+          <div class="flex items-center">
+           <Label htmlFor="name">Sunday</Label>
+           <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
         </div>
-      </CardContent>
-      </CardHeader>
-      <CardFooter>
-
-      </CardFooter>
-    </Card>
+            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+        <Label htmlFor="name" className="text-right ">
+         Open
+        </Label>
+        <Input
+          id="time"
+          defaultValue="9:00"
+          className="col-span-1 "
+        />
+         <Label htmlFor="name" className="text-right ">
+          Close
+        </Label>
+        <Input
+          id="time"
+          defaultValue="18:00"
+         className="col-span-1"
+        />
+      
+      </div>
+          </div>
+          <div className="grid gap-3 mt-5">
+          <div class="flex items-center">
+           <Label htmlFor="name">Monday</Label>
+           <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
+        </div>
+            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+        <Label htmlFor="name" className="text-right ">
+         Open
+        </Label>
+        <Input
+          id="time"
+          defaultValue="9:00"
+          className="col-span-1 "
+        />
+         <Label htmlFor="name" className="text-right ">
+          Close
+        </Label>
+        <Input
+          id="time"
+          defaultValue="18:00"
+         className="col-span-1"
+        />
+      
+      </div>
+          </div>
+          <div className="grid gap-3 mt-5">
+          <div class="flex items-center">
+           <Label htmlFor="name">Tuesday</Label>
+           <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
+        </div>
+            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+        <Label htmlFor="name" className="text-right ">
+         Open
+        </Label>
+        <Input
+          id="time"
+          defaultValue="9:00"
+          className="col-span-1 "
+        />
+         <Label htmlFor="name" className="text-right ">
+          Close
+        </Label>
+        <Input
+          id="time"
+          defaultValue="18:00"
+         className="col-span-1"
+        />
+      
+      </div>
+          </div>
+          <div className="grid gap-3 mt-5">
+          <div class="flex items-center">
+           <Label htmlFor="name">Wednesday</Label>
+           <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
+        </div>
+            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+        <Label htmlFor="name" className="text-right ">
+         Open
+        </Label>
+        <Input
+          id="time"
+          defaultValue="9:00"
+          className="col-span-1 "
+        />
+         <Label htmlFor="name" className="text-right ">
+          Close
+        </Label>
+        <Input
+          id="time"
+          defaultValue="18:00"
+         className="col-span-1"
+        />
+      
+      </div>
+          </div>
+          <div className="grid gap-3 mt-5">
+          <div class="flex items-center">
+           <Label htmlFor="name">Thursday</Label>
+           <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
+        </div>
+            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+        <Label htmlFor="name" className="text-right ">
+         Open
+        </Label>
+        <Input
+          id="time"
+          defaultValue="9:00"
+          className="col-span-1 "
+        />
+         <Label htmlFor="name" className="text-right ">
+          Close
+        </Label>
+        <Input
+          id="time"
+          defaultValue="18:00"
+         className="col-span-1"
+        />
+      
+      </div>
+          </div>
+          <div className="grid gap-3 mt-5">
+          <div class="flex items-center">
+           <Label htmlFor="name">Friday</Label>
+           <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
+        </div>
+            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+        <Label htmlFor="name" className="text-right ">
+         Open
+        </Label>
+        <Input
+          id="time"
+          defaultValue="9:00"
+          className="col-span-1 "
+        />
+         <Label htmlFor="name" className="text-right ">
+          Close
+        </Label>
+        <Input
+          id="time"
+          defaultValue="18:00"
+         className="col-span-1"
+        />
+      
+      </div>
+          </div>
+          <div className="grid gap-3 mt-5">
+          <div class="flex items-center">
+           <Label htmlFor="name">saturday</Label>
+           <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
+        </div>
+            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+        <Label htmlFor="name" className="text-right ">
+         Open
+        </Label>
+        <Input
+          id="time"
+          defaultValue="9:00"
+          className="col-span-1 "
+        />
+         <Label htmlFor="name" className="text-right ">
+          Close
+        </Label>
+        <Input
+          id="time"
+          defaultValue="18:00"
+         className="col-span-1"
+        />
+      
+      </div>
+          </div>
+              </CardContent>
+              <CardFooter className="border-t px-6 py-4">
+                <Button>Save</Button>
+              </CardFooter>
+            </Card>
             <Card x-chunk="dashboard-04-chunk-2">
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
