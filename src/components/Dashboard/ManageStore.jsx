@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CircleUser, Eye, Facebook, Instagram, Menu, Package2, Search, Share2, Twitter } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -31,7 +31,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
+import FaqVariation from '../FaqVariation';
 
 
 const ManageStore = () => {
@@ -50,7 +68,7 @@ const ManageStore = () => {
               Business Details
             </Link>
             <Link to="/PersonalDetails">Personal details</Link>
-            <Link href="#">Store settings</Link>
+            <Link to="/StoreSettings">Store settings</Link>
             <Link href="#">Bank Account</Link>
             <Link href="#">Connect Social channels</Link>
             <Link href="#">Advance</Link>
@@ -65,7 +83,21 @@ const ManageStore = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-          <div className="grid gap-3">
+              <div className="grid gap-3">
+            <Label htmlFor="name">Logo</Label>
+            <button className="flex aspect-square h-[100px] w-[100px] items-center justify-center rounded-md border border-dashed">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <span className="sr-only">Upload</span>
+              </button>
+          </div>
+           <div className="grid gap-3 mt-4">
+            <Label htmlFor="name">Banner</Label>
+            <button className="flex aspect-square h-[100px] w-[400px] items-center justify-center rounded-md border border-dashed">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <span className="sr-only">Upload</span>
+              </button>
+          </div>
+          <div className="grid gap-3 mt-4">
             <Label htmlFor="name">Business Name</Label>
             <Input
               id="name"
@@ -183,21 +215,16 @@ const ManageStore = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-          <div className="grid gap-3">
-          <div class="flex items-center">
+           <div className="grid gap-3 ">
            <Label htmlFor="name">Sunday</Label>
-           <div className="ml-5">
-            <Switch id="Sunday" />
-            </div>
-        </div>
-            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+            <div className="flex items-center gap-4 ">
         <Label htmlFor="name" className="text-right ">
          Open
         </Label>
         <Input
           id="time"
           defaultValue="9:00"
-          className="col-span-1 "
+          className="col-span-4 "
         />
          <Label htmlFor="name" className="text-right ">
           Close
@@ -205,26 +232,24 @@ const ManageStore = () => {
         <Input
           id="time"
           defaultValue="18:00"
-         className="col-span-1"
+         className="col-span-4"
         />
+        <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
       
       </div>
           </div>
-          <div className="grid gap-3 mt-5">
-          <div class="flex items-center">
+           <div className="grid gap-3 mt-4 ">
            <Label htmlFor="name">Monday</Label>
-           <div className="ml-5">
-            <Switch id="Sunday" />
-            </div>
-        </div>
-            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+            <div className="flex items-center gap-4 ">
         <Label htmlFor="name" className="text-right ">
          Open
         </Label>
         <Input
           id="time"
           defaultValue="9:00"
-          className="col-span-1 "
+          className="col-span-4 "
         />
          <Label htmlFor="name" className="text-right ">
           Close
@@ -232,26 +257,24 @@ const ManageStore = () => {
         <Input
           id="time"
           defaultValue="18:00"
-         className="col-span-1"
+         className="col-span-4"
         />
+        <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
       
       </div>
           </div>
-          <div className="grid gap-3 mt-5">
-          <div class="flex items-center">
+           <div className="grid gap-3 mt-4 ">
            <Label htmlFor="name">Tuesday</Label>
-           <div className="ml-5">
-            <Switch id="Sunday" />
-            </div>
-        </div>
-            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+            <div className="flex items-center gap-4 ">
         <Label htmlFor="name" className="text-right ">
          Open
         </Label>
         <Input
           id="time"
           defaultValue="9:00"
-          className="col-span-1 "
+          className="col-span-4 "
         />
          <Label htmlFor="name" className="text-right ">
           Close
@@ -259,26 +282,24 @@ const ManageStore = () => {
         <Input
           id="time"
           defaultValue="18:00"
-         className="col-span-1"
+         className="col-span-4"
         />
+        <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
       
       </div>
           </div>
-          <div className="grid gap-3 mt-5">
-          <div class="flex items-center">
+            <div className="grid gap-3 mt-4 ">
            <Label htmlFor="name">Wednesday</Label>
-           <div className="ml-5">
-            <Switch id="Sunday" />
-            </div>
-        </div>
-            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+            <div className="flex items-center gap-4 ">
         <Label htmlFor="name" className="text-right ">
          Open
         </Label>
         <Input
           id="time"
           defaultValue="9:00"
-          className="col-span-1 "
+          className="col-span-4 "
         />
          <Label htmlFor="name" className="text-right ">
           Close
@@ -286,26 +307,24 @@ const ManageStore = () => {
         <Input
           id="time"
           defaultValue="18:00"
-         className="col-span-1"
+         className="col-span-4"
         />
+        <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
       
       </div>
           </div>
-          <div className="grid gap-3 mt-5">
-          <div class="flex items-center">
+           <div className="grid gap-3 mt-4 ">
            <Label htmlFor="name">Thursday</Label>
-           <div className="ml-5">
-            <Switch id="Sunday" />
-            </div>
-        </div>
-            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+            <div className="flex items-center gap-4 ">
         <Label htmlFor="name" className="text-right ">
          Open
         </Label>
         <Input
           id="time"
           defaultValue="9:00"
-          className="col-span-1 "
+          className="col-span-4 "
         />
          <Label htmlFor="name" className="text-right ">
           Close
@@ -313,26 +332,24 @@ const ManageStore = () => {
         <Input
           id="time"
           defaultValue="18:00"
-         className="col-span-1"
+         className="col-span-4"
         />
+        <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
       
       </div>
           </div>
-          <div className="grid gap-3 mt-5">
-          <div class="flex items-center">
+           <div className="grid gap-3 mt-4 ">
            <Label htmlFor="name">Friday</Label>
-           <div className="ml-5">
-            <Switch id="Sunday" />
-            </div>
-        </div>
-            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+            <div className="flex items-center gap-4 ">
         <Label htmlFor="name" className="text-right ">
          Open
         </Label>
         <Input
           id="time"
           defaultValue="9:00"
-          className="col-span-1 "
+          className="col-span-4 "
         />
          <Label htmlFor="name" className="text-right ">
           Close
@@ -340,26 +357,24 @@ const ManageStore = () => {
         <Input
           id="time"
           defaultValue="18:00"
-         className="col-span-1"
+         className="col-span-4"
         />
+        <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
       
       </div>
           </div>
-          <div className="grid gap-3 mt-5">
-          <div class="flex items-center">
-           <Label htmlFor="name">saturday</Label>
-           <div className="ml-5">
-            <Switch id="Sunday" />
-            </div>
-        </div>
-            <div className="grid grid-cols-4 items-center gap-4 mr-[450px]">
+           <div className="grid gap-3 mt-4 ">
+           <Label htmlFor="name">Saturday</Label>
+            <div className="flex items-center gap-4 ">
         <Label htmlFor="name" className="text-right ">
          Open
         </Label>
         <Input
           id="time"
           defaultValue="9:00"
-          className="col-span-1 "
+          className="col-span-4 "
         />
          <Label htmlFor="name" className="text-right ">
           Close
@@ -367,8 +382,11 @@ const ManageStore = () => {
         <Input
           id="time"
           defaultValue="18:00"
-         className="col-span-1"
+         className="col-span-4"
         />
+        <div className="ml-5">
+            <Switch id="Sunday" />
+            </div>
       
       </div>
           </div>
@@ -379,30 +397,136 @@ const ManageStore = () => {
             </Card>
             <Card x-chunk="dashboard-04-chunk-2">
               <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
+                <CardTitle>FAQ</CardTitle>
                 <CardDescription>
-                  The directory within your project, in which your plugins are
-                  located.
+                  Input questions and answers that your customers usually asks
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+              <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[300px]">Question</TableHead>
+                          <TableHead className="w-[300px]">Answer</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-semibold">
+                            Do we deliver our product nationwide
+                          </TableCell>
+                          <TableCell>
+                            Yes we do 
+                          </TableCell>
+                          <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/EditProduct">
+                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuItem>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-semibold">
+                          How long does it take for you to deliver orders
+                          </TableCell>
+                          <TableCell>
+                            depending on your delivery plan if it is a normal delivery it comes in 3 days while express comes in 24hrs
+                          </TableCell>
+                          <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/EditProduct">
+                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuItem>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-semibold">
+                           How do i track my order
+                          </TableCell>
+                          <TableCell>
+                            you can track your order with the order id on your receipt via our chatbot
+                          </TableCell>
+                          <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <Link to="/EditProduct">
+                              <DropdownMenuItem>Edit</DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuItem>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                      </TableBody>
+               </Table>
+              </CardContent>
+              <CardFooter className="justify-center border-t p-4">
+              <Dialog>
+                 <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="gap-1">
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      Add Faq
+                    </Button>
+                    </DialogTrigger>
+             <FaqVariation/>
+    </Dialog>
+              </CardFooter>
+            </Card>
+             <Card x-chunk="dashboard-04-chunk-2">
+              <CardHeader>
+                <CardTitle>Business Description and Socials</CardTitle>
+                <CardDescription>
+                  Edit business description and socials details
                 </CardDescription>
               </CardHeader>
               <CardContent>
           <div className="grid gap-3">
-            <Label htmlFor="name">Physical Address</Label>
-            <Input
-              id="name"
-              type="text"
-              className="w-full"
-              defaultValue="Enter Business Name"
-            />
-          </div>
-          <div className="grid gap-3 mt-4">
-            <Label htmlFor="name">Phone Number</Label>
-            <Input
-              id="name"
-              type="text"
-              className="w-full"
-              defaultValue="Enter Business Name"
-            />
+            <Label htmlFor="name">Description</Label>
+            <Textarea
+                    id="content"
+                    className="col-span-2"
+                  />
           </div>
           <div className="grid gap-3 mt-5">
             <Label htmlFor="name">Social Media Handles</Label>
