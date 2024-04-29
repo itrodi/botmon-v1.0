@@ -26,6 +26,8 @@ import EditServices from './components/DashboardSubPages/EditServices';
 import Messages from './components/Dashboard/Messages';
 import Chatlist from './components/DashboardSubPages/Chatlist';
 import PersonalDetails from './components/DashboardSubPages/Personaldetails';
+import BankAccount from './components/DashboardSubPages/BankAccount';
+import InputBankDetails from './components/DashboardSubPages/InputBankDetails';
 
 
 function App() {
@@ -61,6 +63,8 @@ function App() {
    <Route exact path="/Messages" element={<Messages/>}/>
    <Route exact path="/Chats" element={<Chatlist/>}/>
    <Route exact path="/PersonalDetails" element={<PersonalDetails/>}/>
+   <Route exact path="/Bank" element={<BankAccount/>}/>
+   <Route exact path="/AddBank" element={<InputBankDetails/>}/>
    </Routes>
  </div>
  </Router>

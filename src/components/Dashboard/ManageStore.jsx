@@ -69,7 +69,7 @@ const ManageStore = () => {
             </Link>
             <Link to="/PersonalDetails">Personal details</Link>
             <Link to="/StoreSettings">Store settings</Link>
-            <Link href="#">Bank Account</Link>
+            <Link to="/Bank">Payments</Link>
             <Link href="#">Connect Social channels</Link>
             <Link href="#">Advance</Link>
           </nav>
