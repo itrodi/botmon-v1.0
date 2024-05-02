@@ -28,6 +28,8 @@ import Chatlist from './components/DashboardSubPages/Chatlist';
 import PersonalDetails from './components/DashboardSubPages/Personaldetails';
 import BankAccount from './components/DashboardSubPages/BankAccount';
 import InputBankDetails from './components/DashboardSubPages/InputBankDetails';
+import StoreSettings from './components/DashboardSubPages/StoreSettings';
+import LinkAccount from './components/DashboardSubPages/LinkAccount';
 
 
 function App() {
@@ -65,6 +67,8 @@ function App() {
    <Route exact path="/PersonalDetails" element={<PersonalDetails/>}/>
    <Route exact path="/Bank" element={<BankAccount/>}/>
    <Route exact path="/AddBank" element={<InputBankDetails/>}/>
+   <Route exact path="/StoreSetting" element={<StoreSettings/>}/>
+   <Route exact path="/LinkAccount" element={<LinkAccount/>}/>
    </Routes>
  </div>
  </Router>

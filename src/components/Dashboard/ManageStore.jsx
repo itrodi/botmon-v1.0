@@ -68,9 +68,9 @@ const ManageStore = () => {
               Business Details
             </Link>
             <Link to="/PersonalDetails">Personal details</Link>
-            <Link to="/StoreSettings">Store settings</Link>
+            <Link to="/StoreSetting">Store settings</Link>
             <Link to="/Bank">Payments</Link>
-            <Link href="#">Connect Social channels</Link>
+            <Link to="/LinkAccount">Connect Social channels</Link>
             <Link href="#">Advance</Link>
           </nav>
           <div className="grid gap-6">
