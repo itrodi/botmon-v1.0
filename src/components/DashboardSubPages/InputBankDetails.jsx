@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CircleUser, Eye, Facebook, Instagram, Menu, Package2, Search, Share2, Twitter } from "lucide-react"
+import { CircleUser, ChevronLeft, Facebook, Instagram, Menu, Package2, Search, Share2, Twitter } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -48,16 +48,22 @@ const InputBankDetails = () => {
             <Link to="/ManageStore" >
               Business Details
             </Link>
-            <Link to="/PersonalDetails" >Personal details</Link>
-            <Link href="#">Store settings</Link>
-            <Link to="/Bank" className="font-semibold text-primary">Bank Account</Link>
-            <Link href="#">Connect Social channels</Link>
+            <Link to="/PersonalDetails">Personal details</Link>
+            <Link to="/StoreSetting">Store settings</Link>
+            <Link to="/Bank" className="font-semibold text-primary">Payments</Link>
+            <Link to="/LinkAccount">Connect Social channels</Link>
             <Link href="#">Advance</Link>
           </nav>
           <div className="grid gap-6">
    
             <Card x-chunk="dashboard-04-chunk-2">
               <CardHeader>
+              <Link to="/Bank">
+              <Button variant="outline" size="icon" className="h-7 w-7">
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only mb-10">Back</span>
+              </Button>
+              </Link>
                 <CardTitle>Add Bank Account</CardTitle>
                 <CardDescription>
                  Input bank details

@@ -4,7 +4,7 @@ import {
   ArrowUpRight,
   CreditCard,
   DollarSign,
-  Users,
+  ChevronLeft,
 } from "lucide-react"
 
 import {
@@ -27,6 +27,12 @@ const Notifications = () => {
   return (
     <Card>
             <CardHeader>
+            <Link to="/Overview">
+              <Button variant="outline" size="icon" className="h-7 w-7">
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only mb-10">Back</span>
+              </Button>
+              </Link>
               <CardTitle>Notifications</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-8">

@@ -55,7 +55,6 @@ function App() {
    <Route exact path="/Payments" element={<Payments/>}/>
    <Route exact path="/Onboarding1" element={<Onboarding1/>}/>
    <Route exact path="/Onboarding2" element={<Onboarding2/>}/>
-   <Route exact path="/Settings" element={<Settings/>}/>
    <Route exact path="/Chatbot" element={<Chatbot/>}/>
    <Route exact path="/ManageStore" element={<ManageStore/>}/>
    <Route exact path="/Services" element={<Services/>}/>

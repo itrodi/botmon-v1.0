@@ -64,13 +64,13 @@ const LinkAccount = () => {
           <nav
             className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0"
           >
-            <Link to="/ManageStore" className="font-semibold text-primary">
+             <Link to="/ManageStore" >
               Business Details
             </Link>
-            <Link to="/PersonalDetails">Personal details</Link>
-            <Link to="/StoreSettings">Store settings</Link>
-            <Link to="/Bank">Payments</Link>
-            <Link href="#">Connect Social channels</Link>
+            <Link to="/PersonalDetails" >Personal details</Link>
+            <Link to="/StoreSetting" >Store settings</Link>
+            <Link to="/Bank" >Payments</Link>
+            <Link to="/LinkAccount" className="font-semibold text-primary">Connect Social channels</Link>
             <Link href="#">Advance</Link>
           </nav>
           <div className="grid gap-6">

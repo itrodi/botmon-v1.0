@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -39,6 +40,12 @@ const OrdersDialog = () => {
             >
               <CardHeader className="flex flex-row items-start bg-muted/50">
                 <div className="grid gap-0.5">
+                <Link to="/Orders">
+              <Button variant="outline" size="icon" className="h-7 w-7">
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only mb-10">Back</span>
+              </Button>
+              </Link>
                   <CardTitle className="group flex items-center gap-2 text-lg">
                     Order Oe31b70H
                     <Button

@@ -151,7 +151,7 @@ const Header = () => {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <Link to="/Settings">
+          <Link to="/ManageStore">
           <DropdownMenuItem>Settings</DropdownMenuItem>
           </Link>
           <DropdownMenuItem>Support</DropdownMenuItem>

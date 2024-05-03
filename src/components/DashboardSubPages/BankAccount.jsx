@@ -49,9 +49,9 @@ const BankAccount = () => {
               Business Details
             </Link>
             <Link to="/PersonalDetails">Personal details</Link>
-            <Link href="#">Store settings</Link>
-            <Link href="#" className="font-semibold text-primary">Bank Account</Link>
-            <Link href="#">Connect Social channels</Link>
+            <Link to="/StoreSetting">Store settings</Link>
+            <Link to="/Bank" className="font-semibold text-primary">Payments</Link>
+            <Link to="/LinkAccount">Connect Social channels</Link>
             <Link href="#">Advance</Link>
           </nav>
           <div className="grid gap-6">
