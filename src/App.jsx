@@ -30,6 +30,7 @@ import BankAccount from './components/DashboardSubPages/BankAccount';
 import InputBankDetails from './components/DashboardSubPages/InputBankDetails';
 import StoreSettings from './components/DashboardSubPages/StoreSettings';
 import LinkAccount from './components/DashboardSubPages/LinkAccount';
+import TransactionDetails from './components/TransactionDetails';
 
 
 function App() {
@@ -68,6 +69,7 @@ function App() {
    <Route exact path="/AddBank" element={<InputBankDetails/>}/>
    <Route exact path="/StoreSetting" element={<StoreSettings/>}/>
    <Route exact path="/LinkAccount" element={<LinkAccount/>}/>
+   <Route exact path="/TransactionDetails" element={<TransactionDetails/>}/>
    </Routes>
  </div>
  </Router>
