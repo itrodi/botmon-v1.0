@@ -13,7 +13,7 @@ export function Login() {
           <div className="grid gap-2 text-center">
             <h1 className="text-3xl font-bold">Login</h1>
             <p className="text-balance text-muted-foreground">
-             Login into your account
+            Welcome back, Login into your account
             </p>
           </div>
           <div className="grid gap-4">
@@ -49,7 +49,7 @@ export function Login() {
           </div>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{" "}
-            <Link to="/Onboarding1">
+            <Link to="/">
               Sign Up
             </Link>
           </div>
@@ -75,11 +75,9 @@ export function Login() {
           <div className="relative z-20 mt-auto">
             <blockquote className="space-y-2">
               <p className="text-lg">
-                &ldquo;This library has saved me countless hours of work and
-                helped me deliver stunning designs to my clients faster than
-                ever before.&rdquo;
+                &ldquo;Create an Account to start selling and offering your products and services  and manage your business more efficiently.&rdquo;
               </p>
-              <footer className="text-sm">Sofia Davis</footer>
+              <footer className="text-sm">Botmon</footer>
             </blockquote>
           </div>
         </div>

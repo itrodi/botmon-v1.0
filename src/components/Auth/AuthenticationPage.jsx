@@ -12,16 +12,34 @@ export function AuthenticationPage() {
           <div className="grid gap-2 text-center">
             <h1 className="text-3xl font-bold">Sign Up</h1>
             <p className="text-balance text-muted-foreground">
-              Sign Up with a few steps and complete the onboarding process with ease
+              Sign Up with a few steps and start automating and manage your business with ease
             </p>
           </div>
           <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="Name">Full Name</Label>
+              <Input
+                id="Name"
+                type="text"
+                placeholder="Enter your name"
+                required
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="m@example.com"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Phone Number</Label>
+              <Input
+                id="PhoneNumber"
+                type="Phone"
+                placeholder="+234"
                 required
               />
             </div>
@@ -37,7 +55,7 @@ export function AuthenticationPage() {
             </Button>
             </Link>
             <Button variant="outline" className="w-full">
-              Login with Google
+              Sign Up with Google
             </Button>
           </div>
           <div className="mt-4 text-center text-sm">
@@ -68,11 +86,9 @@ export function AuthenticationPage() {
           <div className="relative z-20 mt-auto">
             <blockquote className="space-y-2">
               <p className="text-lg">
-                &ldquo;This library has saved me countless hours of work and
-                helped me deliver stunning designs to my clients faster than
-                ever before.&rdquo;
+                &ldquo;Create an Account to start selling and offering your products and services  and manage your business more efficiently  .&rdquo;
               </p>
-              <footer className="text-sm">Sofia Davis</footer>
+              <footer className="text-sm">Botmon</footer>
             </blockquote>
           </div>
         </div>

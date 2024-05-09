@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import {
   Activity,
-  ArrowUpRight,
+  ListFilter,
   CreditCard,
   DollarSign,
   Users,
+  Zap,
 } from "lucide-react"
 
 import {
@@ -12,6 +13,16 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +32,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import Header from '../Header';
 import OverviewData from '../Overviewdata';
 
@@ -33,7 +50,35 @@ export function Overview() {
         </div>
        
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+      <div className="ml-auto flex items-center gap-2">
+      <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1">
+                      <Zap className="h-3.5 w-3.5" />
+                      <span className=" sm:whitespace-nowrap">
+                        Quick Actions
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuCheckboxItem>
+                      View Products
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem>View Services</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem>
+                      View Customers
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem>
+                      View Orders
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem>
+                      View Bookings
+                    </DropdownMenuCheckboxItem>
+
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                </div>
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">   
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -87,6 +132,7 @@ export function Overview() {
             </CardContent>
           </Card>
         </div>
+       
         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
           <Card className="xl:col-span-2">
             <CardHeader className="flex flex-row items-center">
