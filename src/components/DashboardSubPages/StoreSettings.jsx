@@ -73,7 +73,7 @@ const StoreSettings = () => {
             <Link to="/LinkAccount">Connect Social channels</Link>
             <Link href="#">Advance</Link>
           </nav>
-          <div className="grid gap-6">
+          <div className="grid gap-6" id="discounts">
             <Card x-chunk="dashboard-04-chunk-2">
               <CardHeader>
                 <CardTitle>Discounts</CardTitle>

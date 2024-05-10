@@ -61,20 +61,34 @@ export function Overview() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                   <Link to="/ProductPage"> 
                     <DropdownMenuCheckboxItem>
                       View Products
                     </DropdownMenuCheckboxItem>
+                    </Link>
+                    <Link to="/ServicesPage"> 
                     <DropdownMenuCheckboxItem>View Services</DropdownMenuCheckboxItem>
+                    </Link>
+                    <Link to="/Customers">
                     <DropdownMenuCheckboxItem>
                       View Customers
                     </DropdownMenuCheckboxItem>
+                    </Link>
+                    <Link to="/Orders">
                     <DropdownMenuCheckboxItem>
                       View Orders
                     </DropdownMenuCheckboxItem>
+                    </Link>
+                    <Link to="/Bookings">
                     <DropdownMenuCheckboxItem>
                       View Bookings
                     </DropdownMenuCheckboxItem>
-
+                    </Link>
+                    <Link to="/StoreSetting/#discounts">
+                    <DropdownMenuCheckboxItem>
+                     Manage Discount
+                    </DropdownMenuCheckboxItem>
+                    </Link>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </div>

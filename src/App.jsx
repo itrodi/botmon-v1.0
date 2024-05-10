@@ -31,6 +31,7 @@ import InputBankDetails from './components/DashboardSubPages/InputBankDetails';
 import StoreSettings from './components/DashboardSubPages/StoreSettings';
 import LinkAccount from './components/DashboardSubPages/LinkAccount';
 import TransactionDetails from './components/TransactionDetails';
+import Support from './components/Dashboard/Support';
 
 
 function App() {
@@ -70,6 +71,7 @@ function App() {
    <Route exact path="/StoreSetting" element={<StoreSettings/>}/>
    <Route exact path="/LinkAccount" element={<LinkAccount/>}/>
    <Route exact path="/TransactionDetails" element={<TransactionDetails/>}/>
+   <Route exact path="/Support" element={<Support/>}/>
    </Routes>
  </div>
  </Router>

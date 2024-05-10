@@ -154,7 +154,9 @@ const Header = () => {
           <Link to="/ManageStore">
           <DropdownMenuItem>Settings</DropdownMenuItem>
           </Link>
+          <Link to="/Support">
           <DropdownMenuItem>Support</DropdownMenuItem>
+          </Link>
           <DropdownMenuSeparator />
           <DropdownMenuItem>Logout</DropdownMenuItem>
         </DropdownMenuContent>
