@@ -52,7 +52,7 @@ const BankAccount = () => {
             <Link to="/StoreSetting">Store settings</Link>
             <Link to="/Bank" className="font-semibold text-primary">Payments</Link>
             <Link to="/LinkAccount">Connect Social channels</Link>
-            <Link href="#">Advance</Link>
+            <Link to="/AdvanceSettings" >Advance</Link>
           </nav>
           <div className="grid gap-6">
    

@@ -76,6 +76,7 @@ import {
 import MobileSidebar from '../MobileSidebar';
 import Sidebar from '../Sidebar';
 import ProductVariation from '../ProductVariation';
+import AddCategories from '../AddCategories';
 
 
 export function AddProductPage() {
@@ -460,6 +461,17 @@ export function AddProductPage() {
                       </div>
                     </div>
                   </CardContent>
+                  <CardFooter className="justify-center border-t p-4">
+                  <Dialog>
+                 <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="gap-1">
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      Add Category
+                    </Button>
+                    </DialogTrigger>
+             <AddCategories/>
+    </Dialog>
+                  </CardFooter>
                 </Card>
               </div>
               <div className="grid auto-rows-max items-start gap-4 lg:gap-8">

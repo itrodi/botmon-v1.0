@@ -71,7 +71,7 @@ const ManageStore = () => {
             <Link to="/StoreSetting">Store settings</Link>
             <Link to="/Bank">Payments</Link>
             <Link to="/LinkAccount">Connect Social channels</Link>
-            <Link href="#">Advance</Link>
+            <Link to="/AdvanceSettings">Advance</Link>
           </nav>
           <div className="grid gap-6">
    
@@ -107,7 +107,7 @@ const ManageStore = () => {
             />
           </div>
           <div className="grid gap-3 mt-4">
-            <Label htmlFor="name">Phone Number</Label>
+            <Label htmlFor="name">Business Phone Number</Label>
             <Input
               id="name"
               type="text"
@@ -139,7 +139,7 @@ const ManageStore = () => {
               </Select>
           </div>
           <div className="grid gap-3 mt-4">
-            <Label htmlFor="name">Email Address</Label>
+            <Label htmlFor="name">Business Email Address</Label>
             <Input
               id="Email"
               type="Email"

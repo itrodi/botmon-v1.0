@@ -17,7 +17,16 @@ export function AuthenticationPage() {
           </div>
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="Name">Full Name</Label>
+              <Label htmlFor="Name">First Name</Label>
+              <Input
+                id="Name"
+                type="text"
+                placeholder="Enter your name"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="Name">Last Name</Label>
               <Input
                 id="Name"
                 type="text"
