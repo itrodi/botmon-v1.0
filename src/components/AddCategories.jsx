@@ -24,11 +24,21 @@ const AddCategories = () => {
     <div className="grid gap-4 py-4">
     <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="name" className="text-right">
-          Name
+          Category Name
         </Label>
         <Input
           id="name"
-          defaultValue="large"
+          defaultValue="laptops"
+          className="col-span-3"
+        />
+      </div>
+       <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="name" className="text-right">
+         Sub category Name
+        </Label>
+        <Input
+          id="name"
+          defaultValue="gaming laptops"
           className="col-span-3"
         />
       </div>
