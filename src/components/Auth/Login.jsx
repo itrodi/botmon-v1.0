@@ -1,11 +1,42 @@
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-
-
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function Login() {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
+
+  const handleChange = (event) => {
+    setFormData({ ...formData, [event.target.name]: event.target.value });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      // Replace with your backend API call using a library like Axios or Fetch
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      console.log('Login successful:', await response.json());
+      // Handle successful login (e.g., redirect)
+    } catch (error) {
+      console.error('Login error:', error);
+      // Handle login errors (e.g., display error messages)
+    }
+  };
+
   return (
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
       <div className="flex items-center justify-center py-12">
@@ -13,42 +44,46 @@ export function Login() {
           <div className="grid gap-2 text-center">
             <h1 className="text-3xl font-bold">Login</h1>
             <p className="text-balance text-muted-foreground">
-            Welcome back, Login into your account
+              Welcome back, Login into your account
             </p>
           </div>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                  href="/forgot-password"
-                  className="ml-auto inline-block text-sm underline"
-                >
-                  Forgot your password?
-                </Link>
+          <form onSubmit={handleSubmit}> {/* Wrap inputs in form */}
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  value={formData.email} // Bind value to state
+                  onChange={handleChange}
+                  name="email"
+                />
               </div>
-              <Input id="password" type="password" required />
+              <div className="grid gap-2">
+                <div className="flex items-center">
+                  <Label htmlFor="password">Password</Label>
+                  <Link
+                   to="/forgot-password"
+                    className="ml-auto inline-block text-sm underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+                <Input id="password" type="password" value={formData.password} onChange={handleChange} name="password" />
+              </div>
+              <Link to="/Overview">
+                <Button type="submit" className="w-full">
+                  Login
+                </Button>
+              </Link>
+              <Button variant="outline" className="w-full">
+                Login with Google
+              </Button>
             </div>
-            <Link to="/Overview">
-            <Button type="submit" className="w-full">
-             Login
-            </Button>
-            </Link>
-            <Button variant="outline" className="w-full">
-              Login with Google
-            </Button>
-          </div>
+          </form>
           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
+            Don't have an account?{' '}
             <Link to="/">
               Sign Up
             </Link>

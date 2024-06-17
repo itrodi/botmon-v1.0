@@ -1,10 +1,45 @@
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"; // Import Button component
+import { Input } from "@/components/ui/input"; // Import Input component
+import { Label } from "@/components/ui/label"; // Import Label component
 
 export function AuthenticationPage() {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '', // Initialize phoneNumber to an empty string
+    password: '',
+  });
+
+  const handleChange = (event) => {
+    setFormData({ ...formData, [event.target.name]: event.target.value });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      // Replace with your backend API call using a library like Axios or Fetch
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Signup failed');
+      }
+
+      console.log('Signup successful:', await response.json());
+      // Handle successful signup (e.g., redirect)
+    } catch (error) {
+      console.error('Signup error:', error);
+      // Handle signup errors (e.g., display error messages)
+    }
+  };
+
   return (
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
       <div className="flex items-center justify-center py-12">
@@ -15,60 +50,74 @@ export function AuthenticationPage() {
               Sign Up with a few steps and start automating and manage your business with ease
             </p>
           </div>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="Name">First Name</Label>
-              <Input
-                id="Name"
-                type="text"
-                placeholder="Enter your name"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="Name">Last Name</Label>
-              <Input
-                id="Name"
-                type="text"
-                placeholder="Enter your name"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Phone Number</Label>
-              <Input
-                id="PhoneNumber"
-                type="Phone"
-                placeholder="+234"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
+          <form onSubmit={handleSubmit}> {/* Wrap inputs in form */}
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  placeholder="Enter your name"
+                  required
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  name="firstName" // Set name attribute for form handling
+                />
               </div>
-              <Input id="password" type="password" required />
+              <div className="grid gap-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  placeholder="Enter your name"
+                  required
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  name="lastName"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  name="email"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Input
+                  id="phoneNumber"
+                  type="phone"
+                  placeholder="+234"
+                  required
+                  value={formData.phoneNumber} // Access the initialized phoneNumber property
+                  onChange={handleChange}
+                  name="phoneNumber"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  name="password"
+                />
+              </div>
+              <Button type="submit" className="w-full">
+                Sign Up
+              </Button>
             </div>
-            <Link to="/Onboarding1">
-            <Button type="submit" className="w-full">
-              Sign Up
-            </Button>
-            </Link>
-            <Button variant="outline" className="w-full">
-              Sign Up with Google
-            </Button>
-          </div>
+          </form>
           <div className="mt-4 text-center text-sm">
-             Have an account?{" "}
+            Have an account?{' '}
             <Link to="/Login">
               Login
             </Link>
