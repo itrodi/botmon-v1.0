@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from "@/components/ui/button"; // Import Button component
-import { Input } from "@/components/ui/input"; // Import Input component
-import { Label } from "@/components/ui/label"; // Import Label component
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import axios from 'axios';
 
 export function AuthenticationPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    phoneNumber: '', // Initialize phoneNumber to an empty string
+    phoneNumber: '',
     password: '',
   });
+  const [message, setMessage] = useState({ text: '', type: '' });
+  const navigate = useNavigate();
 
   const handleChange = (event) => {
     setFormData({ ...formData, [event.target.name]: event.target.value });
@@ -21,22 +24,22 @@ export function AuthenticationPage() {
     event.preventDefault();
 
     try {
-      // Replace with your backend API call using a library like Axios or Fetch
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      const response = await axios.post('https://eikon-ytbq.onrender.com/register', formData);
 
-      if (!response.ok) {
-        throw new Error('Signup failed');
+      if (response.status === 200 || response.status === 201) {
+        setMessage({ text: 'Registration successful! Redirecting...', type: 'success' });
+        setTimeout(() => {
+          navigate('/Onboarding1');
+        }, 2000);
+      } else {
+        throw new Error('Registration failed: ' + response.statusText);
       }
-
-      console.log('Signup successful:', await response.json());
-      // Handle successful signup (e.g., redirect)
     } catch (error) {
-      console.error('Signup error:', error);
-      // Handle signup errors (e.g., display error messages)
+      console.error('Registration error:', error);
+      setMessage({
+        text: 'Registration unsuccessful: ' + (error.response ? error.response.data.message : error.message),
+        type: 'error'
+      });
     }
   };
 
@@ -50,7 +53,7 @@ export function AuthenticationPage() {
               Sign Up with a few steps and start automating and manage your business with ease
             </p>
           </div>
-          <form onSubmit={handleSubmit}> {/* Wrap inputs in form */}
+          <form onSubmit={handleSubmit}>
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="firstName">First Name</Label>
@@ -61,7 +64,7 @@ export function AuthenticationPage() {
                   required
                   value={formData.firstName}
                   onChange={handleChange}
-                  name="firstName" // Set name attribute for form handling
+                  name="firstName"
                 />
               </div>
               <div className="grid gap-2">
@@ -92,10 +95,10 @@ export function AuthenticationPage() {
                 <Label htmlFor="phoneNumber">Phone Number</Label>
                 <Input
                   id="phoneNumber"
-                  type="phone"
+                  type="tel"
                   placeholder="+234"
                   required
-                  value={formData.phoneNumber} // Access the initialized phoneNumber property
+                  value={formData.phoneNumber}
                   onChange={handleChange}
                   name="phoneNumber"
                 />
@@ -111,6 +114,11 @@ export function AuthenticationPage() {
                   name="password"
                 />
               </div>
+              {message.text && (
+                <div className={`p-2 text-center text-sm ${message.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+                  {message.text}
+                </div>
+              )}
               <Button type="submit" className="w-full">
                 Sign Up
               </Button>
@@ -125,33 +133,33 @@ export function AuthenticationPage() {
         </div>
       </div>
       <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-          <div className="absolute inset-0 bg-zinc-900" />
-          <div className="relative z-20 flex items-center text-lg font-medium">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-2 h-6 w-6"
-            >
-              <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-            </svg>
-            Botmon
-          </div>
-          <div className="relative z-20 mt-auto">
-            <blockquote className="space-y-2">
-              <p className="text-lg">
-                &ldquo;Create an Account to start selling and offering your products and services  and manage your business more efficiently  .&rdquo;
-              </p>
-              <footer className="text-sm">Botmon</footer>
-            </blockquote>
-          </div>
+        <div className="absolute inset-0 bg-zinc-900" />
+        <div className="relative z-20 flex items-center text-lg font-medium">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2 h-6 w-6"
+          >
+            <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
+          </svg>
+          Botmon
         </div>
+        <div className="relative z-20 mt-auto">
+          <blockquote className="space-y-2">
+            <p className="text-lg">
+              &ldquo;Create an Account to start selling and offering your products and services and manage your business more efficiently.&rdquo;
+            </p>
+            <footer className="text-sm">Botmon</footer>
+          </blockquote>
+        </div>
+      </div>
     </div>
-  )
+  );
 }
 
 export default AuthenticationPage;

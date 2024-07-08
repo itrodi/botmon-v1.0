@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Overview from './components/Dashboard/Overview';
 import ProductPage from './components/DashboardSubPages/ProductPage';
@@ -33,50 +34,49 @@ import LinkAccount from './components/DashboardSubPages/LinkAccount';
 import TransactionDetails from './components/TransactionDetails';
 import Support from './components/Dashboard/Support';
 import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
-
+import ProtectedRoute from './ProtectedRoute'; // Import the ProtectedRoute component
 
 function App() {
-
   return (
- <Router>
- <div className="App"> 
-   <Routes>
-   <Route exact path="/" element={<AuthenticationPage/>}/> 
-   <Route exact path="/Login" element={<Login/>}/>   
-   <Route exact path="/Overview" element={<Overview/>}/>
-   <Route exact path="/ProductPage" element={<ProductPage/>}/> 
-   <Route exact path="/Shop" element={<Shop/>}/> 
-   <Route exact path="/AddProductPage" element={<AddProductPage/>}/> 
-   <Route exact path="/Customers" element={<Customers/>}/> 
-   <Route exact path="/SingleCustomerPage" element={<SingleCustomerPage/>}/>
-   <Route exact path="/Orders" element={<Orders/>}/>
-   <Route exact path="/ServicesPage" element={<ServicesPage/>}/>
-   <Route exact path="/OrdersDialog" element={<OrdersDialog/>}/>
-   <Route exact path="/Bookings" element={<Bookings/>}/>
-   <Route exact path="/BookingDetails" element={<BookingDetails/>}/>
-   <Route exact path="/Notifications" element={<Notifications/>}/>
-   <Route exact path="/Payments" element={<Payments/>}/>
-   <Route exact path="/Onboarding1" element={<Onboarding1/>}/>
-   <Route exact path="/Onboarding2" element={<Onboarding2/>}/>
-   <Route exact path="/Chatbot" element={<Chatbot/>}/>
-   <Route exact path="/ManageStore" element={<ManageStore/>}/>
-   <Route exact path="/Services" element={<Services/>}/>
-   <Route exact path="/AddServices" element={<AddServicesPage/>}/>
-   <Route exact path="/EditProduct" element={<EditProductPage/>}/>
-   <Route exact path="/EditService" element={<EditServices/>}/>
-   <Route exact path="/Messages" element={<Messages/>}/>
-   <Route exact path="/Chats" element={<Chatlist/>}/>
-   <Route exact path="/PersonalDetails" element={<PersonalDetails/>}/>
-   <Route exact path="/Bank" element={<BankAccount/>}/>
-   <Route exact path="/AddBank" element={<InputBankDetails/>}/>
-   <Route exact path="/StoreSetting" element={<StoreSettings/>}/>
-   <Route exact path="/LinkAccount" element={<LinkAccount/>}/>
-   <Route exact path="/TransactionDetails" element={<TransactionDetails/>}/>
-   <Route exact path="/Support" element={<Support/>}/>
-   <Route exact path="/AdvanceSettings" element={<AdvanceSetting/>}/>
-   </Routes>
- </div>
- </Router>
+    <Router>
+      <div className="App"> 
+        <Routes>
+          <Route exact path="/" element={<AuthenticationPage/>}/> 
+          <Route exact path="/Login" element={<Login/>}/>   
+          <Route exact path="/Onboarding1" element={<ProtectedRoute><Onboarding1/></ProtectedRoute>}/>
+          <Route exact path="/Onboarding2" element={<ProtectedRoute><Onboarding2/></ProtectedRoute>}/>
+          <Route exact path="/Overview" element={<ProtectedRoute><Overview/></ProtectedRoute>}/>
+          <Route exact path="/ProductPage" element={<ProtectedRoute><ProductPage/></ProtectedRoute>}/> 
+          <Route exact path="/Shop" element={<ProtectedRoute><Shop/></ProtectedRoute>}/> 
+          <Route exact path="/AddProductPage" element={<ProtectedRoute><AddProductPage/></ProtectedRoute>}/> 
+          <Route exact path="/Customers" element={<ProtectedRoute><Customers/></ProtectedRoute>}/> 
+          <Route exact path="/SingleCustomerPage" element={<ProtectedRoute><SingleCustomerPage/></ProtectedRoute>}/>
+          <Route exact path="/Orders" element={<ProtectedRoute><Orders/></ProtectedRoute>}/>
+          <Route exact path="/ServicesPage" element={<ProtectedRoute><ServicesPage/></ProtectedRoute>}/>
+          <Route exact path="/OrdersDialog" element={<ProtectedRoute><OrdersDialog/></ProtectedRoute>}/>
+          <Route exact path="/Bookings" element={<ProtectedRoute><Bookings/></ProtectedRoute>}/>
+          <Route exact path="/BookingDetails" element={<ProtectedRoute><BookingDetails/></ProtectedRoute>}/>
+          <Route exact path="/Notifications" element={<ProtectedRoute><Notifications/></ProtectedRoute>}/>
+          <Route exact path="/Payments" element={<ProtectedRoute><Payments/></ProtectedRoute>}/>
+          <Route exact path="/Chatbot" element={<ProtectedRoute><Chatbot/></ProtectedRoute>}/>
+          <Route exact path="/ManageStore" element={<ProtectedRoute><ManageStore/></ProtectedRoute>}/>
+          <Route exact path="/Services" element={<ProtectedRoute><Services/></ProtectedRoute>}/>
+          <Route exact path="/AddServices" element={<ProtectedRoute><AddServicesPage/></ProtectedRoute>}/>
+          <Route exact path="/EditProduct" element={<ProtectedRoute><EditProductPage/></ProtectedRoute>}/>
+          <Route exact path="/EditService" element={<ProtectedRoute><EditServices/></ProtectedRoute>}/>
+          <Route exact path="/Messages" element={<ProtectedRoute><Messages/></ProtectedRoute>}/>
+          <Route exact path="/Chats" element={<ProtectedRoute><Chatlist/></ProtectedRoute>}/>
+          <Route exact path="/PersonalDetails" element={<ProtectedRoute><PersonalDetails/></ProtectedRoute>}/>
+          <Route exact path="/Bank" element={<ProtectedRoute><BankAccount/></ProtectedRoute>}/>
+          <Route exact path="/AddBank" element={<ProtectedRoute><InputBankDetails/></ProtectedRoute>}/>
+          <Route exact path="/StoreSetting" element={<ProtectedRoute><StoreSettings/></ProtectedRoute>}/>
+          <Route exact path="/LinkAccount" element={<ProtectedRoute><LinkAccount/></ProtectedRoute>}/>
+          <Route exact path="/TransactionDetails" element={<ProtectedRoute><TransactionDetails/></ProtectedRoute>}/>
+          <Route exact path="/Support" element={<ProtectedRoute><Support/></ProtectedRoute>}/>
+          <Route exact path="/AdvanceSettings" element={<ProtectedRoute><AdvanceSetting/></ProtectedRoute>}/>
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
