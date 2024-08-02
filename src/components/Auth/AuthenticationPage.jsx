@@ -7,40 +7,57 @@ import axios from 'axios';
 
 export function AuthenticationPage() {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
     email: '',
-    phoneNumber: '',
     password: '',
+    fname: '',
+    lname: '',
+    phone: '',
   });
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (event) => {
-    setFormData({ ...formData, [event.target.name]: event.target.value });
+    const { name, value } = event.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
-
-    try {
-      const response = await axios.post('https://eikon-ytbq.onrender.com/register', formData);
-
-      if (response.status === 200 || response.status === 201) {
-        setMessage({ text: 'Registration successful! Redirecting...', type: 'success' });
-        setTimeout(() => {
-          navigate('/Onboarding1');
-        }, 2000);
-      } else {
-        throw new Error('Registration failed: ' + response.statusText);
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      setMessage({
-        text: 'Registration unsuccessful: ' + (error.response ? error.response.data.message : error.message),
-        type: 'error'
-      });
+    setIsLoading(true);
+    setMessage({ text: '', type: '' });
+    
+    const form = new FormData();
+    for (const key in formData) {
+      form.append(key, formData[key]);
     }
+
+    fetch('https://f5eb-172-212-98-191.ngrok-free.app/register', {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+    })
+      .then(response => response.json())
+      .then(data => {
+        setIsLoading(false);
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          setMessage({ text: 'Registration successful!', type: 'success' });
+          setTimeout(() => {
+            navigate('/Onboarding1');
+          }, 2000);
+        } else {
+          setMessage({ text: 'Registration failed.', type: 'error' });
+        }
+      })
+      .catch((error) => {
+        setIsLoading(false);
+        console.error('Error:', error);
+        setMessage({ text: 'An error occurred. Please try again.', type: 'error' });
+      });
   };
 
   return (
@@ -50,33 +67,33 @@ export function AuthenticationPage() {
           <div className="grid gap-2 text-center">
             <h1 className="text-3xl font-bold">Sign Up</h1>
             <p className="text-balance text-muted-foreground">
-              Sign Up with a few steps and start automating and manage your business with ease
+              Sign up with a few steps and start automating and managing your business with ease.
             </p>
           </div>
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="fname">First Name</Label>
                 <Input
-                  id="firstName"
+                  id="fname"
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder="Enter your first name"
                   required
-                  value={formData.firstName}
+                  value={formData.fname}
                   onChange={handleChange}
-                  name="firstName"
+                  name="fname"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lname">Last Name</Label>
                 <Input
-                  id="lastName"
+                  id="lname"
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder="Enter your last name"
                   required
-                  value={formData.lastName}
+                  value={formData.lname}
                   onChange={handleChange}
-                  name="lastName"
+                  name="lname"
                 />
               </div>
               <div className="grid gap-2">
@@ -92,15 +109,15 @@ export function AuthenticationPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Label htmlFor="phone">Phone Number</Label>
                 <Input
-                  id="phoneNumber"
-                  type="tel"
+                  id="phone"
+                  type="text"
                   placeholder="+234"
                   required
-                  value={formData.phoneNumber}
+                  value={formData.phone}
                   onChange={handleChange}
-                  name="phoneNumber"
+                  name="phone"
                 />
               </div>
               <div className="grid gap-2">
@@ -119,8 +136,8 @@ export function AuthenticationPage() {
                   {message.text}
                 </div>
               )}
-              <Button type="submit" className="w-full">
-                Sign Up
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Signing Up...' : 'Sign Up'}
               </Button>
             </div>
           </form>
@@ -152,7 +169,7 @@ export function AuthenticationPage() {
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">
-              &ldquo;Create an Account to start selling and offering your products and services and manage your business more efficiently.&rdquo;
+              &ldquo;Create an account to start selling and offering your products and services and manage your business more efficiently.&rdquo;
             </p>
             <footer className="text-sm">Botmon</footer>
           </blockquote>

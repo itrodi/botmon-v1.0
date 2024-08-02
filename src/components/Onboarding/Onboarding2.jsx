@@ -22,10 +22,15 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import { useNavigate } from 'react-router-dom';
+
+const handleOnboarding2Completion = () => {
+  localStorage.setItem('onboarding2Completed', 'true');
+  navigate('/Overview');
+};
 
 
-
-const Onboarding1 = () => {
+const Onboarding2 = () => {
   return (
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
     <div className="flex items-center justify-center py-12">
@@ -86,7 +91,7 @@ const Onboarding1 = () => {
               </Button>
               </Link>
               <Link to="/Overview">
-              <Button size="sm"> Next</Button>
+              <Button onClick={handleOnboarding2Completion} size="sm"> Next</Button>
               </Link>
             </div>
 
@@ -129,4 +134,4 @@ const Onboarding1 = () => {
   )
 }
 
-export default Onboarding1
+export default Onboarding2

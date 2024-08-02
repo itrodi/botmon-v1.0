@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-const ProtectedRoute = ({ children }) => {
+const OnboardingRoute = ({ children, step }) => {
   const token = localStorage.getItem('token');
   const onboarding1Completed = localStorage.getItem('onboarding1Completed') === 'true';
   const onboarding2Completed = localStorage.getItem('onboarding2Completed') === 'true';
@@ -10,15 +10,15 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/Login" />;
   }
 
-  if (!onboarding1Completed) {
-    return <Navigate to="/Onboarding1" />;
+  if (step === 1 && onboarding1Completed) {
+    return <Navigate to="/Onboarding2" />;
   }
 
-  if (!onboarding2Completed) {
-    return <Navigate to="/Onboarding2" />;
+  if (step === 2 && onboarding2Completed) {
+    return <Navigate to="/Overview" />;
   }
 
   return children;
 };
 
-export default ProtectedRoute;
+export default OnboardingRoute;

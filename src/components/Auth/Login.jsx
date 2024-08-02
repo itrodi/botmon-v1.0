@@ -26,7 +26,7 @@ export function Login() {
     try {
       console.log('Submitting login form with data:', formData); // Log the data being sent
 
-      const response = await axios.post('https://eikon-ytbq.onrender.com/login', urlEncodedData, {
+      const response = await axios.post('https://f5eb-172-212-98-191.ngrok-free.app/login', urlEncodedData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
@@ -36,8 +36,13 @@ export function Login() {
 
       if (response.status === 200 || response.status === 201) {
         setMessage({ text: 'Login successful! Redirecting...', type: 'success' });
+        
+        // Set the userid cookie
+        document.cookie = `userid=${response.data.userid}; path=/`;
+        
         // Save user data to localStorage
         localStorage.setItem('user', JSON.stringify(response.data));
+        
         setTimeout(() => {
           navigate('/Overview');
         }, 2000);
@@ -60,7 +65,7 @@ export function Login() {
           <div className="grid gap-2 text-center">
             <h1 className="text-3xl font-bold">Login</h1>
             <p className="text-balance text-muted-foreground">
-              Welcome back, Login into your account
+              Welcome back, login into your account
             </p>
           </div>
           <form onSubmit={handleSubmit}>
