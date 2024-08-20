@@ -38,14 +38,15 @@ export function Login() {
         setMessage({ text: 'Login successful! Redirecting...', type: 'success' });
         
         // Set the userid cookie
-        document.cookie = `userid=${response.data.userid}; path=/; SameSite=None; Secure`;
-
+        document.cookie = `userid=${response.data.userid}; path=/`;
         
         // Save user data to localStorage
         localStorage.setItem('user', JSON.stringify(response.data));
         
+        console.log('Navigating to /Overview');
         setTimeout(() => {
           navigate('/Overview');
+          console.log('Navigation complete');
         }, 2000);
       } else {
         throw new Error('Login failed: ' + response.statusText);
