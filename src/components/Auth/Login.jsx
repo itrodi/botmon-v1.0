@@ -38,7 +38,8 @@ export function Login() {
         setMessage({ text: 'Login successful! Redirecting...', type: 'success' });
         
         // Set the userid cookie
-        document.cookie = `userid=${response.data.userid}; path=/`;
+        document.cookie = `userid=${response.data.userid}; path=/; SameSite=None; Secure`;
+
         
         // Save user data to localStorage
         localStorage.setItem('user', JSON.stringify(response.data));
