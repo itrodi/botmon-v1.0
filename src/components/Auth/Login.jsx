@@ -24,29 +24,28 @@ export function Login() {
     urlEncodedData.append('password', formData.password);
 
     try {
-      console.log('Submitting login form with data:', formData); // Log the data being sent
+      console.log('Submitting login form with data:', formData);
 
       const response = await axios.post('https://f5eb-172-212-98-191.ngrok-free.app/login', urlEncodedData, {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
 
-      console.log('Login response:', response); // Log the response
+      console.log('Login response:', response);
 
       if (response.status === 200 || response.status === 201) {
         setMessage({ text: 'Login successful! Redirecting...', type: 'success' });
-        
-        // Set the userid cookie
-        document.cookie = `userid=${response.data.userid}; path=/`;
-        
-        // Save user data to localStorage
+
+        // Extract userId from response and save it to localStorage
+        const userId = response.data.userid;
+        localStorage.setItem('userId', userId);
+
+        // Optionally save other user data if needed
         localStorage.setItem('user', JSON.stringify(response.data));
-        
-        console.log('Navigating to /Overview');
+
         setTimeout(() => {
           navigate('/Overview');
-          console.log('Navigation complete');
         }, 2000);
       } else {
         throw new Error('Login failed: ' + response.statusText);
