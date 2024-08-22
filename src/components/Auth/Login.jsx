@@ -44,6 +44,10 @@ export function Login() {
         // Optionally save other user data if needed
         localStorage.setItem('user', JSON.stringify(response.data));
 
+        // Set onboarding statuses to true upon successful login
+        localStorage.setItem('onboarding1Completed', 'true');
+        localStorage.setItem('onboarding2Completed', 'true');
+
         setTimeout(() => {
           navigate('/Overview');
         }, 2000);

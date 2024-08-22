@@ -23,9 +23,20 @@ const Header = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    // Update the onboarding status to false upon logout
+    localStorage.setItem('onboarding1Completed', 'false');
+    localStorage.setItem('onboarding2Completed', 'false');
+  
+    // Remove user-related data from local storage
     localStorage.removeItem('user');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userid');
+  
+    // Redirect to the login page
     navigate('/login');
   };
+  
 
   return (
     <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
