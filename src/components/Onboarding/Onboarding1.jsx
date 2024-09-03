@@ -50,7 +50,7 @@ const Onboarding1 = () => {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await axios.post('https://f5eb-172-212-98-191.ngrok-free.app/buisness', data, {
+      const response = await axios.post('http://20.21.128.18/buisness', data, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`,

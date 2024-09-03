@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter } from "lucide-react"
-
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -53,6 +54,69 @@ import FaqVariation from '../FaqVariation';
 
 
 const ManageStore = () => {
+  const [settingsData, setSettingsData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchSettingsData = async () => {
+      try {
+        const userid = localStorage.getItem('userid'); // Assuming you have a token stored
+
+        const response = await axios.post('https://f5eb-172-212-98-191.ngrok-free.app/settings', {
+          headers: {
+            Authorization: `Bearer ${userid}`, // Pass the token if required by your backend
+          },
+        });
+
+        setSettingsData(response.data);
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch settings data.');
+        setLoading(false);
+      }
+    };
+
+    fetchSettingsData();
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>{error}</div>;
+
+  const {
+    bname,
+    bcurrency,
+    description,
+    insta,
+    twitter,
+    facebook,
+    whatsapp,
+    blogo,
+    bbanner,
+    bphone,
+    bcountry,
+    bemail,
+    baddress,
+    bcategory,
+    omon,
+    cmon,
+    otues,
+    ctues,
+    owed,
+    cwed,
+    othur,
+    cthur,
+    ofri,
+    cfri,
+    osat,
+    csat,
+    osun,
+    csun,
+  } = settingsData;
+
+
+
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
@@ -103,7 +167,7 @@ const ManageStore = () => {
               id="name"
               type="text"
               className="w-full"
-              defaultValue="Enter Business Name"
+              defaultValue= {bname}
             />
           </div>
           <div className="grid gap-3 mt-4">
@@ -112,7 +176,7 @@ const ManageStore = () => {
               id="name"
               type="text"
               className="w-full"
-              defaultValue="+2348185893"
+              defaultValue= {bphone}
             />
           </div>
           <div className="grid gap-3 mt-4">
@@ -122,7 +186,7 @@ const ManageStore = () => {
                             id="Country"
                             aria-label="Select country"
                           >
-                            <SelectValue placeholder="Select country" />
+                            <SelectValue placeholder= {bcountry} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Nigeria">Nigeria</SelectItem>
@@ -144,7 +208,7 @@ const ManageStore = () => {
               id="Email"
               type="Email"
               className="w-full"
-              defaultValue="inioluwaventures@gmail.com"
+              defaultValue= {bemail}
             />
           </div>
           <div className="grid gap-3 mt-4">
@@ -153,7 +217,7 @@ const ManageStore = () => {
               id="Address"
               type="text"
               className="w-full"
-              defaultValue="No 15 granger street"
+              defaultValue= {baddress}
             />
           </div>
           <div className="grid gap-3 mt-4">
@@ -161,9 +225,9 @@ const ManageStore = () => {
             <Select>
                           <SelectTrigger
                             id="category"
-                            aria-label="Select category"
+                            aria-label= {bcategory}
                           >
-                            <SelectValue placeholder="Select category" />
+                            <SelectValue placeholder={bcategory}/>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="clothing">Clothing</SelectItem>
@@ -184,9 +248,9 @@ const ManageStore = () => {
             <Select>
                           <SelectTrigger
                             id="Currency"
-                            aria-label="Select Currency"
+                            aria-label={bcurrency}
                           >
-                            <SelectValue placeholder="Select currency" />
+                            <SelectValue placeholder={bcurrency}/>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Nigeria">NGN</SelectItem>

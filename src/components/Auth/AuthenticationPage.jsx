@@ -35,7 +35,7 @@ export function AuthenticationPage() {
       form.append(key, formData[key]);
     }
 
-    fetch('https://f5eb-172-212-98-191.ngrok-free.app/register', {
+    fetch('http://20.21.128.18/register', {
       method: 'POST',
       body: form,
       credentials: 'include',
