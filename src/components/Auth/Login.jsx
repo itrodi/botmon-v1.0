@@ -3,65 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import axios from 'axios';
+
 
 export function Login() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [message, setMessage] = useState({ text: '', type: '' });
-  const navigate = useNavigate();
-
-  const handleChange = (event) => {
-    setFormData({ ...formData, [event.target.name]: event.target.value });
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const urlEncodedData = new URLSearchParams();
-    urlEncodedData.append('email', formData.email);
-    urlEncodedData.append('password', formData.password);
-
-    try {
-      console.log('Submitting login form with data:', formData);
-
-      const response = await axios.post('http://20.21.128.18/login', urlEncodedData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
-      console.log('Login response:', response);
-
-      if (response.status === 200 || response.status === 201) {
-        setMessage({ text: 'Login successful! Redirecting...', type: 'success' });
-
-        // Extract userId from response and save it to localStorage
-        const userId = response.data.userid;
-        localStorage.setItem('userId', userId);
-
-        // Optionally save other user data if needed
-        localStorage.setItem('user', JSON.stringify(response.data));
-
-        // Set onboarding statuses to true upon successful login
-        localStorage.setItem('onboarding1Completed', 'true');
-        localStorage.setItem('onboarding2Completed', 'true');
-
-        setTimeout(() => {
-          navigate('/Overview');
-        }, 2000);
-      } else {
-        throw new Error('Login failed: ' + response.statusText);
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      setMessage({
-        text: 'Login unsuccessful: ' + (error.response ? error.response.data.message : error.message),
-        type: 'error',
-      });
-    }
-  };
+  
 
   return (
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
@@ -73,7 +18,7 @@ export function Login() {
               Welcome back, login into your account
             </p>
           </div>
-          <form onSubmit={handleSubmit}>
+          <form >
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
@@ -82,8 +27,6 @@ export function Login() {
                   type="email"
                   placeholder="m@example.com"
                   required
-                  value={formData.email}
-                  onChange={handleChange}
                   name="email"
                 />
               </div>
@@ -101,15 +44,9 @@ export function Login() {
                   id="password"
                   type="password"
                   required
-                  value={formData.password}
-                  onChange={handleChange}
                   name="password"
                 />
               </div>
-              {message.text && (
-                <div className={`p-2 text-center text-sm ${message.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
-                  {message.text}
-                </div>
               )}
               <Button type="submit" className="w-full">
                 Login
