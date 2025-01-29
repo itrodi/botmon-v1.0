@@ -34,8 +34,7 @@ import LinkAccount from './components/DashboardSubPages/LinkAccount';
 import TransactionDetails from './components/TransactionDetails';
 import Support from './components/Dashboard/Support';
 import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
-import ProtectedRoute from './ProtectedRoute';
-import OnboardingRoute from './OnboardingRoute';
+
 
 function App() {
   return (
@@ -48,18 +47,18 @@ function App() {
             exact
             path="/Onboarding1"
             element={
-              <OnboardingRoute step={1}>
+            
                 <Onboarding1 />
-              </OnboardingRoute>
+            
             }
           />
           <Route
             exact
             path="/Onboarding2"
             element={
-              <OnboardingRoute step={2}>
+             
                 <Onboarding2 />
-              </OnboardingRoute>
+             
             }
           />
           <Route
@@ -133,9 +132,9 @@ function App() {
             exact
             path="/OrdersDialog"
             element={
-              <ProtectedRoute>
+             
                 <OrdersDialog />
-              </ProtectedRoute>
+          
             }
           />
           <Route
@@ -160,9 +159,9 @@ function App() {
             exact
             path="/Notifications"
             element={
-              <ProtectedRoute>
+             
                 <Notifications />
-              </ProtectedRoute>
+             
             }
           />
           <Route
@@ -232,9 +231,9 @@ function App() {
             exact
             path="/Messages"
             element={
-              <ProtectedRoute>
+             
                 <Messages />
-              </ProtectedRoute>
+            
             }
           />
           <Route
@@ -259,9 +258,9 @@ function App() {
             exact
             path="/Bank"
             element={
-              <ProtectedRoute>
+           
                 <BankAccount />
-              </ProtectedRoute>
+             
             }
           />
           <Route
