@@ -65,73 +65,68 @@ function App() {
           <Route
             exact
             path="/Overview"
-            element={
-              <ProtectedRoute>
-                <Overview />
-              </ProtectedRoute>
-            }
+            element={<Overview /> }
           />
           <Route
             exact
             path="/ProductPage"
             element={
-              <ProtectedRoute>
+            
                 <ProductPage />
-              </ProtectedRoute>
+              
             }
           />
           <Route
             exact
             path="/Shop"
             element={
-              <ProtectedRoute>
+            
                 <Shop />
-              </ProtectedRoute>
             }
           />
           <Route
             exact
             path="/AddProductPage"
             element={
-              <ProtectedRoute>
+             
                 <AddProductPage />
-              </ProtectedRoute>
+            
             }
           />
           <Route
             exact
             path="/Customers"
             element={
-              <ProtectedRoute>
+           
                 <Customers />
-              </ProtectedRoute>
+              
             }
           />
           <Route
             exact
             path="/SingleCustomerPage"
             element={
-              <ProtectedRoute>
+              
                 <SingleCustomerPage />
-              </ProtectedRoute>
+             
             }
           />
           <Route
             exact
             path="/Orders"
             element={
-              <ProtectedRoute>
+             
                 <Orders />
-              </ProtectedRoute>
+
             }
           />
           <Route
             exact
             path="/ServicesPage"
             element={
-              <ProtectedRoute>
+              
                 <ServicesPage />
-              </ProtectedRoute>
+             
             }
           />
           <Route
@@ -147,18 +142,18 @@ function App() {
             exact
             path="/Bookings"
             element={
-              <ProtectedRoute>
+
                 <Bookings />
-              </ProtectedRoute>
+             
             }
           />
           <Route
             exact
             path="/BookingDetails"
             element={
-              <ProtectedRoute>
+           
                 <BookingDetails />
-              </ProtectedRoute>
+            
             }
           />
           <Route
@@ -174,63 +169,63 @@ function App() {
             exact
             path="/Payments"
             element={
-              <ProtectedRoute>
+            
                 <Payments />
-              </ProtectedRoute>
+            
             }
           />
           <Route
             exact
             path="/Chatbot"
             element={
-              <ProtectedRoute>
+            
                 <Chatbot />
-              </ProtectedRoute>
+             
             }
           />
           <Route
             exact
             path="/ManageStore"
             element={
-              <ProtectedRoute>
+           
                 <ManageStore />
-              </ProtectedRoute>
+         
             }
           />
           <Route
             exact
             path="/Services"
             element={
-              <ProtectedRoute>
+             
                 <Services />
-              </ProtectedRoute>
+             
             }
           />
           <Route
             exact
             path="/AddServices"
             element={
-              <ProtectedRoute>
+              
                 <AddServicesPage />
-              </ProtectedRoute>
+           
             }
           />
           <Route
             exact
             path="/EditProduct"
             element={
-              <ProtectedRoute>
+              
                 <EditProductPage />
-              </ProtectedRoute>
+            
             }
           />
           <Route
             exact
             path="/EditService"
             element={
-              <ProtectedRoute>
+              
                 <EditServices />
-              </ProtectedRoute>
+              
             }
           />
           <Route
@@ -246,18 +241,18 @@ function App() {
             exact
             path="/Chats"
             element={
-              <ProtectedRoute>
+             
                 <Chatlist />
-              </ProtectedRoute>
+             
             }
           />
           <Route
             exact
             path="/PersonalDetails"
             element={
-              <ProtectedRoute>
+             
                 <PersonalDetails />
-              </ProtectedRoute>
+           
             }
           />
           <Route
@@ -273,54 +268,54 @@ function App() {
             exact
             path="/AddBank"
             element={
-              <ProtectedRoute>
+              
                 <InputBankDetails />
-              </ProtectedRoute>
+           
             }
           />
           <Route
             exact
             path="/StoreSetting"
             element={
-              <ProtectedRoute>
+             
                 <StoreSettings />
-              </ProtectedRoute>
+             
             }
           />
           <Route
             exact
             path="/LinkAccount"
             element={
-              <ProtectedRoute>
+           
                 <LinkAccount />
-              </ProtectedRoute>
+            
             }
           />
           <Route
             exact
             path="/TransactionDetails"
             element={
-              <ProtectedRoute>
+              
                 <TransactionDetails />
-              </ProtectedRoute>
+           
             }
           />
           <Route
             exact
             path="/Support"
             element={
-              <ProtectedRoute>
+
                 <Support />
-              </ProtectedRoute>
+            
             }
           />
           <Route
             exact
             path="/AdvanceSettings"
             element={
-              <ProtectedRoute>
+             
                 <AdvanceSetting />
-              </ProtectedRoute>
+           
             }
           />
         </Routes>
