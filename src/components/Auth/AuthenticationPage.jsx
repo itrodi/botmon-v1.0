@@ -6,59 +6,8 @@ import { Label } from "@/components/ui/label";
 import axios from 'axios';
 
 export function AuthenticationPage() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    fname: '',
-    lname: '',
-    phone: '',
-  });
-  const [message, setMessage] = useState({ text: '', type: '' });
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setMessage({ text: '', type: '' });
-    
-    const form = new FormData();
-    for (const key in formData) {
-      form.append(key, formData[key]);
-    }
-
-    fetch('http://20.21.128.18/register', {
-      method: 'POST',
-      body: form,
-      credentials: 'include',
-    })
-      .then(response => response.json())
-      .then(data => {
-        setIsLoading(false);
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-          setMessage({ text: 'Registration successful!', type: 'success' });
-          setTimeout(() => {
-            navigate('/Onboarding1');
-          }, 2000);
-        } else {
-          setMessage({ text: 'Registration failed.', type: 'error' });
-        }
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        console.error('Error:', error);
-        setMessage({ text: 'An error occurred. Please try again.', type: 'error' });
-      });
-  };
 
   return (
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
