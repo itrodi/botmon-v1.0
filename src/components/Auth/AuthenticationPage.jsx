@@ -19,7 +19,7 @@ export function AuthenticationPage() {
               Sign up with a few steps and start automating and managing your business with ease.
             </p>
           </div>
-          <form onSubmit={handleSubmit}>
+          <form >
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="fname">First Name</Label>
@@ -28,8 +28,6 @@ export function AuthenticationPage() {
                   type="text"
                   placeholder="Enter your first name"
                   required
-                  value={formData.fname}
-                  onChange={handleChange}
                   name="fname"
                 />
               </div>
@@ -40,8 +38,6 @@ export function AuthenticationPage() {
                   type="text"
                   placeholder="Enter your last name"
                   required
-                  value={formData.lname}
-                  onChange={handleChange}
                   name="lname"
                 />
               </div>
@@ -52,8 +48,6 @@ export function AuthenticationPage() {
                   type="email"
                   placeholder="m@example.com"
                   required
-                  value={formData.email}
-                  onChange={handleChange}
                   name="email"
                 />
               </div>
@@ -64,8 +58,6 @@ export function AuthenticationPage() {
                   type="text"
                   placeholder="+234"
                   required
-                  value={formData.phone}
-                  onChange={handleChange}
                   name="phone"
                 />
               </div>
@@ -75,16 +67,9 @@ export function AuthenticationPage() {
                   id="password"
                   type="password"
                   required
-                  value={formData.password}
-                  onChange={handleChange}
                   name="password"
                 />
               </div>
-              {message.text && (
-                <div className={`p-2 text-center text-sm ${message.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
-                  {message.text}
-                </div>
-              )}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Signing Up...' : 'Sign Up'}
               </Button>
