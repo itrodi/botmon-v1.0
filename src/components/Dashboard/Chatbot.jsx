@@ -1,269 +1,144 @@
-import {
-    Bird,
-    Book,
-    Bot,
-    Code2,
-    CornerDownLeft,
-    LifeBuoy,
-    Mic,
-    Paperclip,
-    Rabbit,
-    Settings,
-    Settings2,
-    Share,
-    SquareTerminal,
-    SquareUser,
-    Triangle,
-    Turtle,
-  } from "lucide-react"
-  
-  import { Badge } from "@/components/ui/badge"
-  import { Button } from "@/components/ui/button"
-  import {
-    Drawer,
-    DrawerContent,
-    DrawerDescription,
-    DrawerHeader,
-    DrawerTitle,
-    DrawerTrigger,
-  } from "@/components/ui/drawer"
-  import { Input } from "@/components/ui/input"
-  import { Label } from "@/components/ui/label"
-  import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-  } from "@/components/ui/select"
-  import { Textarea } from "@/components/ui/textarea"
-  import {
-    TooltipProvider,
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-  } from "@/components/ui/tooltip"
-import Sidebar from "../Sidebar"
-import MobileSidebar from "../MobileSidebar"
-  
-  
+import React from 'react';
+import { Instagram, Send } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import Sidebar from '../Sidebar';
+import DashboardHeader from '../Header';
+
+const Message = ({ isUser, content, image }) => (
+  <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className="relative">
+      <img 
+        src={image || "/api/placeholder/40/40"}
+        alt="Profile"
+        className="w-10 h-10 rounded-full"
+      />
+      {!isUser && (
+        <div className="absolute -right-1 bottom-0">
+          <Instagram className="w-4 h-4 text-pink-500" />
+        </div>
+      )}
+    </div>
+    <div className={`max-w-[70%] ${isUser ? 'bg-green-50' : 'bg-white'} p-3 rounded-lg shadow-sm`}>
+      {!isUser && image && (
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-medium">Jenifer</span>
+          <span className="text-green-500 text-sm">Online</span>
+        </div>
+      )}
+      <p className="text-gray-700">{content}</p>
+    </div>
+  </div>
+);
+
+const PermissionToggle = ({ title, description, enabled, onChange }) => (
+  <div className="flex items-center justify-between py-4 border-b border-gray-100">
+    <div className="space-y-1">
+      <h3 className="font-medium">{title}</h3>
+      <p className="text-sm text-gray-500">{description}</p>
+    </div>
+    <Switch checked={enabled} onCheckedChange={onChange} />
+  </div>
+);
 
 const Chatbot = () => {
   return (
-    
-    <div className="grid h-screen w-full pl-[56px]">
+    <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex flex-col">
-        <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background px-4">
-          <MobileSidebar />
-          <h1 className="text-xl font-semibold">Playground</h1>
-          <Drawer>
-            <DrawerTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Settings className="size-4" />
-                <span className="sr-only">Settings</span>
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent className="max-h-[80vh]">
-              <DrawerHeader>
-                <DrawerTitle>Configuration</DrawerTitle>
-                <DrawerDescription>
-                  Configure the settings for the model and messages.
-                </DrawerDescription>
-              </DrawerHeader>
-              <form className="grid w-full items-start gap-6 overflow-auto p-4 pt-0">
-              <fieldset className="grid gap-6 rounded-lg border p-4">
-                <legend className="-ml-1 px-1 text-sm font-medium">
-                 Welcome Message
-                </legend>
-                <div className="grid gap-3">
-                  <img
-                        alt="Product image"
-                        
-                        height="70"
-                        src="/Images/testimage.png"
-                        width="70"
-                      />
-                       <div className="grid gap-3">
-                  <Label htmlFor="content">Content</Label>
-                  <Textarea
-                    id="content"
-                    placeholder="You are a..."
-                    className="min-h-[9.5rem]"
-                  />
-                </div>                  
-                </div>
-              </fieldset>
-              <fieldset className="grid gap-6 rounded-lg border p-4">
-                <legend className="-ml-1 px-1 text-sm font-medium">
-                   Menu Section
-                </legend>
-                <div className="grid gap-3">
-                  <Label htmlFor="content">Content</Label>
-                  <Textarea
-                    id="content"
-                    placeholder="You are a..."
-                    className="min-h-[9.5rem]"
-                  />
-                </div> 
-
-                 <div className="grid gap-3">
-               <Input
-                id="name"
-                type="text"
-                className="w-full"
-                defaultValue="Buy Product"
-              />
-           </div>
-           <div className="grid gap-3">
-               <Input
-                id="name"
-                type="text"
-                className="w-full"
-                defaultValue="Our services"
-              />
-           </div>
-           <div className="grid gap-3">
-               <Input
-                id="name"
-                type="text"
-                className="w-full"
-                defaultValue="Faq"
-              />
-           </div>
-              </fieldset>
-              </form>
-            </DrawerContent>
-          </Drawer>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto gap-1.5 text-sm"
-          >
-            <Share className="size-3.5" />
-            Share
-          </Button>
-        </header>
-        <main className="grid flex-1 gap-4 overflow-auto p-4 md:grid-cols-2 lg:grid-cols-3">
-          <div
-            className="relative hidden flex-col items-start gap-8 md:flex" x-chunk="dashboard-03-chunk-0"
-          >
-            <form className="grid w-full items-start gap-6">
-              <fieldset className="grid gap-6 rounded-lg border p-4">
-                <legend className="-ml-1 px-1 text-sm font-medium">
-                 Welcome Message
-                </legend>
-                <div className="grid gap-3">
-                  <img
-                        alt="Product image"
-                        
-                        height="70"
-                        src="/Images/testimage.png"
-                        width="70"
-                      />
-                       <div className="grid gap-3">
-                  <Label htmlFor="content">Content</Label>
-                  <Textarea
-                    id="content"
-                    placeholder="You are a..."
-                    className="min-h-[9.5rem]"
-                  />
-                </div>                  
-                </div>
-              </fieldset>
-              <fieldset className="grid gap-6 rounded-lg border p-4">
-                <legend className="-ml-1 px-1 text-sm font-medium">
-                   Menu Section
-                </legend>
-                <div className="grid gap-3">
-                  <Label htmlFor="content">Content</Label>
-                  <Textarea
-                    id="content"
-                    placeholder="You are a..."
-                    className="min-h-[9.5rem]"
-                  />
-                </div> 
-
-                 <div className="grid gap-3">
-               <Input
-                id="name"
-                type="text"
-                className="w-full"
-                defaultValue="Buy Product"
-              />
-           </div>
-           <div className="grid gap-3">
-               <Input
-                id="name"
-                type="text"
-                className="w-full"
-                defaultValue="Our services"
-              />
-           </div>
-           <div className="grid gap-3">
-               <Input
-                id="name"
-                type="text"
-                className="w-full"
-                defaultValue="Faq"
-              />
-           </div>
-           <Button type="submit" size="sm" className="mt-2">
-                  Save Update
-                </Button>
-              </fieldset>
-              
-            </form>
-          </div>
-          <div className="relative flex h-full min-h-[50vh] flex-col rounded-xl bg-muted/50 p-4 lg:col-span-2">
-            <Badge variant="outline" className="absolute right-3 top-3">
-              Output
-            </Badge>
-            <div className="flex-1" />
-            <form
-              className="relative overflow-hidden rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring" x-chunk="dashboard-03-chunk-1"
-            >
-              <Label htmlFor="message" className="sr-only">
-                Message
-              </Label>
-              <Textarea
-                id="message"
-                placeholder="Type your message here..."
-                className="min-h-12 resize-none border-0 p-3 shadow-none focus-visible:ring-0"
-              />
-              <div className="flex items-center p-3 pt-0">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Paperclip className="size-4" />
-                      <span className="sr-only">Attach file</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Attach File</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Mic className="size-4" />
-                      <span className="sr-only">Use Microphone</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Use Microphone</TooltipContent>
-                </Tooltip>
-                </TooltipProvider>
-                <Button type="submit" size="sm" className="ml-auto gap-1.5">
-                  Send Message
-                  <CornerDownLeft className="size-3.5" />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardHeader title="Chat Bot" />
+        
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Chat Interface */}
+            <div className="bg-white rounded-lg shadow-sm">
+              <div className="border-b p-4">
+                <Button variant="outline" className="text-purple-600">
+                  Edit Chat Bot Template
                 </Button>
               </div>
-            </form>
+              
+              <div className="h-[calc(100vh-300px)] flex flex-col">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  <Message 
+                    image="/api/placeholder/40/40"
+                    content="Hello, How may we help you?"
+                  />
+                  <Message 
+                    isUser={true}
+                    content="I want to get an phone 14"
+                    image="/api/placeholder/40/40"
+                  />
+                  <Message 
+                    image="/api/placeholder/40/40"
+                    content="Alright, What space capacity do you need?"
+                  />
+                  <Message 
+                    isUser={true}
+                    content="256GB Memory Space"
+                    image="/api/placeholder/40/40"
+                  />
+                  <div className="flex justify-center my-4">
+                    <img 
+                      src="/api/placeholder/200/400"
+                      alt="iPhone 14"
+                      className="max-w-[200px] rounded-lg shadow-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div className="p-4 border-t">
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Type Something..."
+                      className="flex-1"
+                    />
+                    <Button className="bg-purple-600 text-white px-8">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Permissions */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-medium">Set Permission</h2>
+                  <Switch />
+                </div>
+                <div className="space-y-2">
+                  <PermissionToggle
+                    title="Access Chat Bot Messages"
+                    description="Whether new user can access bot messages and change bot settings"
+                    enabled={true}
+                  />
+                  <PermissionToggle
+                    title="Access Payment"
+                    description="This confirms if user can have access to the payment feature on the dashboard."
+                    enabled={true}
+                  />
+                  <PermissionToggle
+                    title="Access Chat Bot Template"
+                    description="Whether new user can access chatbot template page and settings"
+                    enabled={false}
+                  />
+                  <PermissionToggle
+                    title="Access Product Page"
+                    description="Whether new user can access product page to perform actions like edit product, add product, and create product."
+                    enabled={false}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </main>
       </div>
     </div>
-  
-  )
-}
+  );
+};
 
-export default Chatbot
+export default Chatbot;

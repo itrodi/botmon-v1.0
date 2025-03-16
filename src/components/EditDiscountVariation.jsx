@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import {
-  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -21,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const DiscountsVariation = ({ onSuccess }) => {
+const EditDiscountVariation = ({ discountId, initialData, onSuccess, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [discountData, setDiscountData] = useState({
     name: '',
@@ -29,6 +27,18 @@ const DiscountsVariation = ({ onSuccess }) => {
     duration: '',
     percent: ''
   });
+
+  useEffect(() => {
+    // Initialize form with provided data when component mounts
+    if (initialData) {
+      setDiscountData({
+        name: initialData.name || '',
+        coupon: initialData.coupon || '',
+        duration: initialData.duration || '',
+        percent: initialData.percent ? initialData.percent.toString() : ''
+      });
+    }
+  }, [initialData]);
 
   // Handle input changes for text fields
   const handleInputChange = (e) => {
@@ -47,7 +57,7 @@ const DiscountsVariation = ({ onSuccess }) => {
     }));
   };
 
-  // Submit discount to backend
+  // Submit discount updates to backend
   const handleSubmit = async () => {
     // Validate all fields are filled
     if (!discountData.name.trim() || !discountData.coupon.trim() || 
@@ -72,12 +82,13 @@ const DiscountsVariation = ({ onSuccess }) => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/discountp',
+        'https://api.automation365.io/edit-discount',
         {
-          Names: [discountData.name],
-          Coupons: [discountData.coupon],
-          Durations: [discountData.duration],
-          Percents: [percentValue]
+          'discount-id': discountId,
+          Names: discountData.name,
+          Coupons: discountData.coupon,
+          Durations: discountData.duration,
+          Percents: percentValue
         },
         {
           headers: {
@@ -87,21 +98,16 @@ const DiscountsVariation = ({ onSuccess }) => {
         }
       );
 
-      if (response.data === "Done") {
-        toast.success('Discount added successfully');
-        // Reset form
-        setDiscountData({
-          name: '',
-          coupon: '',
-          duration: '',
-          percent: ''
-        });
+      if (response.data.success === "Discount updated successfully") {
+        toast.success('Discount updated successfully');
         // Call success callback to refresh parent component
         onSuccess?.();
+        // Close the dialog
+        onClose?.();
       }
     } catch (error) {
-      console.error('Error adding discount:', error);
-      toast.error(error.response?.data?.error || 'Failed to add discount');
+      console.error('Error updating discount:', error);
+      toast.error(error.response?.data?.error || 'Failed to update discount');
     } finally {
       setLoading(false);
     }
@@ -110,9 +116,9 @@ const DiscountsVariation = ({ onSuccess }) => {
   return (
     <DialogContent className="sm:max-w-[425px]">
       <DialogHeader>
-        <DialogTitle>Add Discount</DialogTitle>
+        <DialogTitle>Edit Discount</DialogTitle>
         <DialogDescription>
-          Create various discounts for your products and services
+          Update your discount or coupon details
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">
@@ -188,11 +194,11 @@ const DiscountsVariation = ({ onSuccess }) => {
           disabled={loading}
           className="bg-purple-600 hover:bg-purple-700"
         >
-          {loading ? 'Adding...' : 'Add Discount'}
+          {loading ? 'Updating...' : 'Update Discount'}
         </Button>
       </DialogFooter>
     </DialogContent>
   );
 };
 
-export default DiscountsVariation;
+export default EditDiscountVariation;

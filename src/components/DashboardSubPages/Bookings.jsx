@@ -1,391 +1,334 @@
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  File,
-  ListFilter,
-  Search,
-} from "lucide-react"
-
-import { Badge } from "@/components/ui/badge"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger,SheetClose, SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle, } from "@/components/ui/sheet"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import React, { useState } from 'react';
+import { Search, CalendarIcon, X, Clock } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-  import MobileSidebar from '../MobileSidebar';
-  import Sidebar from '../Sidebar';  
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import Sidebar from '../Sidebar';
+import Header from '../Header';
 
+const Bookings = () => {
+  const [activeTab, setActiveTab] = useState('all');
+  const [date, setDate] = useState(new Date());
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCancelReason, setShowCancelReason] = useState(false);
+  const [showRescheduleReason, setShowRescheduleReason] = useState(false);
+  const [showRescheduleCalendar, setShowRescheduleCalendar] = useState(false);
+  const [showTimeSelect, setShowTimeSelect] = useState(false);
 
+  const tabs = [
+    { id: 'all', label: 'All' },
+    { id: 'pending', label: 'Pending' },
+    { id: 'successful', label: 'Successful' },
+    { id: 'cancelled', label: 'Cancelled' },
+  ];
 
-export function Bookings() {
+  const timeSlots = [
+    '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
+    '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
+  ];
 
-  const navigate = useNavigate();
+  const handleScheduleClick = (schedule) => {
+    setSelectedSchedule(schedule);
+  };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/login');
+  const handleCancel = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const handleCancelConfirm = () => {
+    setShowCancelConfirm(false);
+    setShowCancelReason(true);
+  };
+
+  const handleReschedule = () => {
+    setShowRescheduleReason(true);
+  };
+
+  const handleRescheduleConfirm = () => {
+    setShowRescheduleReason(false);
+    setShowRescheduleCalendar(true);
+  };
+
+  const handleDateSelect = () => {
+    setShowRescheduleCalendar(false);
+    setShowTimeSelect(true);
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div className="h-screen flex">
       <Sidebar />
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-        <MobileSidebar />
-          <Breadcrumb className="hidden md:flex">
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link to="/Overview">Home</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link to="/Shop">Shop</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Bookings</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <div className="relative ml-auto flex-1 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-            />
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="overflow-hidden rounded-full"
-              >
-                <img
-                  src="/Images/testimage.png"
-                  width={36}
-                  height={36}
-                  alt="Avatar"
-                  className="overflow-hidden"
-                />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <Link to="/ManageStore">
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              </Link>
-              <DropdownMenuItem>Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-          <Tabs defaultValue="all">
-            <div className="flex items-center">
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="active">Pending</TabsTrigger>
-                <TabsTrigger value="draft">fufilled</TabsTrigger>
-                <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+      
+      <div className="flex-1">
+        <Header title="Schedule" />
 
-
-              </TabsList>
-              <div className="ml-auto flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1">
-                      <ListFilter className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Filter
-                      </span>
+        <div className="h-[calc(100vh-64px)] overflow-y-auto bg-gray-50 p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Search and Filter */}
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="flex gap-4 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input 
+                    placeholder="Search schedules..." 
+                    className="pl-9 pr-4 w-full sm:w-64"
+                  />
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4" />
+                      Filter by date
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem checked>
-                      Orders
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem>Bookings</DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button size="sm" variant="outline" className="h-8 gap-1">
-                  <File className="h-3.5 w-3.5" />
-                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Export
-                  </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex space-x-1 bg-white p-1 rounded-lg w-fit">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                    ${activeTab === tab.id 
+                      ? 'bg-purple-600 text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Schedule Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((_, index) => (
+                <div
+                  key={index}
+                  onClick={() => handleScheduleClick({
+                    id: index,
+                    customer: "@Joe11",
+                    email: "jenifer6372@gmail.com",
+                    description: "Upgrade to the new iPhone today and experience the best of Apple technology",
+                    date: "7th May, 2023",
+                    time: "09:00"
+                  })}
+                  className="bg-white p-6 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <img
+                      src={`https://ui-avatars.com/api/?name=Joe+${index}&background=6d28d9&color=fff`}
+                      alt="Customer"
+                      className="w-12 h-12 rounded-full"
+                    />
+                    <div>
+                      <h3 className="font-medium">@Joe11</h3>
+                      <p className="text-gray-500 text-sm">Today</p>
+                    </div>
+                  </div>
+                  <h4 className="font-medium mb-2">Meeting Description</h4>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                    Upgrade to the new iPhone today and experience the best of Apple technology
+                  </p>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" /> 09:00
+                    </span>
+                    <span>7th May, 2023</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between bg-white p-4 rounded-lg">
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">1</span> to{' '}
+                    <span className="font-medium">6</span> of{' '}
+                    <span className="font-medium">12</span> results
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="w-8 h-8 p-0">1</Button>
+                  <Button variant="outline" className="w-8 h-8 p-0">2</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Schedule Details Modal */}
+      {selectedSchedule && (
+        <Dialog open={!!selectedSchedule} onOpenChange={() => setSelectedSchedule(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Accept Schedule</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-center text-gray-600">
+                Are you sure you want to accept schedule from {selectedSchedule.email}?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button 
+                  variant="outline" 
+                  className="text-red-600"
+                  onClick={handleCancel}
+                >
+                  Reject
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={handleReschedule}
+                >
+                  Reschedule
+                </Button>
+                <Button className="bg-purple-600 text-white">
+                  Accept
                 </Button>
               </div>
             </div>
-            <TabsContent value="all">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bookings</CardTitle>
-                  <CardDescription>
-                    Manage your  Bookings here.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="hidden w-[100px] sm:table-cell">
-                          <span className="sr-only">Image</span>
-                        </TableHead>
-                        <TableHead>Service</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Price
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Customer Name
-                        </TableHead>
-                      
-                        <TableHead>
-                          <span className="sr-only">Actions</span>
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="hidden sm:table-cell">
-                          <img
-                            alt="Product image"
-                            className="aspect-square rounded-md object-cover"
-                            height="64"
-                            src="/Images/testimage.png"
-                            width="64"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          Consultation
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Pending</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ₦499.99
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          tolu akinjobi
-                        </TableCell>
-                        <TableCell>
-                          <Link to="/BookingDetails">
-                        <Button variant="outline">Manage Booking</Button>
-                        </Link>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="hidden sm:table-cell">
-                          <img
-                            alt="Product image"
-                            className="aspect-square rounded-md object-cover"
-                            height="64"
-                            src="/Images/testimage.png"
-                            width="64"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          Laptop Repair
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Active</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ₦129.99
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          alex scott
-                        </TableCell>
-                        <TableCell>
-                        <Link to="/BookingDetails">
-                        <Button variant="outline">Manage Booking</Button>
-                        </Link>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="hidden sm:table-cell">
-                          <img
-                            alt="Product image"
-                            className="aspect-square rounded-md object-cover"
-                            height="64"
-                            src="/Images/testimage.png"
-                            width="64"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          Iphone Repair
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Active</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ₦39.99
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          duran jesse
-                        </TableCell>
-                        <TableCell>
-                        <Link to="/BookingDetails">
-                        <Button variant="outline">Manage Booking</Button>
-                        </Link>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="hidden sm:table-cell">
-                          <img
-                            alt="Product image"
-                            className="aspect-square rounded-md object-cover"
-                            height="64"
-                            src="/Images/testimage.png"
-                            width="64"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          Phone swap
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">Draft</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ₦2.99
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          david maclean
-                        </TableCell>
-                        <TableCell>
-                        <Link to="/BookingDetails">
-                        <Button variant="outline">Manage Booking</Button>
-                        </Link>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="hidden sm:table-cell">
-                          <img
-                            alt="Product image"
-                            className="aspect-square rounded-md object-cover"
-                            height="64"
-                            src="/Images/testimage.png"
-                            width="64"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          Gamer Gear Pro Controller
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Active</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ₦59.99
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                         Phone Update
-                        </TableCell>
-                        <TableCell>
-                        <Link to="/BookingDetails">
-                        <Button variant="outline">Manage Booking</Button>
-                        </Link>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="hidden sm:table-cell">
-                          <img
-                            alt="Product image"
-                            className="aspect-square rounded-md object-cover"
-                            height="64"
-                            src="/Images/testimage.png"
-                            width="64"
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          Ipad repairs
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Active</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          ₦199.99
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          rasmus hojlund
-                        </TableCell>
-                        <TableCell>
-                        <Link to="/BookingDetails">
-                        <Button variant="outline">Manage Booking</Button>
-                        </Link>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </CardContent>
-                <CardFooter>
-                  <div className="text-xs text-muted-foreground">
-                    Showing <strong>1-10</strong> of <strong>32</strong>{" "}
-                    products
-                  </div>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
-      </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      <Dialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Are you sure you want to cancel order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-center text-gray-600">
+              Please confirm if you want to cancel your order
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCancelConfirm(false)}
+              >
+                No
+              </Button>
+              <Button 
+                className="bg-purple-600 text-white"
+                onClick={handleCancelConfirm}
+              >
+                Yes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Reason Modal */}
+      <Dialog open={showCancelReason} onOpenChange={setShowCancelReason}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reason For Cancel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea 
+              placeholder="Please provide a reason for cancelling your order"
+              className="min-h-[100px]"
+            />
+            <div className="flex justify-end">
+              <Button className="bg-purple-600 text-white">
+                Submit
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Reason Modal */}
+      <Dialog open={showRescheduleReason} onOpenChange={setShowRescheduleReason}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reason For Reschedule</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea 
+              placeholder="Please provide a reason for rescheduling"
+              className="min-h-[100px]"
+            />
+            <div className="flex justify-end">
+              <Button 
+                className="bg-purple-600 text-white"
+                onClick={handleRescheduleConfirm}
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Calendar Modal */}
+      <Dialog open={showRescheduleCalendar} onOpenChange={setShowRescheduleCalendar}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select New Date</DialogTitle>
+          </DialogHeader>
+          <div className="p-4">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={(date) => {
+                setDate(date);
+                handleDateSelect();
+              }}
+              initialFocus
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Time Selection Modal */}
+      <Dialog open={showTimeSelect} onOpenChange={setShowTimeSelect}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Time</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2">
+            {timeSlots.map((time) => (
+              <Button
+                key={time}
+                variant="outline"
+                className="text-sm"
+                onClick={() => setShowTimeSelect(false)}
+              >
+                {time}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
-}
+  );
+};
+
 export default Bookings;

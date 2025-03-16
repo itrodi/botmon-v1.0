@@ -1,203 +1,127 @@
-import { Link } from 'react-router-dom';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  CreditCard,
-  MoreVertical,
-  Truck,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import React from 'react';
+import { ArrowLeft, Download } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-} from "@/components/ui/pagination"
-import { Separator } from "@/components/ui/separator"
+const DetailRow = ({ label, value, bold }) => (
+  <div className="flex justify-between py-2">
+    <span className="text-gray-600">{label}</span>
+    <span className={bold ? "font-semibold" : ""}>{value}</span>
+  </div>
+);
 
+const DetailSection = ({ title, children }) => (
+  <div className="border rounded-lg p-6 space-y-3">
+    <h3 className="font-semibold text-lg mb-4">{title}</h3>
+    {children}
+  </div>
+);
 
 const TransactionDetails = () => {
   return (
-
-   <Card
-              className="overflow-hidden" x-chunk="dashboard-05-chunk-4"
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              className="p-2"
+              onClick={() => window.history.back()}
             >
-              <CardHeader className="flex flex-row items-start bg-muted/50">
-                <div className="grid gap-0.5">
-                <Link to="/Payments">
-              <Button variant="outline" size="icon" className="h-7 w-7">
-                <ChevronLeft className="h-4 w-4" />
-                <span className="sr-only mb-10">Back</span>
-              </Button>
-              </Link>
-                  <CardTitle className="group flex items-center gap-2 text-lg">
-                    Order Oe31b70H
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <Copy className="h-3 w-3" />
-                      <span className="sr-only">Copy Order ID</span>
-                    </Button>
-                  </CardTitle>
-                  <CardDescription>Date: November 23, 2023</CardDescription>
-                </div>
-                <div className="ml-auto flex items-center gap-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="outline" className="h-8 w-8">
-                        <MoreVertical className="h-3.5 w-3.5" />
-                        <span className="sr-only">More</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>Export</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>Trash</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 text-sm">
-                <div className="grid gap-3">
-                  <div className="font-semibold">Order Details</div>
-                  <ul className="grid gap-3">
-                    <li className="flex items-center justify-between">
-                      <span className="text-muted-foreground">
-                        Glimmer Lamps x <span>2</span>
-                      </span>
-                      <span>$250.00</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="text-muted-foreground">
-                        Aqua Filters x <span>1</span>
-                      </span>
-                      <span>$49.00</span>
-                    </li>
-                  </ul>
-                  <Separator className="my-2" />
-                  <ul className="grid gap-3">
-                    <li className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>$299.00</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Shipping</span>
-                      <span>$5.00</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Tax</span>
-                      <span>$25.00</span>
-                    </li>
-                    <li className="flex items-center justify-between font-semibold">
-                      <span className="text-muted-foreground">Total</span>
-                      <span>$329.00</span>
-                    </li>
-                  </ul>
-                </div>
-                <Separator className="my-4" />
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-3">
-                    <div className="font-semibold">Shipping Information</div>
-                    <address className="grid gap-0.5 not-italic text-muted-foreground">
-                      <span>Liam Johnson</span>
-                      <span>1234 Main St.</span>
-                      <span>Anytown, CA 12345</span>
-                    </address>
-                  </div>
-                  <div className="grid auto-rows-max gap-3">
-                    <div className="font-semibold">Billing Information</div>
-                    <div className="text-muted-foreground">
-                      Same as shipping address
-                    </div>
-                  </div>
-                </div>
-                <Separator className="my-4" />
-                <div className="grid gap-3">
-                  <div className="font-semibold">Customer Information</div>
-                  <dl className="grid gap-3">
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">Customer</dt>
-                      <dd>Liam Johnson</dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">Email</dt>
-                      <dd>
-                        <a href="mailto:">liam@acme.com</a>
-                      </dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">Phone</dt>
-                      <dd>
-                        <a href="tel:">+1 234 567 890</a>
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-                <Separator className="my-4" />
-                <div className="grid gap-3">
-                  <div className="font-semibold">Payment Information</div>
-                  <dl className="grid gap-3">
-                    <div className="flex items-center justify-between">
-                      <dt className="flex items-center gap-1 text-muted-foreground">
-                        <CreditCard className="h-4 w-4" />
-                        Visa
-                      </dt>
-                      <dd>**** **** **** 4532</dd>
-                    </div>
-                  </dl>
-                  <dl className="grid gap-3">
-                    <div className="flex items-center justify-between">
-                      <dt className="flex items-center gap-1 text-muted-foreground">
-                        
-                       Transaction Status
-                      </dt>
-                      <dd>Pending</dd>
-                    </div>
-                  </dl>
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-row items-center border-t bg-muted/50 px-6 py-3">
-                <div className="text-xs text-muted-foreground">
-                  Updated <time dateTime="2023-11-23">November 23, 2023</time>
-                </div>
-                <Pagination className="ml-auto mr-0 w-auto">
-                  <PaginationContent>
-                    <PaginationItem>
-                      <Button size="icon" variant="outline" className="h-6 w-6">
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                        <span className="sr-only">Previous Order</span>
-                      </Button>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <Button size="icon" variant="outline" className="h-6 w-6">
-                        <ChevronRight className="h-3.5 w-3.5" />
-                        <span className="sr-only">Next Order</span>
-                      </Button>
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </CardFooter>
-            </Card>
-  )
-}
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold">Order Oe31b70H</h1>
+              <p className="text-gray-500">Date: November 23, 2023</p>
+            </div>
+          </div>
+          <Button variant="outline" className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Download Receipt
+          </Button>
+        </div>
 
-export default TransactionDetails
+        <div className="space-y-6">
+          {/* Order Details */}
+          <DetailSection title="Order Details">
+            <DetailRow 
+              label="Glimmer Lamps x 2"
+              value="$250.00"
+            />
+            <DetailRow 
+              label="Aqua Filters x 1"
+              value="$49.00"
+            />
+            <div className="border-t mt-4 pt-4 space-y-3">
+              <DetailRow 
+                label="Subtotal"
+                value="$299.00"
+              />
+              <DetailRow 
+                label="Shipping"
+                value="$5.00"
+              />
+              <DetailRow 
+                label="Tax"
+                value="$25.00"
+              />
+              <DetailRow 
+                label="Total"
+                value="$329.00"
+                bold
+              />
+            </div>
+          </DetailSection>
+
+          {/* Customer Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Shipping Information */}
+            <DetailSection title="Shipping Information">
+              <div className="space-y-2">
+                <p className="font-medium">Liam Johnson</p>
+                <p className="text-gray-600">1234 Main St.</p>
+                <p className="text-gray-600">Anytown, CA 12345</p>
+              </div>
+            </DetailSection>
+
+            {/* Billing Information */}
+            <DetailSection title="Billing Information">
+              <p className="text-gray-600">Same as shipping address</p>
+            </DetailSection>
+          </div>
+
+          {/* Customer Details */}
+          <DetailSection title="Customer Information">
+            <DetailRow 
+              label="Customer"
+              value="Liam Johnson"
+            />
+            <DetailRow 
+              label="Email"
+              value="liam@acme.com"
+            />
+            <DetailRow 
+              label="Phone"
+              value="+1 234 567 890"
+            />
+          </DetailSection>
+
+          {/* Payment Information */}
+          <DetailSection title="Payment Information">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-6 bg-blue-600 rounded"></div>
+                <span>Visa ending in 4532</span>
+              </div>
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                Pending
+              </span>
+            </div>
+          </DetailSection>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TransactionDetails;

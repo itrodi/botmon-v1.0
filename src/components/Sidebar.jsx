@@ -1,118 +1,157 @@
-import React from 'react'
-import { Link } from 'react-router-dom';
-import {
-  Bot,
-  CreditCard,
-  Home,
-  LineChart,
-  Mail,
-  Package,
-  Package2,
-  Settings,
-  ShoppingCart,
-  Users2,
-} from "lucide-react"
+import React, { useState } from 'react';
+import { Grid, ShoppingBag, MessageSquare, CreditCard, Bell, Mail, MessageCircle, Users, ClipboardList, BarChart, Settings, Menu, X } from 'lucide-react';
 
-import {
-  Tooltip,
-  TooltipProvider,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+const SidebarLink = ({ href, icon: Icon, children, isActive }) => {
+  return (
+    <a
+      href={href}
+      className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+        ${isActive 
+          ? 'text-purple-600 bg-purple-50' 
+          : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
+        }`}
+    >
+      <Icon className="w-5 h-5" />
+      <span>{children}</span>
+    </a>
+  );
+};
 
+const MobileMenu = ({ isOpen, onClose }) => {
+  return (
+    <>
+      {/* Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Mobile Menu Panel */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white transform transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <span className="font-bold text-xl">BOTMON</span>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="py-4">
+          {/* Main Menu */}
+          <div className="space-y-1">
+            <div className="px-4 py-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                MAIN MENU
+              </span>
+            </div>
+            <SidebarLink href="/dashboard" icon={Grid} isActive={true}>Overview</SidebarLink>
+            <SidebarLink href="/dashboard/products" icon={ShoppingBag}>Product Page</SidebarLink>
+            <SidebarLink href="/dashboard/chat" icon={MessageSquare}>Chat Bot</SidebarLink>
+            <SidebarLink href="/dashboard/payment" icon={CreditCard}>Payment</SidebarLink>
+          </div>
+
+          {/* Social Page */}
+          <div className="space-y-1 mt-6">
+            <div className="px-4 py-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                SOCIAL PAGE
+              </span>
+            </div>
+            <SidebarLink href="/dashboard/notifications" icon={Bell}>Notification</SidebarLink>
+            <SidebarLink href="/dashboard/messages" icon={Mail}>Messages</SidebarLink>
+            <SidebarLink href="/dashboard/comments" icon={MessageCircle}>Comments</SidebarLink>
+          </div>
+
+          {/* Others */}
+          <div className="space-y-1 mt-6">
+            <div className="px-4 py-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                OTHERS
+              </span>
+            </div>
+            <SidebarLink href="/dashboard/customers" icon={Users}>Customers</SidebarLink>
+            <SidebarLink href="/dashboard/orders" icon={ClipboardList}>Orders</SidebarLink>
+            <SidebarLink href="/dashboard/analytics" icon={BarChart}>Analytics</SidebarLink>
+            <SidebarLink href="/dashboard/settings" icon={Settings}>Settings</SidebarLink>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
 
 const Sidebar = () => {
-  return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-        <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-          <Link
-            href="#"
-            className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-          >
-            <Package2 className="h-4 w-4 transition-all group-hover:scale-110" />
-            <span className="sr-only">Botmon</span>
-          </Link>
-          <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-               to="/Overview"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Home className="h-5 w-5" />
-                <span className="sr-only">Overview</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Overview</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                to="/Shop"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                <span className="sr-only">Shop</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Shop</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                to="/Messages"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Mail className="h-5 w-5" />
-                <span className="sr-only">Messages</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Messages</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                to="/Chatbot"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Bot className="h-5 w-5" />
-                <span className="sr-only">Chatbot</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Chatbot</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                to="/Payments"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <CreditCard className="h-5 w-5" />
-                <span className="sr-only">Payments</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Payments</TooltipContent>
-          </Tooltip>
-          </TooltipProvider>
-        </nav>
-        <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-              >
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">Settings</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Settings</TooltipContent>
-          </Tooltip>
-          </TooltipProvider>
-        </nav>
-      </aside>
-  )
-}
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-export default Sidebar
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex w-64 flex-col border-r border-gray-200 bg-white">
+        <div className="p-4 border-b border-gray-200">
+          <span className="font-bold text-xl">BOTMON</span>
+        </div>
+        <div className="flex-1 overflow-y-auto py-4">
+          {/* Main Menu */}
+          <div className="space-y-1">
+            <div className="px-4 py-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                MAIN MENU
+              </span>
+            </div>
+            <SidebarLink href="/dashboard" icon={Grid} isActive={true}>Overview</SidebarLink>
+            <SidebarLink href="/dashboard/products" icon={ShoppingBag}>Product Page</SidebarLink>
+            <SidebarLink href="/dashboard/chat" icon={MessageSquare}>Chat Bot</SidebarLink>
+            <SidebarLink href="/dashboard/payment" icon={CreditCard}>Payment</SidebarLink>
+          </div>
+
+          {/* Social Page */}
+          <div className="space-y-1 mt-6">
+            <div className="px-4 py-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                SOCIAL PAGE
+              </span>
+            </div>
+            <SidebarLink href="/dashboard/notifications" icon={Bell}>Notification</SidebarLink>
+            <SidebarLink href="/dashboard/messages" icon={Mail}>Messages</SidebarLink>
+            <SidebarLink href="/dashboard/comments" icon={MessageCircle}>Comments</SidebarLink>
+          </div>
+
+          {/* Others */}
+          <div className="space-y-1 mt-6">
+            <div className="px-4 py-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                OTHERS
+              </span>
+            </div>
+            <SidebarLink href="/dashboard/customers" icon={Users}>Customers</SidebarLink>
+            <SidebarLink href="/dashboard/orders" icon={ClipboardList}>Orders</SidebarLink>
+            <SidebarLink href="/dashboard/analytics" icon={BarChart}>Analytics</SidebarLink>
+            <SidebarLink href="/dashboard/settings" icon={Settings}>Settings</SidebarLink>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Hamburger Button */}
+      <div className="lg:hidden absolute left-4 top-5 z-30">
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 hover:bg-gray-100 rounded-lg"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Mobile Menu */}
+      <MobileMenu 
+        isOpen={isMobileMenuOpen} 
+        onClose={() => setIsMobileMenuOpen(false)} 
+      />
+    </>
+  );
+};
+
+export default Sidebar;

@@ -1,299 +1,235 @@
-import { Link } from 'react-router-dom';
-import {
-  Bird,
-  Bell,
-  Bot,
-  Code2,
-  CornerDownLeft,
-  LifeBuoy,
-  Mic,
-  Paperclip,
-  Rabbit,
-  Search,
-  Settings,
-  Settings2,
-  Share,
-  SquareTerminal,
-  SquareUser,
-  Triangle,
-  Turtle,
-  ListFilter,
-  Calendar,
-} from "lucide-react"
-
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  TooltipProvider,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import Sidebar from "../Sidebar"
-import MobileSidebar from "../MobileSidebar"
-import { ScrollArea } from "../ui/scroll-area"
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-
-
+import React, { useState } from 'react';
+import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Menu, ArrowLeft } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import Sidebar from '../Sidebar';
+import Header from '../Header';
 
 const Messages = () => {
-return (
-  
-  <div className="grid h-screen w-full pl-[56px]">
-    <Sidebar />
-    <div className="flex flex-col">
-      <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background px-4">
-        <MobileSidebar />
-        <h1 className="text-xl font-semibold">Messages</h1>
-            <Link to="/Chats">
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Settings className="size-4" />
-              <span className="sr-only">Settings</span>
-            </Button>
-            </Link>
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto gap-1.5 text-sm"
-        >
-          <Share className="size-3.5" />
-          Share
-        </Button>
-      </header>
-      <main className="grid flex-1 gap-4 overflow-auto p-4 md:grid-cols-2 lg:grid-cols-3">
-        <div
-          className="relative hidden flex-col items-start gap-8 md:flex" x-chunk="dashboard-03-chunk-0"
-        >
-          <form className="grid w-full items-start gap-6">
-            <ScrollArea>
-            
-          <Card>
-            <CardHeader>
-              <CardTitle>Chat List</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-8">
-            <div className="flex">
-            <div className="relative md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[180px] lg:w-[230px]"
-            />
-          </div>
-          <Link to="/Notifications">
-          <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-          <Button  variant="outline" size="icon" className="ml-2">
-            <ListFilter className="h-5 w-5" />
-             <span className="sr-only">Toggle navigation menu</span>
-         </Button>
-         </DropdownMenuTrigger>
-         <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem checked>
-                      Facebook
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem>Whatsapp</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem>
-                      Instagram
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-         </DropdownMenu>
-        </Link>
-        <Link to="/Notifications">
-          <Button  variant="outline" size="icon" className="ml-2">
-            <Calendar className="h-5 w-5" />
-             <span className="sr-only">Toggle navigation menu</span>
-         </Button>
-        </Link>
-          </div>
-              <div className="flex items-center gap-4">
-                <Avatar className="hidden h-9 w-9 sm:flex">
-                  <AvatarImage src="/avatars/01.png" alt="Avatar" />
-                  <AvatarFallback>OM</AvatarFallback>
-                </Avatar>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium leading-none">
-                    Olivia Martin
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Hello can i......
-                  </p>
-                </div>
-                <div className="ml-auto text-sm text-muted-foreground">2 minutes ago</div>
+  const [showChatList, setShowChatList] = useState(true);
+  const [showChat, setShowChat] = useState(false);
+
+  // Toggle functions for mobile view
+  const handleChatSelect = () => {
+    setShowChatList(false);
+    setShowChat(true);
+  };
+
+  const handleBackToList = () => {
+    setShowChatList(true);
+    setShowChat(false);
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header title="Messages" />
+        
+        <div className="flex-1 flex overflow-hidden">
+          {/* Chat List */}
+          <div className={`w-full md:w-80 border-r bg-white flex-shrink-0 overflow-hidden flex flex-col
+            ${(showChatList ? 'flex' : 'hidden')} md:flex`}>
+            <div className="p-4 border-b">
+              <h2 className="text-lg font-semibold mb-4">Chat List</h2>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input 
+                  placeholder="Search" 
+                  className="pl-9 bg-gray-50"
+                />
               </div>
-              <div className="flex items-center gap-4">
-                <Avatar className="hidden h-9 w-9 sm:flex">
-                  <AvatarImage src="/avatars/02.png" alt="Avatar" />
-                  <AvatarFallback>JL</AvatarFallback>
-                </Avatar>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium leading-none">
-                    Jackson Lee
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    where can i.....
-                  </p>
-                </div>
-                <div className="ml-auto text-sm text-muted-foreground">15 minutes ago</div>
-              </div>
-              <div className="flex items-center gap-4">
-                <Avatar className="hidden h-9 w-9 sm:flex">
-                  <AvatarImage src="/avatars/03.png" alt="Avatar" />
-                  <AvatarFallback>IN</AvatarFallback>
-                </Avatar>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium leading-none">
-                    Isabella Nguyen
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    yes of course....
-                  </p>
-                </div>
-                <div className="ml-auto text-sm text-muted-foreground">30 minutes ago</div>
-              </div>
-              <div className="flex items-center gap-4">
-                <Avatar className="hidden h-9 w-9 sm:flex">
-                  <AvatarImage src="/avatars/04.png" alt="Avatar" />
-                  <AvatarFallback>WK</AvatarFallback>
-                </Avatar>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium leading-none">
-                    William Kim
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    good when can i get ....
-                  </p>
-                </div>
-                <div className="ml-auto text-sm text-muted-foreground">1 hour ago</div>
-              </div>
-              <div className="flex items-center gap-4">
-                <Avatar className="hidden h-9 w-9 sm:flex">
-                  <AvatarImage src="/avatars/05.png" alt="Avatar" />
-                  <AvatarFallback>SD</AvatarFallback>
-                </Avatar>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium leading-none">
-                    Sofia Davis
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    why can i not....
-                  </p>
-                </div>
-                <div className="ml-auto text-sm text-muted-foreground">2 hours ago</div>
-              </div>
-            </CardContent>
-          </Card>
-            </ScrollArea>
-          </form>
-        </div>
-        <div className="relative flex h-full min-h-[50vh] flex-col rounded-xl bg-muted/50 p-4 lg:col-span-2">
-          <Badge variant="outline" className="absolute right-3 top-3">
-            Pause chatbot 
-          </Badge>
-          <div className="flex items-center gap-4">
-                <Avatar className="hidden h-9 w-9 sm:flex">
-                  <AvatarImage src="/avatars/05.png" alt="Avatar" />
-                  <AvatarFallback>SD</AvatarFallback>
-                </Avatar>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium leading-none">
-                    Sofia Davis
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                   Facebook
-                  </p>
-                </div>
-              </div>
-          <div className="mt-10">hello mate</div>
-          <div className="flex-1" />
-          
-          <form
-            className="relative overflow-hidden rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring" x-chunk="dashboard-03-chunk-1"
-          >
-            
-            <Label htmlFor="message" className="sr-only">
-              Message
-            </Label>
-            <Textarea
-              id="message"
-              placeholder="Type your message here..."
-              className="min-h-12 resize-none border-0 p-3 shadow-none focus-visible:ring-0"
-            />
-            <div className="flex items-center p-3 pt-0">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Paperclip className="size-4" />
-                    <span className="sr-only">Attach file</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Attach File</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Mic className="size-4" />
-                    <span className="sr-only">Use Microphone</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Use Microphone</TooltipContent>
-              </Tooltip>
-              </TooltipProvider>
-              <Button type="submit" size="sm" className="ml-auto gap-1.5">
-                Send Message
-                <CornerDownLeft className="size-3.5" />
-              </Button>
             </div>
-          </form>
+            
+            <div className="flex-1 overflow-y-auto">
+              {/* Chat List Items */}
+              <div onClick={handleChatSelect} className="cursor-pointer md:cursor-default">
+                <ChatItem 
+                  name="Jennifer"
+                  message="Do you have Iphone 13"
+                  time="Just now"
+                  avatar="https://ui-avatars.com/api/?name=Jennifer&background=f472b6&color=fff"
+                  platform="instagram"
+                  active={true}
+                />
+              </div>
+              <ChatItem 
+                name="Joe Tunde"
+                message="I need a Macbook Pro"
+                time="Just now"
+                avatar="https://ui-avatars.com/api/?name=Joe+Tunde&background=22c55e&color=fff"
+                platform="whatsapp"
+              />
+              <ChatItem 
+                name="Tunji Olamide"
+                message="Is google Pixel Available?"
+                time="Just now"
+                avatar="https://ui-avatars.com/api/?name=Tunji&background=3b82f6&color=fff"
+                platform="facebook"
+              />
+              <ChatItem 
+                name="Ahmad Garba"
+                message="Hello"
+                time="Just now"
+                avatar="https://ui-avatars.com/api/?name=Ahmad&background=f472b6&color=fff"
+                platform="instagram"
+              />
+            </div>
+          </div>
+
+          {/* Chat Window */}
+          <div className={`flex-1 flex flex-col bg-white
+            ${(showChat ? 'flex' : 'hidden')} md:flex`}>
+            {/* Chat Header */}
+            <div className="px-6 py-4 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handleBackToList}
+                    className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div className="relative">
+                    <img 
+                      src="https://ui-avatars.com/api/?name=Jennifer&background=f472b6&color=fff"
+                      alt="Jennifer"
+                      className="w-10 h-10 rounded-full"
+                    />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Jenifer</h3>
+                    <div className="flex items-center gap-1 text-green-500 text-sm">
+                      <span>Online</span>
+                      <Instagram className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+                <Button variant="outline" className="hidden sm:flex items-center gap-2">
+                  <Pause className="w-4 h-4" />
+                  <span className="hidden lg:inline">Pause Chat Bot Automation</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              <div className="flex gap-3">
+                <img 
+                  src="https://ui-avatars.com/api/?name=Jennifer&background=f472b6&color=fff"
+                  alt="Jennifer"
+                  className="w-10 h-10 rounded-full"
+                />
+                <div className="bg-gray-100 rounded-lg p-3 max-w-[80%] sm:max-w-md">
+                  <p>Hello, How may we help you?</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <div className="bg-purple-50 rounded-lg p-3 max-w-[80%] sm:max-w-md">
+                  <p>I want to get an phone 14</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <img 
+                  src="https://ui-avatars.com/api/?name=Jennifer&background=f472b6&color=fff"
+                  alt="Jennifer"
+                  className="w-10 h-10 rounded-full"
+                />
+                <div className="bg-gray-100 rounded-lg p-3 max-w-[80%] sm:max-w-md">
+                  <p>Alright, What space capacity do you need?</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <div className="bg-purple-50 rounded-lg p-3 max-w-[80%] sm:max-w-md">
+                  <p>256GB Memory Space</p>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <img 
+                  src="/api/placeholder/200/400"
+                  alt="iPhone 14"
+                  className="max-w-[150px] sm:max-w-[200px] rounded-lg shadow-sm"
+                />
+              </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="p-4 border-t">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
+                  <Mic className="w-5 h-5 text-gray-400 hidden sm:block" />
+                  <Input 
+                    placeholder="Type Something..." 
+                    className="border-0 bg-transparent focus-visible:ring-0"
+                  />
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <button className="hover:text-gray-600">
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                    <button className="hover:text-gray-600 hidden sm:block">
+                      <Image className="w-5 h-5" />
+                    </button>
+                    <button className="hover:text-gray-600 hidden sm:block">
+                      <Smile className="w-5 h-5" />
+                    </button>
+                    <button className="hover:text-gray-600 hidden sm:block">
+                      <Calendar className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+                <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6">
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
-  </div>
+  );
+};
 
-)
-}
+const ChatItem = ({ name, message, time, avatar, platform, active }) => {
+  const getPlatformIcon = () => {
+    switch (platform) {
+      case 'instagram':
+        return <Instagram className="w-4 h-4 text-pink-500" />;
+      case 'whatsapp':
+        return <Instagram className="w-4 h-4 text-green-500" />;
+      case 'facebook':
+        return <Instagram className="w-4 h-4 text-blue-500" />;
+      case 'twitter':
+        return <Instagram className="w-4 h-4 text-blue-400" />;
+      default:
+        return null;
+    }
+  };
 
-export default Messages
+  return (
+    <div className={`flex items-center gap-3 p-4 hover:bg-gray-50 ${active ? 'bg-purple-50' : ''}`}>
+      <div className="relative">
+        <img 
+          src={avatar}
+          alt={name}
+          className="w-12 h-12 rounded-full"
+        />
+        <span className="absolute -bottom-1 -right-1">
+          {getPlatformIcon()}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="font-medium">{name}</h3>
+        <p className="text-sm text-gray-500 truncate">{message}</p>
+      </div>
+      <span className="text-xs text-gray-400">{time}</span>
+    </div>
+  );
+};
+
+export default Messages;
