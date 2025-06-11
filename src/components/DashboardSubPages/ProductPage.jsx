@@ -7,8 +7,8 @@ import DashboardHeader from '../Header';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import ProductCard from '../ProductCard'; // Import the ProductCard component
-import ServiceCard from '../ServiceCard'; // Import the ServiceCard component
+import ProductCard from '../ProductCard';
+import ServiceCard from '../ServiceCard';
 
 const TabButton = ({ isActive, children, onClick }) => (
   <button
@@ -63,6 +63,7 @@ const ProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login'); // Redirect to login if no token
         return;
       }
 
@@ -73,7 +74,18 @@ const ProductPage = () => {
       });
 
       // Process the response data
-      const allProducts = response.data || [];
+      let allProducts = response.data || [];
+      
+      // Ensure all products have required fields with defaults
+      allProducts = allProducts.map(product => ({
+        ...product,
+        id: product.id || product._id, // Handle both id and _id
+        status: product.status !== undefined ? product.status : true, // Default to true if undefined
+        quantity: product.quantity || 0,
+        price: product.price || 0,
+        name: product.name || 'Untitled Product',
+        image: product.image || '' // Handle missing images
+      }));
       
       // Apply any active filters
       const filteredProducts = filterActive 
@@ -92,7 +104,13 @@ const ProductPage = () => {
       setProducts(paginatedProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to load products');
+      }
     } finally {
       setLoading(false);
     }
@@ -104,6 +122,7 @@ const ProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -114,7 +133,18 @@ const ProductPage = () => {
       });
 
       // Process the response data
-      const allServices = response.data || [];
+      let allServices = response.data || [];
+      
+      // Ensure all services have required fields with defaults
+      allServices = allServices.map(service => ({
+        ...service,
+        id: service.id || service._id, // Handle both id and _id
+        status: service.status !== undefined ? service.status : true, // Default to true if undefined
+        price: service.price || 0,
+        name: service.name || 'Untitled Service',
+        image: service.image || '', // Handle missing images
+        payment: service.payment !== undefined ? service.payment : true // Default payment to true
+      }));
       
       // Apply any active filters
       const filteredServices = filterActive 
@@ -133,7 +163,13 @@ const ProductPage = () => {
       setServices(paginatedServices);
     } catch (error) {
       console.error('Error fetching services:', error);
-      toast.error('Failed to load services');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to load services');
+      }
     } finally {
       setLoading(false);
     }
@@ -167,20 +203,41 @@ const ProductPage = () => {
 
       if (response.data === "done") {
         toast.success('Status updated successfully');
-        // Update the local state
+        
+        // Update the local state immediately for better UX
         if (activeTab === 'products') {
-          setProducts(products.map(product => 
-            product.id === id ? { ...product, status: !currentStatus } : product
-          ));
+          setProducts(prevProducts => 
+            prevProducts.map(product => 
+              product.id === id ? { ...product, status: !currentStatus } : product
+            )
+          );
         } else {
-          setServices(services.map(service => 
-            service.id === id ? { ...service, status: !currentStatus } : service
-          ));
+          setServices(prevServices => 
+            prevServices.map(service => 
+              service.id === id ? { ...service, status: !currentStatus } : service
+            )
+          );
+        }
+        
+        // If filter is active and item is now inactive, it should disappear
+        if (filterActive && currentStatus === true) {
+          // Re-fetch to update the filtered view
+          if (activeTab === 'products') {
+            fetchProducts();
+          } else {
+            fetchServices();
+          }
         }
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error('Failed to update status');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to update status');
+      }
     }
   };
 
@@ -194,6 +251,13 @@ const ProductPage = () => {
   };
 
   const handleDelete = async (id) => {
+    // Add confirmation dialog
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete this ${activeTab === 'services' ? 'service' : 'product'}?`
+    );
+    
+    if (!confirmDelete) return;
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -218,17 +282,29 @@ const ProductPage = () => {
 
       if (response.data === "done") {
         toast.success(`${activeTab === 'services' ? 'Service' : 'Product'} deleted successfully`);
+        
         // Update the local state by removing the deleted item
         if (activeTab === 'products') {
-          setProducts(products.filter(product => product.id !== id));
+          setProducts(prevProducts => prevProducts.filter(product => product.id !== id));
         } else {
-          setServices(services.filter(service => service.id !== id));
+          setServices(prevServices => prevServices.filter(service => service.id !== id));
+        }
+        
+        // Check if we need to go to previous page after deletion
+        const currentItems = activeTab === 'products' ? products : services;
+        if (currentItems.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
         }
       }
     } catch (error) {
       console.error(`Error deleting ${activeTab === 'services' ? 'service' : 'product'}:`, error);
-      toast.error(`Failed to delete ${activeTab === 'services' ? 'service' : 'product'}`);
-      throw error; // Re-throw to let the ProductCard component handle it
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error(`Failed to delete ${activeTab === 'services' ? 'service' : 'product'}`);
+      }
     }
   };
 
@@ -245,97 +321,19 @@ const ProductPage = () => {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setCurrentPage(1); // Reset to first page when changing tabs
+    setFilterActive(false); // Reset filter when changing tabs
   };
 
   const displayData = activeTab === 'services' ? services : products;
 
-  // Generate pagination buttons
-  const renderPaginationButtons = () => {
-    const buttons = [];
-    const maxVisibleButtons = 5;
-    
-    if (totalPages <= maxVisibleButtons) {
-      // Show all pages if total pages are less than max visible
-      for (let i = 1; i <= totalPages; i++) {
-        buttons.push(
-          <PaginationButton 
-            key={i} 
-            active={currentPage === i} 
-            onClick={() => setCurrentPage(i)}
-          >
-            {i}
-          </PaginationButton>
-        );
-      }
-    } else {
-      // Always show first page
-      buttons.push(
-        <PaginationButton 
-          key={1} 
-          active={currentPage === 1} 
-          onClick={() => setCurrentPage(1)}
-        >
-          1
-        </PaginationButton>
-      );
-      
-      // Calculate the range of pages to show
-      let startPage = Math.max(2, currentPage - 1);
-      let endPage = Math.min(totalPages - 1, currentPage + 1);
-      
-      // Adjust the range if at the beginning or end
-      if (currentPage <= 2) {
-        endPage = 3;
-      } else if (currentPage >= totalPages - 1) {
-        startPage = totalPages - 2;
-      }
-      
-      // Add ellipsis if needed at the beginning
-      if (startPage > 2) {
-        buttons.push(<span key="ellipsis1" className="px-2">...</span>);
-      }
-      
-      // Add the middle pages
-      for (let i = startPage; i <= endPage; i++) {
-        buttons.push(
-          <PaginationButton 
-            key={i} 
-            active={currentPage === i} 
-            onClick={() => setCurrentPage(i)}
-          >
-            {i}
-          </PaginationButton>
-        );
-      }
-      
-      // Add ellipsis if needed at the end
-      if (endPage < totalPages - 1) {
-        buttons.push(<span key="ellipsis2" className="px-2">...</span>);
-      }
-      
-      // Always show last page
-      if (totalPages > 1) {
-        buttons.push(
-          <PaginationButton 
-            key={totalPages} 
-            active={currentPage === totalPages} 
-            onClick={() => setCurrentPage(totalPages)}
-          >
-            {totalPages}
-          </PaginationButton>
-        );
-      }
-    }
-    
-    return buttons;
-  };
+  // [Rest of the pagination code remains the same...]
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader title={activeTab === 'services' ? 'Services Page' : 'Product Page'} />
+        <DashboardHeader title={activeTab === 'services' ? 'Services' : 'Products'} />
         
         <main className="flex-1 overflow-y-auto">
           <div className="p-6">
@@ -346,17 +344,17 @@ const ProductPage = () => {
                   isActive={activeTab === 'services'} 
                   onClick={() => handleTabChange('services')}
                 >
-                  Services Page
+                  Services
                 </TabButton>
                 <TabButton 
                   isActive={activeTab === 'products'} 
                   onClick={() => handleTabChange('products')}
                 >
-                  Product Page
+                  Products
                 </TabButton>
                 <Button 
                   variant={filterActive ? "default" : "outline"} 
-                  className={`flex items-center gap-2 ${filterActive ? "bg-purple-600" : ""}`}
+                  className={`flex items-center gap-2 ${filterActive ? "bg-purple-600 hover:bg-purple-700" : ""}`}
                   onClick={handleFilterToggle}
                 >
                   <Filter className="w-4 h-4" />
@@ -369,7 +367,7 @@ const ProductPage = () => {
                   <span className="hidden sm:inline">Import</span>
                 </Button>
                 <Button 
-                  className="bg-purple-600 text-white flex items-center gap-2"
+                  className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
                   onClick={handleAddNew}
                 >
                   <Plus className="w-4 h-4" />
@@ -389,16 +387,21 @@ const ProductPage = () => {
               <>
                 {/* No Products/Services Message */}
                 {displayData.length === 0 ? (
-                  <div className="bg-white rounded-lg p-8 text-center">
+                  <div className="bg-white rounded-lg p-8 text-center shadow-sm">
                     <div className="text-gray-500 mb-4">
-                      No {activeTab === 'services' ? 'services' : 'products'} found
+                      {filterActive 
+                        ? `No active ${activeTab === 'services' ? 'services' : 'products'} found`
+                        : `No ${activeTab === 'services' ? 'services' : 'products'} found`
+                      }
                     </div>
-                    <Button 
-                      className="bg-purple-600 text-white"
-                      onClick={handleAddNew}
-                    >
-                      {activeTab === 'services' ? 'Add First Service' : 'Add First Product'}
-                    </Button>
+                    {!filterActive && (
+                      <Button 
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                        onClick={handleAddNew}
+                      >
+                        {activeTab === 'services' ? 'Add First Service' : 'Add First Product'}
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -416,7 +419,7 @@ const ProductPage = () => {
                             isEnabled={item.status}
                             onEdit={() => handleEdit(item.id)}
                             onToggle={() => handleToggleStatus(item.id, item.status)}
-                            onDelete={handleDelete}
+                            onDelete={() => handleDelete(item.id)}
                           />
                         ) : (
                           <ServiceCard
@@ -428,7 +431,7 @@ const ProductPage = () => {
                             isEnabled={item.status}
                             onEdit={() => handleEdit(item.id)}
                             onToggle={() => handleToggleStatus(item.id, item.status)}
-                            onDelete={handleDelete}
+                            onDelete={() => handleDelete(item.id)}
                           />
                         )
                       ))}

@@ -67,7 +67,6 @@ import {
 import { Switch } from "@/components/ui/switch"
 import FaqVariation from '../FaqVariation';
 import EditFaqVariation from '../EditFaqVariation';
-// ... other imports remain the same ...
 
 const ManageStore = () => {
   const [workingHours, setWorkingHours] = useState({
@@ -102,6 +101,8 @@ const ManageStore = () => {
   });
   const [newLogo, setNewLogo] = useState(null);
   const [newBanner, setNewBanner] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const [bannerPreview, setBannerPreview] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -129,6 +130,8 @@ const ManageStore = () => {
         }
       });
 
+      console.log('Backend response:', response.data);
+
       // Transform the FAQ data format
       const faqs = response.data.faq || [];
       const questions = faqs.map(faq => faq.question);
@@ -140,8 +143,19 @@ const ManageStore = () => {
         ...response.data,
         questions: questions,
         answers: answers,
-        faqIds: faqs.map(faq => faq.id) // Store IDs for edit/delete operations
+        faqIds: faqs.map(faq => faq.id), // Store IDs for edit/delete operations
+        // Handle logo and banner URLs properly
+        blogo: response.data.blogo || '',
+        bbanner: response.data.bbanner || ''
       }));
+
+      // Set preview URLs to existing images
+      setLogoPreview(response.data.blogo || '');
+      setBannerPreview(response.data.bbanner || '');
+
+      // Reset the file states since we're loading existing data
+      setNewLogo(null);
+      setNewBanner(null);
 
     } catch (error) {
       console.error('Error fetching business data:', error);
@@ -204,32 +218,50 @@ const ManageStore = () => {
     }));
   };
 
+  const validateImage = (file) => {
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast.error('File size should be less than 10MB');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 10 * 1024 * 1024) { // 10MB limit
+    if (file && validateImage(file)) {
       setNewLogo(file);
-      // Create preview URL
+      // Create preview URL for new uploads
       const previewUrl = URL.createObjectURL(file);
+      setLogoPreview(previewUrl);
+      // Update business data for immediate preview
       setBusinessData(prev => ({
         ...prev,
         blogo: previewUrl
       }));
-    } else {
-      toast.error('File size should be less than 10MB');
     }
   };
 
   const handleBannerChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 10 * 1024 * 1024) {
+    if (file && validateImage(file)) {
       setNewBanner(file);
+      // Create preview URL for new uploads
       const previewUrl = URL.createObjectURL(file);
+      setBannerPreview(previewUrl);
+      // Update business data for immediate preview
       setBusinessData(prev => ({
         ...prev,
         bbanner: previewUrl
       }));
-    } else {
-      toast.error('File size should be less than 10MB');
     }
   };
 
@@ -251,12 +283,20 @@ const ManageStore = () => {
       formData.append('bcategory', businessData.bcategory);
       formData.append('bcurrency', businessData.bcurrency);
 
+      // Only append files if new ones were selected
       if (newLogo) {
         formData.append('blogo', newLogo);
       }
       if (newBanner) {
         formData.append('bbanner', newBanner);
       }
+
+      console.log('Submitting business info:', {
+        hasNewLogo: !!newLogo,
+        hasNewBanner: !!newBanner,
+        logoSize: newLogo ? `${(newLogo.size / 1024 / 1024).toFixed(2)}MB` : 'No new logo',
+        bannerSize: newBanner ? `${(newBanner.size / 1024 / 1024).toFixed(2)}MB` : 'No new banner'
+      });
 
       const response = await axios.post(
         'https://api.automation365.io/settingsp',
@@ -271,6 +311,8 @@ const ManageStore = () => {
 
       if (response.data === "done") {
         toast.success('Business information updated successfully');
+        // Refresh the data to get the new URLs from backend
+        await fetchBusinessData();
       }
     } catch (error) {
       console.error('Error updating business info:', error);
@@ -424,34 +466,34 @@ const ManageStore = () => {
       setLoading(false);
     }
   };
-  // Modify the Business Information Card section
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
       <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-      <nav className="grid gap-4 text-sm text-muted-foreground">
-  <Link to="/Overview" className="font-semibold hover:text-purple-600 transition-colors">
-    Home
-  </Link>
-  <Link to="/ManageStore" className="font-semibold text-purple-600">
-    Business Details
-  </Link>
-  <Link to="/PersonalDetails" className="font-semibold hover:text-purple-600 transition-colors">
-    Personal details
-  </Link>
-  <Link to="/StoreSetting" className="font-semibold hover:text-purple-600 transition-colors">
-    Store settings
-  </Link>
-  <Link to="/Bank" className="font-semibold hover:text-purple-600 transition-colors">
-    Payments
-  </Link>
-  <Link to="/LinkAccount" className="font-semibold hover:text-purple-600 transition-colors">
-    Connect Social channels
-  </Link>
-  <Link to="/AdvanceSettings" className="font-semibold hover:text-purple-600 transition-colors">
-    Advance
-  </Link>
-</nav>
+        <nav className="grid gap-4 text-sm text-muted-foreground">
+          <Link to="/Overview" className="font-semibold hover:text-purple-600 transition-colors">
+            Home
+          </Link>
+          <Link to="/ManageStore" className="font-semibold text-purple-600">
+            Business Details
+          </Link>
+          <Link to="/PersonalDetails" className="font-semibold hover:text-purple-600 transition-colors">
+            Personal details
+          </Link>
+          <Link to="/StoreSetting" className="font-semibold hover:text-purple-600 transition-colors">
+            Store settings
+          </Link>
+          <Link to="/Bank" className="font-semibold hover:text-purple-600 transition-colors">
+            Payments
+          </Link>
+          <Link to="/LinkAccount" className="font-semibold hover:text-purple-600 transition-colors">
+            Connect Social channels
+          </Link>
+          <Link to="/AdvanceSettings" className="font-semibold hover:text-purple-600 transition-colors">
+            Advance
+          </Link>
+        </nav>
         
         <Card>
           <CardHeader>
@@ -463,13 +505,21 @@ const ManageStore = () => {
             <div className="grid gap-3">
               <Label htmlFor="logo">Logo</Label>
               <div className="relative">
-                {businessData.blogo ? (
+                {logoPreview ? (
                   <div className="relative h-[100px] w-[100px]">
                     <img 
-                      src={`data:image/jpeg;base64,${businessData.blogo}`}
+                      src={logoPreview}
                       alt="Business Logo"
-                      className="h-full w-full object-cover rounded-md"
+                      className="h-full w-full object-cover rounded-md border"
+                      onError={(e) => {
+                        console.log('Logo image failed to load:', logoPreview);
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
                     />
+                    <div className="hidden h-full w-full items-center justify-center bg-gray-100 rounded-md border">
+                      <span className="text-gray-500 text-sm">Logo not found</span>
+                    </div>
                     <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded-md">
                       <Upload className="h-6 w-6 text-white" />
                       <input
@@ -481,7 +531,7 @@ const ManageStore = () => {
                     </label>
                   </div>
                 ) : (
-                  <label className="flex aspect-square h-[100px] w-[100px] items-center justify-center rounded-md border border-dashed cursor-pointer">
+                  <label className="flex aspect-square h-[100px] w-[100px] items-center justify-center rounded-md border border-dashed cursor-pointer hover:border-purple-400 transition-colors">
                     <Upload className="h-4 w-4 text-muted-foreground" />
                     <input
                       type="file"
@@ -492,19 +542,30 @@ const ManageStore = () => {
                   </label>
                 )}
               </div>
+              {newLogo && (
+                <p className="text-xs text-green-600">New logo selected - click Save to upload</p>
+              )}
             </div>
 
             {/* Banner Upload */}
             <div className="grid gap-3 mt-4">
               <Label htmlFor="banner">Banner</Label>
               <div className="relative">
-                {businessData.bbanner ? (
+                {bannerPreview ? (
                   <div className="relative h-[100px] w-[400px]">
                     <img 
-                      src={`data:image/jpeg;base64,${businessData.bbanner}`}
+                      src={bannerPreview}
                       alt="Business Banner"
-                      className="h-full w-full object-cover rounded-md"
+                      className="h-full w-full object-cover rounded-md border"
+                      onError={(e) => {
+                        console.log('Banner image failed to load:', bannerPreview);
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
                     />
+                    <div className="hidden h-full w-full items-center justify-center bg-gray-100 rounded-md border">
+                      <span className="text-gray-500 text-sm">Banner not found</span>
+                    </div>
                     <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded-md">
                       <Upload className="h-6 w-6 text-white" />
                       <input
@@ -516,7 +577,7 @@ const ManageStore = () => {
                     </label>
                   </div>
                 ) : (
-                  <label className="flex aspect-square h-[100px] w-[400px] items-center justify-center rounded-md border border-dashed cursor-pointer">
+                  <label className="flex aspect-square h-[100px] w-[400px] items-center justify-center rounded-md border border-dashed cursor-pointer hover:border-purple-400 transition-colors">
                     <Upload className="h-4 w-4 text-muted-foreground" />
                     <input
                       type="file"
@@ -527,6 +588,9 @@ const ManageStore = () => {
                   </label>
                 )}
               </div>
+              {newBanner && (
+                <p className="text-xs text-green-600">New banner selected - click Save to upload</p>
+              )}
             </div>
 
             {/* Business Name */}
@@ -641,62 +705,61 @@ const ManageStore = () => {
         </Card>
         
         <Card x-chunk="dashboard-04-chunk-2">
-        <CardHeader>
-    <CardTitle>Working Hours</CardTitle>
-    <CardDescription>
-      Please set the Day and Time which your business is usually Active
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    {Object.entries(workingHours).map(([day, hours]) => (
-      <div key={day} className="grid gap-3 mt-4">
-        <Label htmlFor={day}>{day}</Label>
-        <div className="flex items-center gap-4">
-          <Label htmlFor={`${day}-open`} className="text-right">
-            Open
-          </Label>
-          <Input
-            id={`${day}-open`}
-            type="time"
-            value={hours.open}
-            onChange={(e) => handleTimeChange(day, 'open', e.target.value)}
-            className="col-span-4"
-            disabled={!hours.isActive}
-          />
-          <Label htmlFor={`${day}-close`} className="text-right">
-            Close
-          </Label>
-          <Input
-            id={`${day}-close`}
-            type="time"
-            value={hours.close}
-            onChange={(e) => handleTimeChange(day, 'close', e.target.value)}
-            className="col-span-4"
-            disabled={!hours.isActive}
-          />
-          <div className="ml-5">
-            <Switch
-              id={`${day}-switch`}
-              checked={hours.isActive}
-              onCheckedChange={() => handleSwitchChange(day)}
-            />
-          </div>
-        </div>
-      </div>
-    ))}
-  </CardContent>
-  <CardFooter className="border-t px-6 py-4">
-    <Button 
-      onClick={handleSaveWorkingHours} 
-      disabled={loadingHours}
-    >
-      {loadingHours ? 'Saving...' : 'Save'}
-    </Button>
-  </CardFooter>
-            </Card>
+          <CardHeader>
+            <CardTitle>Working Hours</CardTitle>
+            <CardDescription>
+              Please set the Day and Time which your business is usually Active
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {Object.entries(workingHours).map(([day, hours]) => (
+              <div key={day} className="grid gap-3 mt-4">
+                <Label htmlFor={day}>{day}</Label>
+                <div className="flex items-center gap-4">
+                  <Label htmlFor={`${day}-open`} className="text-right">
+                    Open
+                  </Label>
+                  <Input
+                    id={`${day}-open`}
+                    type="time"
+                    value={hours.open}
+                    onChange={(e) => handleTimeChange(day, 'open', e.target.value)}
+                    className="col-span-4"
+                    disabled={!hours.isActive}
+                  />
+                  <Label htmlFor={`${day}-close`} className="text-right">
+                    Close
+                  </Label>
+                  <Input
+                    id={`${day}-close`}
+                    type="time"
+                    value={hours.close}
+                    onChange={(e) => handleTimeChange(day, 'close', e.target.value)}
+                    className="col-span-4"
+                    disabled={!hours.isActive}
+                  />
+                  <div className="ml-5">
+                    <Switch
+                      id={`${day}-switch`}
+                      checked={hours.isActive}
+                      onCheckedChange={() => handleSwitchChange(day)}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4">
+            <Button 
+              onClick={handleSaveWorkingHours} 
+              disabled={loadingHours}
+            >
+              {loadingHours ? 'Saving...' : 'Save'}
+            </Button>
+          </CardFooter>
+        </Card>
 
-
-            {/* FAQ Card */}
+        {/* FAQ Card */}
         <Card>
           <CardHeader>
             <CardTitle>FAQ</CardTitle>
@@ -844,85 +907,83 @@ const ManageStore = () => {
           </CardFooter>
         </Card>
 
+        <Card x-chunk="dashboard-04-chunk-2">
+          <CardHeader>
+            <CardTitle>Business Description and Socials</CardTitle>
+            <CardDescription>
+              Edit business description and socials details
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                className="col-span-2"
+                value={businessData.description}
+                onChange={(e) => handleInputChange({ target: { name: 'description', value: e.target.value } })}
+                placeholder="Enter your business description"
+              />
+            </div>
+            <div className="grid gap-3 mt-5">
+              <Label htmlFor="name">Social Media Handles</Label>
+              <div className="flex items-center gap-2">
+                <Instagram className="h-4 w-4" />
+                <Input
+                  name="insta"
+                  type="text"
+                  className="w-full"
+                  value={businessData.insta}
+                  onChange={handleInputChange}
+                  placeholder="Enter instagram handle"
+                />
+              </div>
 
+              <div className="flex items-center gap-2">
+                <Twitter className="h-4 w-4" />
+                <Input
+                  name="twitter"
+                  type="text"
+                  className="w-full"
+                  value={businessData.twitter}
+                  onChange={handleInputChange}
+                  placeholder="Enter twitter handle"
+                />
+              </div>
 
-     <Card x-chunk="dashboard-04-chunk-2">
-  <CardHeader>
-    <CardTitle>Business Description and Socials</CardTitle>
-    <CardDescription>
-      Edit business description and socials details
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    <div className="grid gap-3">
-      <Label htmlFor="description">Description</Label>
-      <Textarea
-        id="description"
-        className="col-span-2"
-        value={businessData.description}
-        onChange={(e) => handleInputChange({ target: { name: 'description', value: e.target.value } })}
-        placeholder="Enter your business description"
-      />
-    </div>
-    <div className="grid gap-3 mt-5">
-      <Label htmlFor="name">Social Media Handles</Label>
-      <div className="flex items-center gap-2">
-        <Instagram className="h-4 w-4" />
-        <Input
-          name="insta"
-          type="text"
-          className="w-full"
-          value={businessData.insta}
-          onChange={handleInputChange}
-          placeholder="Enter instagram handle"
-        />
-      </div>
+              <div className="flex items-center gap-2">
+                <Facebook className="h-4 w-4" />
+                <Input
+                  name="facebook"
+                  type="text"
+                  className="w-full"
+                  value={businessData.facebook}
+                  onChange={handleInputChange}
+                  placeholder="Enter Facebook handle"
+                />
+              </div>
 
-      <div className="flex items-center gap-2">
-        <Twitter className="h-4 w-4" />
-        <Input
-          name="twitter"
-          type="text"
-          className="w-full"
-          value={businessData.twitter}
-          onChange={handleInputChange}
-          placeholder="Enter twitter handle"
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Facebook className="h-4 w-4" />
-        <Input
-          name="facebook"
-          type="text"
-          className="w-full"
-          value={businessData.facebook}
-          onChange={handleInputChange}
-          placeholder="Enter Facebook handle"
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="h-4 w-4">
-          <path d="M 12.011719 2 C 6.5057187 2 2.0234844 6.478375 2.0214844 11.984375 C 2.0204844 13.744375 2.4814687 15.462563 3.3554688 16.976562 L 2 22 L 7.2324219 20.763672 C 8.6914219 21.559672 10.333859 21.977516 12.005859 21.978516 L 12.009766 21.978516 C 17.514766 21.978516 21.995047 17.499141 21.998047 11.994141 C 22.000047 9.3251406 20.962172 6.8157344 19.076172 4.9277344 C 17.190172 3.0407344 14.683719 2.001 12.011719 2 z M 12.009766 4 C 14.145766 4.001 16.153109 4.8337969 17.662109 6.3417969 C 19.171109 7.8517969 20.000047 9.8581875 19.998047 11.992188 C 19.996047 16.396187 16.413812 19.978516 12.007812 19.978516 C 10.674812 19.977516 9.3544062 19.642812 8.1914062 19.007812 L 7.5175781 18.640625 L 6.7734375 18.816406 L 4.8046875 19.28125 L 5.2851562 17.496094 L 5.5019531 16.695312 L 5.0878906 15.976562 C 4.3898906 14.768562 4.0204844 13.387375 4.0214844 11.984375 C 4.0234844 7.582375 7.6067656 4 12.009766 4 z"></path>
-        </svg>
-        <Input
-          name="whatsapp"
-          type="text"
-          className="w-full"
-          value={businessData.whatsapp}
-          onChange={handleInputChange}
-          placeholder="Enter whatsapp number"
-        />
-      </div>
-    </div>
-  </CardContent>
-  <CardFooter className="border-t px-6 py-4">
-    <Button onClick={handleSaveDescriptionAndSocials} disabled={loading}>
-      {loading ? 'Saving...' : 'Save'}
-    </Button>
-  </CardFooter>
-    </Card>
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="h-4 w-4">
+                  <path d="M 12.011719 2 C 6.5057187 2 2.0234844 6.478375 2.0214844 11.984375 C 2.0204844 13.744375 2.4814687 15.462563 3.3554688 16.976562 L 2 22 L 7.2324219 20.763672 C 8.6914219 21.559672 10.333859 21.977516 12.005859 21.978516 L 12.009766 21.978516 C 17.514766 21.978516 21.995047 17.499141 21.998047 11.994141 C 22.000047 9.3251406 20.962172 6.8157344 19.076172 4.9277344 C 17.190172 3.0407344 14.683719 2.001 12.011719 2 z M 12.009766 4 C 14.145766 4.001 16.153109 4.8337969 17.662109 6.3417969 C 19.171109 7.8517969 20.000047 9.8581875 19.998047 11.992188 C 19.996047 16.396187 16.413812 19.978516 12.007812 19.978516 C 10.674812 19.977516 9.3544062 19.642812 8.1914062 19.007812 L 7.5175781 18.640625 L 6.7734375 18.816406 L 4.8046875 19.28125 L 5.2851562 17.496094 L 5.5019531 16.695312 L 5.0878906 15.976562 C 4.3898906 14.768562 4.0204844 13.387375 4.0214844 11.984375 C 4.0234844 7.582375 7.6067656 4 12.009766 4 z"></path>
+                </svg>
+                <Input
+                  name="whatsapp"
+                  type="text"
+                  className="w-full"
+                  value={businessData.whatsapp}
+                  onChange={handleInputChange}
+                  placeholder="Enter whatsapp number"
+                />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4">
+            <Button onClick={handleSaveDescriptionAndSocials} disabled={loading}>
+              {loading ? 'Saving...' : 'Save'}
+            </Button>
+          </CardFooter>
+        </Card>
       </main>
     </div>
   );

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
-<<<<<<< HEAD
 import { Button } from "@/components/ui/button";
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -73,60 +72,6 @@ const Login = () => {
               <p className="text-gray-600 max-w-md">
                 Streamline Your Communication with BOTMON AI-Powered Vendor Message Replies
               </p>
-=======
-import { Label } from "@/components/ui/label";
-
-
-export function Login() {
-  
-
-  return (
-    <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
-          <div className="grid gap-2 text-center">
-            <h1 className="text-3xl font-bold">Login</h1>
-            <p className="text-balance text-muted-foreground">
-              Welcome back, login into your account
-            </p>
-          </div>
-          <form >
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  name="email"
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    to="/forgot-password"
-                    className="ml-auto inline-block text-sm underline"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  name="password"
-                />
-              </div>
-              )}
-              <Button type="submit" className="w-full">
-                Login
-              </Button>
-              <Button variant="outline" className="w-full">
-                Login with Google
-              </Button>
->>>>>>> f902abcd8b2bc6ec422fe85e865c954ccb36859f
             </div>
           </div>
         </div>

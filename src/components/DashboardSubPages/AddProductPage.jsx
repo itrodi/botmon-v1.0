@@ -26,33 +26,45 @@ const AddProductPage = () => {
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   
-  // Main product state
+  // Main product state - matching backend exactly
   const [productData, setProductData] = useState({
     name: '',
     description: '',
     price: '',
     quantity: '',
-    discount: '',
+    weight: '',
     link: '',
     category: '',
-    sub: ''
+    sub: '',
+    status: 'active' // Default status
   });
   
   // Product image state
   const [productImage, setProductImage] = useState(null);
   const [productImagePreview, setProductImagePreview] = useState(null);
   
-  // Variants state
-  const [variants, setVariants] = useState([]);
+  // Variants state - arrays to match backend getlist expectation
+  const [variants, setVariants] = useState({
+    vname: [],
+    vprice: [],
+    vquantity: [],
+    vsize: [],
+    vcolor: [],
+    vtype: [],
+    vimages: [] // Store actual file objects
+  });
+  
+  // Current variant being added
   const [currentVariant, setCurrentVariant] = useState({
     name: '',
-    size: '',
-    type: '',
-    color: '',
+    price: '',
     quantity: '',
-    price: ''
+    size: '',
+    color: '',
+    type: ''
   });
   const [variantImage, setVariantImage] = useState(null);
+  const [variantImagePreview, setVariantImagePreview] = useState(null);
   
   // Category state
   const [newCategory, setNewCategory] = useState({
@@ -67,7 +79,6 @@ const AddProductPage = () => {
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [isAddingVariant, setIsAddingVariant] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
 
   // Fetch categories on mount
@@ -90,6 +101,8 @@ const AddProductPage = () => {
           Authorization: `Bearer ${token}`
         }
       });
+
+      console.log('Categories response:', response.data);
 
       if (response.data.categories) {
         setCategories(response.data.categories);
@@ -122,28 +135,47 @@ const AddProductPage = () => {
     }));
   };
 
+  // Validate image file
+  const validateImage = (file) => {
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 10 * 1024 * 1024; // 10MB to match backend
+
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast.error('Image size should be less than 10MB');
+      return false;
+    }
+
+    return true;
+  };
+
   // Handle product image upload
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 3 * 1024 * 1024) { // 3MB limit
+    if (file && validateImage(file)) {
       setProductImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setProductImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
-    } else {
-      toast.error('Image size should be less than 3MB');
     }
   };
 
   // Handle variant image upload
   const handleVariantImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 3 * 1024 * 1024) { // 3MB limit
+    if (file && validateImage(file)) {
       setVariantImage(file);
-    } else {
-      toast.error('Image size should be less than 3MB');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVariantImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -165,70 +197,53 @@ const AddProductPage = () => {
     }));
   };
 
-  // Add a new variant
-  const handleAddVariant = async () => {
+  // Add a new variant (locally, not to backend yet)
+  const handleAddVariant = () => {
     // Validate variant data
     if (!currentVariant.name || !currentVariant.price || !currentVariant.quantity) {
-      toast.error('Please fill in all required variant fields');
+      toast.error('Please fill in name, price, and quantity for the variant');
       return;
     }
 
-    setIsAddingVariant(true);
+    // Add to variants arrays
+    setVariants(prev => ({
+      vname: [...prev.vname, currentVariant.name],
+      vprice: [...prev.vprice, currentVariant.price],
+      vquantity: [...prev.vquantity, currentVariant.quantity],
+      vsize: [...prev.vsize, currentVariant.size || ''],
+      vcolor: [...prev.vcolor, currentVariant.color || ''],
+      vtype: [...prev.vtype, currentVariant.type || ''],
+      vimages: [...prev.vimages, variantImage] // Store the actual file
+    }));
+    
+    // Reset the form
+    setCurrentVariant({
+      name: '',
+      price: '',
+      quantity: '',
+      size: '',
+      color: '',
+      type: ''
+    });
+    setVariantImage(null);
+    setVariantImagePreview(null);
+    
+    // Close the modal
+    setShowVariantModal(false);
+    toast.success('Variant added successfully');
+  };
 
-    try {
-      // First, submit the variant to the backend
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please login first');
-        return;
-      }
-
-      const formData = new FormData();
-      Object.entries(currentVariant).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-
-      if (variantImage) {
-        formData.append('vimage', variantImage);
-      }
-
-      // Submit the variant to the backend
-      const response = await axios.post(
-        'https://api.automation365.io/varian',
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-
-      if (response.data === "done") {
-        // Add to local state
-        setVariants(prev => [...prev, currentVariant]);
-        
-        // Reset the form
-        setCurrentVariant({
-          name: '',
-          size: '',
-          type: '',
-          color: '',
-          quantity: '',
-          price: ''
-        });
-        setVariantImage(null);
-        
-        // Close the modal
-        setShowVariantModal(false);
-        toast.success('Variant added successfully');
-      }
-    } catch (error) {
-      console.error('Error adding variant:', error);
-      toast.error('Failed to add variant');
-    } finally {
-      setIsAddingVariant(false);
-    }
+  // Remove variant
+  const removeVariant = (index) => {
+    setVariants(prev => ({
+      vname: prev.vname.filter((_, i) => i !== index),
+      vprice: prev.vprice.filter((_, i) => i !== index),
+      vquantity: prev.vquantity.filter((_, i) => i !== index),
+      vsize: prev.vsize.filter((_, i) => i !== index),
+      vcolor: prev.vcolor.filter((_, i) => i !== index),
+      vtype: prev.vtype.filter((_, i) => i !== index),
+      vimages: prev.vimages.filter((_, i) => i !== index)
+    }));
   };
 
   // Add a new category
@@ -305,27 +320,45 @@ const AddProductPage = () => {
         return;
       }
 
-      // Create form data
+      // Create form data exactly as backend expects
       const formData = new FormData();
       
       // Add product details
-      Object.entries(productData).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
+      formData.append('name', productData.name);
+      formData.append('description', productData.description);
+      formData.append('price', productData.price);
+      formData.append('quantity', productData.quantity);
+      formData.append('weight', productData.weight || '');
+      formData.append('link', productData.link || '');
+      formData.append('sub', productData.sub || '');
+      formData.append('category', productData.category || '');
+      formData.append('status', productData.status);
       
       // Add product image
       if (productImage) {
         formData.append('image', productImage);
       }
       
-      // Add variants data
-      variants.forEach((variant, index) => {
-        formData.append(`vname[${index}]`, variant.name);
-        formData.append(`vprice[${index}]`, variant.price);
-        formData.append(`vquantity[${index}]`, variant.quantity);
-        formData.append(`vsize[${index}]`, variant.size || '');
-        formData.append(`vcolor[${index}]`, variant.color || '');
-        formData.append(`vtype[${index}]`, variant.type || '');
+      // Add variants data as arrays (backend uses getlist())
+      variants.vname.forEach(name => formData.append('vname', name));
+      variants.vprice.forEach(price => formData.append('vprice', price));
+      variants.vquantity.forEach(quantity => formData.append('vquantity', quantity));
+      variants.vsize.forEach(size => formData.append('vsize', size));
+      variants.vcolor.forEach(color => formData.append('vcolor', color));
+      variants.vtype.forEach(type => formData.append('vtype', type));
+      
+      // Add variant images
+      variants.vimages.forEach(image => {
+        if (image) {
+          formData.append('vimage', image);
+        }
+      });
+
+      console.log('Submitting product with variants:', {
+        productData,
+        variantCount: variants.vname.length,
+        hasProductImage: !!productImage,
+        variantImageCount: variants.vimages.filter(img => img).length
       });
 
       // Submit the product
@@ -340,6 +373,8 @@ const AddProductPage = () => {
         }
       );
 
+      console.log('Upload response:', response.data);
+
       if (response.data.message === "done") {
         toast.success('Product added successfully');
         // Reset form
@@ -348,18 +383,27 @@ const AddProductPage = () => {
           description: '',
           price: '',
           quantity: '',
-          discount: '',
+          weight: '',
           link: '',
           category: '',
-          sub: ''
+          sub: '',
+          status: 'active'
         });
         setProductImage(null);
         setProductImagePreview(null);
-        setVariants([]);
+        setVariants({
+          vname: [],
+          vprice: [],
+          vquantity: [],
+          vsize: [],
+          vcolor: [],
+          vtype: [],
+          vimages: []
+        });
       }
     } catch (error) {
       console.error('Error uploading product:', error);
-      toast.error('Failed to add product');
+      toast.error(error.response?.data?.error || 'Failed to add product');
     } finally {
       setIsLoading(false);
     }
@@ -377,9 +421,11 @@ const AddProductPage = () => {
             <form className="space-y-8" onSubmit={handleSubmit}>
               {/* Basic Info */}
               <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+                <h3 className="text-lg font-medium border-b pb-2">Product Information</h3>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Product Name
+                    Product Name *
                   </label>
                   <Input 
                     name="name"
@@ -398,138 +444,137 @@ const AddProductPage = () => {
                     name="description"
                     value={productData.description}
                     onChange={handleInputChange}
-                    placeholder="Enter description" 
+                    placeholder="Enter product description" 
                     className="min-h-[100px]" 
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price
+                      Price *
                     </label>
                     <Input 
                       name="price"
                       value={productData.price}
                       onChange={handleInputChange}
                       type="number" 
-                      placeholder="Enter Price" 
+                      step="0.01"
+                      placeholder="Enter price" 
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Quantity
+                      Quantity *
                     </label>
-                    <Select 
+                    <Input 
+                      name="quantity"
                       value={productData.quantity}
-                      onValueChange={(value) => handleSelectChange('quantity', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select quantity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[...Array(100)].map((_, i) => (
-                          <SelectItem key={i} value={String(i + 1)}>
-                            {i + 1}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={handleInputChange}
+                      type="number"
+                      placeholder="Enter quantity" 
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Weight (optional)
+                    </label>
+                    <Input 
+                      name="weight"
+                      value={productData.weight}
+                      onChange={handleInputChange}
+                      placeholder="Enter weight" 
+                    />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Discount
-                  </label>
-                  <Input 
-                    name="discount"
-                    value={productData.discount}
-                    onChange={handleInputChange}
-                    type="number" 
-                    placeholder="Enter discount" 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Product Link
+                    Product Link (optional)
                   </label>
                   <Input 
                     name="link"
                     value={productData.link}
                     onChange={handleInputChange}
-                    placeholder="Add product link" 
+                    placeholder="Add product link for digital products" 
                   />
                   <p className="mt-1 text-sm text-gray-500">
-                    Add product link if the product is digital so users can access link if the purchase is successful
+                    Add product link if the product is digital so users can access link when purchase is successful
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <Select
+                    value={productData.status}
+                    onValueChange={(value) => handleSelectChange('status', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              {/* Variations Section */}
-              <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-                <div className="flex justify-between items-center border-b pb-4">
-                  <h3 className="text-lg font-medium">Product variation</h3>
-                  <Button 
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowVariantModal(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> Add Variant
-                  </Button>
-                </div>
+              {/* Upload Photos */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h3 className="text-lg font-medium border-b pb-2 mb-4">Product Image *</h3>
                 
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2">Name</th>
-                        <th className="text-left py-2">Price</th>
-                        <th className="text-left py-2">Quantity</th>
-                        <th className="text-left py-2">Size</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {variants.length === 0 ? (
-                        <tr>
-                          <td colSpan="5" className="py-4 text-center text-gray-500">
-                            No variants added yet
-                          </td>
-                        </tr>
-                      ) : (
-                        variants.map((variant, index) => (
-                          <tr key={index} className="border-b">
-                            <td className="py-2">{variant.name}</td>
-                            <td className="py-2">{variant.price}</td>
-                            <td className="py-2">{variant.quantity}</td>
-                            <td className="py-2">{variant.size}</td>
-                            <td className="py-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setVariants(variants.filter((_, i) => i !== index));
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                {productImagePreview ? (
+                  <div className="relative">
+                    <img 
+                      src={productImagePreview} 
+                      alt="Product preview" 
+                      className="w-full max-h-64 object-contain mb-4 border rounded" 
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="absolute top-2 right-2 bg-white rounded-full p-1"
+                      onClick={() => {
+                        setProductImage(null);
+                        setProductImagePreview(null);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                    <div className="mx-auto w-12 h-12 mb-4">
+                      <Upload className="w-12 h-12 text-gray-400" />
+                    </div>
+                    <div className="flex text-sm text-gray-600 justify-center">
+                      <label className="relative cursor-pointer rounded-md font-medium text-purple-600 hover:text-purple-500">
+                        <span>Upload Product Image</span>
+                        <input 
+                          type="file" 
+                          className="sr-only" 
+                          onChange={handleImageUpload}
+                          accept="image/*"
+                          required
+                        />
+                      </label>
+                      <p className="pl-1">or drag and drop</p>
+                    </div>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF, WebP up to 10MB</p>
+                  </div>
+                )}
               </div>
 
               {/* Category Section */}
               <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-                <div className="flex justify-between items-center border-b pb-4">
+                <div className="flex justify-between items-center border-b pb-2">
                   <h3 className="text-lg font-medium">Product Category</h3>
                   <Button 
                     type="button"
@@ -554,17 +599,17 @@ const AddProductPage = () => {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                      {isLoadingCategories ? (
-  <SelectItem value="_loading" disabled>Loading categories...</SelectItem>
-) : categories.length === 0 ? (
-  <SelectItem value="_empty" disabled>No categories available</SelectItem>
-) : (
-  categories.map((cat, idx) => (
-    <SelectItem key={idx} value={cat}>
-      {cat}
-    </SelectItem>
-  ))
-)}
+                        {isLoadingCategories ? (
+                          <SelectItem value="_loading" disabled>Loading categories...</SelectItem>
+                        ) : categories.length === 0 ? (
+                          <SelectItem value="_empty" disabled>No categories available</SelectItem>
+                        ) : (
+                          categories.map((cat, idx) => (
+                            <SelectItem key={idx} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -580,65 +625,90 @@ const AddProductPage = () => {
                         <SelectValue placeholder="Select subcategory" />
                       </SelectTrigger>
                       <SelectContent>
-                      {isLoadingCategories ? (
-  <SelectItem value="_loading" disabled>Loading subcategories...</SelectItem>
-) : subs.length === 0 ? (
-  <SelectItem value="_empty" disabled>No subcategories available</SelectItem>
-) : (
-  subs.map((sub, idx) => (
-    <SelectItem key={idx} value={sub}>
-      {sub}
-    </SelectItem>
-  ))
-)}
+                        {isLoadingCategories ? (
+                          <SelectItem value="_loading" disabled>Loading subcategories...</SelectItem>
+                        ) : subs.length === 0 ? (
+                          <SelectItem value="_empty" disabled>No subcategories available</SelectItem>
+                        ) : (
+                          subs.map((sub, idx) => (
+                            <SelectItem key={idx} value={sub}>
+                              {sub}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
               </div>
 
-              {/* Upload Photos */}
-              <div className="bg-white p-8 rounded-lg shadow-sm">
-                {productImagePreview ? (
-                  <div className="relative">
-                    <img 
-                      src={productImagePreview} 
-                      alt="Product preview" 
-                      className="w-full max-h-64 object-contain mb-4" 
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="absolute top-2 right-2 bg-white rounded-full p-1"
-                      onClick={() => {
-                        setProductImage(null);
-                        setProductImagePreview(null);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                    <div className="mx-auto w-12 h-12 mb-4">
-                      <Upload className="w-12 h-12 text-gray-400" />
-                    </div>
-                    <div className="flex text-sm text-gray-600 justify-center">
-                      <label className="relative cursor-pointer rounded-md font-medium text-purple-600 hover:text-purple-500">
-                        <span>Upload Photos</span>
-                        <input 
-                          type="file" 
-                          className="sr-only" 
-                          onChange={handleImageUpload}
-                          accept="image/*"
-                        />
-                      </label>
-                      <p className="pl-1">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-gray-500">Less than 3MB</p>
-                  </div>
-                )}
+              {/* Variations Section */}
+              <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h3 className="text-lg font-medium">Product Variations (Optional)</h3>
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowVariantModal(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> Add Variant
+                  </Button>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2">Name</th>
+                        <th className="text-left py-2">Price</th>
+                        <th className="text-left py-2">Quantity</th>
+                        <th className="text-left py-2">Size</th>
+                        <th className="text-left py-2">Color</th>
+                        <th className="text-left py-2">Type</th>
+                        <th className="text-left py-2">Image</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variants.vname.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" className="py-4 text-center text-gray-500">
+                            No variants added yet
+                          </td>
+                        </tr>
+                      ) : (
+                        variants.vname.map((name, index) => (
+                          <tr key={index} className="border-b">
+                            <td className="py-2">{name}</td>
+                            <td className="py-2">{variants.vprice[index]}</td>
+                            <td className="py-2">{variants.vquantity[index]}</td>
+                            <td className="py-2">{variants.vsize[index] || '-'}</td>
+                            <td className="py-2">{variants.vcolor[index] || '-'}</td>
+                            <td className="py-2">{variants.vtype[index] || '-'}</td>
+                            <td className="py-2">
+                              {variants.vimages[index] ? (
+                                <span className="text-green-600 text-sm">✓ Image</span>
+                              ) : (
+                                <span className="text-gray-400 text-sm">No image</span>
+                              )}
+                            </td>
+                            <td className="py-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeVariant(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -649,7 +719,7 @@ const AddProductPage = () => {
                   className="bg-purple-600 text-white"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Uploading...' : 'Upload Product'}
+                  {isLoading ? 'Uploading Product...' : 'Upload Product'}
                 </Button>
               </div>
             </form>
@@ -659,19 +729,45 @@ const AddProductPage = () => {
 
       {/* Variant Modal */}
       <Dialog open={showVariantModal} onOpenChange={setShowVariantModal}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Variant</DialogTitle>
+            <DialogTitle>Add Product Variant</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
               <Input 
                 name="name" 
                 value={currentVariant.name}
                 onChange={handleVariantInputChange}
+                placeholder="e.g., Large Size"
                 required
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
+                <Input 
+                  name="price" 
+                  type="number" 
+                  step="0.01"
+                  value={currentVariant.price}
+                  onChange={handleVariantInputChange}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
+                <Input 
+                  name="quantity" 
+                  type="number" 
+                  value={currentVariant.quantity}
+                  onChange={handleVariantInputChange}
+                  placeholder="0"
+                  required
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -680,6 +776,7 @@ const AddProductPage = () => {
                   name="size" 
                   value={currentVariant.size}
                   onChange={handleVariantInputChange}
+                  placeholder="e.g., XL"
                 />
               </div>
               <div>
@@ -688,6 +785,7 @@ const AddProductPage = () => {
                   name="type" 
                   value={currentVariant.type}
                   onChange={handleVariantInputChange}
+                  placeholder="e.g., Cotton"
                 />
               </div>
             </div>
@@ -697,58 +795,64 @@ const AddProductPage = () => {
                 name="color" 
                 value={currentVariant.color}
                 onChange={handleVariantInputChange}
+                placeholder="e.g., Red"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                <Input 
-                  name="quantity" 
-                  type="number" 
-                  value={currentVariant.quantity}
-                  onChange={handleVariantInputChange}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                <Input 
-                  name="price" 
-                  type="number" 
-                  value={currentVariant.price}
-                  onChange={handleVariantInputChange}
-                  required
-                />
-              </div>
-            </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                <div className="space-y-1 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600">
-                    <label className="relative cursor-pointer rounded-md font-medium text-purple-600 hover:text-purple-500">
-                      <span>Upload a file</span>
-                      <input 
-                        type="file" 
-                        className="sr-only" 
-                        onChange={handleVariantImageUpload}
-                        accept="image/*"
-                      />
-                    </label>
-                    <p className="pl-1">or drag and drop</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Variant Image</label>
+              {variantImagePreview ? (
+                <div className="relative">
+                  <img 
+                    src={variantImagePreview} 
+                    alt="Variant preview" 
+                    className="w-full h-32 object-cover rounded border" 
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="absolute top-1 right-1 bg-white rounded-full p-1"
+                    onClick={() => {
+                      setVariantImage(null);
+                      setVariantImagePreview(null);
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                  <div className="space-y-1 text-center">
+                    <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                    <div className="flex text-sm text-gray-600">
+                      <label className="relative cursor-pointer rounded-md font-medium text-purple-600 hover:text-purple-500">
+                        <span>Upload image</span>
+                        <input 
+                          type="file" 
+                          className="sr-only" 
+                          onChange={handleVariantImageUpload}
+                          accept="image/*"
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={() => setShowVariantModal(false)}
+            >
+              Cancel
+            </Button>
             <Button 
               className="bg-purple-600 text-white"
               onClick={handleAddVariant}
-              disabled={isAddingVariant}
             >
-              {isAddingVariant ? 'Adding...' : 'Add'}
+              Add Variant
             </Button>
           </div>
         </DialogContent>
@@ -758,38 +862,47 @@ const AddProductPage = () => {
       <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add category</DialogTitle>
+            <DialogTitle>Add Category</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Name
+                Category Name *
               </label>
               <Input 
                 name="category"
                 value={newCategory.category}
                 onChange={handleCategoryInputChange}
+                placeholder="Enter category name"
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sub category Name
+                Subcategory Name (optional)
               </label>
               <Input 
                 name="sub"
                 value={newCategory.sub}
                 onChange={handleCategoryInputChange}
+                placeholder="Enter subcategory name"
               />
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={() => setShowCategoryModal(false)}
+            >
+              Cancel
+            </Button>
             <Button 
               className="bg-purple-600 text-white"
               onClick={handleAddCategory}
               disabled={isAddingCategory}
             >
-              {isAddingCategory ? 'Adding...' : 'Add'}
+              {isAddingCategory ? 'Adding...' : 'Add Category'}
             </Button>
           </div>
         </DialogContent>

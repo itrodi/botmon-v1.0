@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import {
@@ -20,7 +20,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Card,
@@ -43,7 +42,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
@@ -61,15 +59,13 @@ import {
 
 const EditServicePage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const serviceId = queryParams.get('id');
+  const { id: serviceId } = useParams(); // Get service ID from URL params
   
   // State for modals
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   
-  // Main service state
+  // Main service state - matching backend exactly
   const [serviceData, setServiceData] = useState({
     name: '',
     description: '',
@@ -77,18 +73,26 @@ const EditServicePage = () => {
     link: '',
     category: '',
     sub: '',
-    status: 'published'
+    status: 'published',
+    payment: true // Backend field
   });
   
   // Service image state
   const [serviceImage, setServiceImage] = useState(null);
   const [serviceImagePreview, setServiceImagePreview] = useState(null);
+  const [hasExistingImage, setHasExistingImage] = useState(false);
   
-  // Variants state
-  const [variants, setVariants] = useState([]);
+  // Variants state - arrays to match backend getlist expectation
+  const [variants, setVariants] = useState({
+    vname: [],
+    vprice: [],
+    vimages: [] // Store new variant images
+  });
+  
+  // Current variant being added
   const [currentVariant, setCurrentVariant] = useState({
-    name: '',
-    price: ''
+    vname: '', // Backend uses vname
+    vprice: '' // Backend uses vprice
   });
   const [variantImage, setVariantImage] = useState(null);
   const [variantImagePreview, setVariantImagePreview] = useState(null);
@@ -107,18 +111,16 @@ const EditServicePage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [isAddingVariant, setIsAddingVariant] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch service data, categories, and variants on mount
+  // Fetch service data and categories on mount
   useEffect(() => {
     if (serviceId) {
       fetchServiceData();
       fetchCategories();
     } else {
       toast.error("No service ID provided");
-      navigate('/ProductPage');
+      navigate('/products');
     }
   }, [serviceId]);
 
@@ -145,13 +147,15 @@ const EditServicePage = () => {
       );
 
       const service = response.data;
+      console.log('Fetched service:', service);
+
       if (!service || Object.keys(service).length === 0) {
         toast.error('Service not found');
-        navigate('/ProductPage');
+        navigate('/products');
         return;
       }
 
-      // Set service data
+      // Set service data with backend field alignment
       setServiceData({
         name: service.name || '',
         description: service.description || '',
@@ -159,27 +163,33 @@ const EditServicePage = () => {
         link: service.link || '',
         category: service.category || '',
         sub: service.sub || '',
-        status: service.status !== false ? 'published' : 'draft'
+        status: service.status || 'published',
+        payment: service.payment !== undefined ? service.payment : true
       });
 
-      // Set image preview if available
+      // Handle image preview (backend stores S3 URLs, not base64)
       if (service.image) {
-        setServiceImagePreview(`data:image/jpeg;base64,${service.image}`);
+        setServiceImagePreview(service.image);
+        setHasExistingImage(true);
       }
 
       // Set variants if available
       if (service.vname && Array.isArray(service.vname)) {
-        const loadedVariants = service.vname.map((name, index) => ({
-          name,
-          price: service.vprice?.[index] || '',
-          vimage: service.vimage?.[index] || null
-        }));
-        setVariants(loadedVariants);
+        setVariants({
+          vname: service.vname || [],
+          vprice: service.vprice || [],
+          vimages: [] // No new images initially
+        });
       }
 
     } catch (error) {
       console.error('Error fetching service data:', error);
-      toast.error('Failed to load service data');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        navigate('/login');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to load service data');
+      }
     } finally {
       setIsFetching(false);
     }
@@ -192,6 +202,7 @@ const EditServicePage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -209,7 +220,12 @@ const EditServicePage = () => {
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
-      toast.error('Failed to load categories');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        navigate('/login');
+      } else {
+        toast.error('Failed to load categories');
+      }
     } finally {
       setIsLoadingCategories(false);
     }
@@ -232,33 +248,48 @@ const EditServicePage = () => {
     }));
   };
 
+  // Validate image file
+  const validateImage = (file) => {
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 10 * 1024 * 1024; // 10MB to match backend
+
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast.error('Image size should be less than 10MB');
+      return false;
+    }
+
+    return true;
+  };
+
   // Handle service image upload
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 3 * 1024 * 1024) { // 3MB limit
+    if (file && validateImage(file)) {
       setServiceImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setServiceImagePreview(reader.result);
+        setHasExistingImage(false); // Mark as new image
       };
       reader.readAsDataURL(file);
-    } else {
-      toast.error('Image size should be less than 3MB');
     }
   };
 
   // Handle variant image upload
   const handleVariantImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 3 * 1024 * 1024) { // 3MB limit
+    if (file && validateImage(file)) {
       setVariantImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setVariantImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
-    } else {
-      toast.error('Image size should be less than 3MB');
     }
   };
 
@@ -280,86 +311,41 @@ const EditServicePage = () => {
     }));
   };
 
-  // Add a new variant
-  const handleAddVariant = async () => {
+  // Add a new variant (locally, will be sent with service update)
+  const handleAddVariant = () => {
     // Validate variant data
-    if (!currentVariant.name || !currentVariant.price || !variantImage) {
-      toast.error('Please fill in all required variant fields and upload an image');
+    if (!currentVariant.vname || !currentVariant.vprice || !variantImage) {
+      toast.error('Please fill in name, price, and upload an image for the variant');
       return;
     }
 
-    setIsAddingVariant(true);
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please login first');
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('vname', currentVariant.name);
-      formData.append('vprice', currentVariant.price);
-      
-      if (variantImage) {
-        formData.append('vimage', variantImage);
-      }
-
-      // Submit the variant to the backend
-      const response = await axios.post(
-        'https://api.automation365.io/svarian',
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-
-      if (response.data === "done") {
-        // Add to local state with the preview image
-        const newVariant = {
-          ...currentVariant,
-          vimage: variantImagePreview
-        };
-        
-        setVariants(prev => [...prev, newVariant]);
-        
-        // Reset the form
-        setCurrentVariant({
-          name: '',
-          price: ''
-        });
-        setVariantImage(null);
-        setVariantImagePreview(null);
-        
-        // Close the modal
-        setShowVariantModal(false);
-        toast.success('Variant added successfully');
-      }
-    } catch (error) {
-      console.error('Error adding variant:', error);
-      toast.error('Failed to add variant');
-    } finally {
-      setIsAddingVariant(false);
-    }
+    // Add to variants arrays
+    setVariants(prev => ({
+      vname: [...prev.vname, currentVariant.vname],
+      vprice: [...prev.vprice, currentVariant.vprice],
+      vimages: [...prev.vimages, variantImage] // Store the actual file
+    }));
+    
+    // Reset the form
+    setCurrentVariant({
+      vname: '',
+      vprice: ''
+    });
+    setVariantImage(null);
+    setVariantImagePreview(null);
+    
+    // Close the modal
+    setShowVariantModal(false);
+    toast.success('Variant added successfully');
   };
 
-  // Handle variant deletion
-  const handleDeleteVariant = async (index) => {
-    setIsDeleting(true);
-    try {
-      // Here you would typically call an API to delete the variant
-      // For now, we'll just update the local state
-      setVariants(prev => prev.filter((_, i) => i !== index));
-      toast.success('Variant removed');
-    } catch (error) {
-      console.error('Error deleting variant:', error);
-      toast.error('Failed to delete variant');
-    } finally {
-      setIsDeleting(false);
-    }
+  // Remove variant
+  const removeVariant = (index) => {
+    setVariants(prev => ({
+      vname: prev.vname.filter((_, i) => i !== index),
+      vprice: prev.vprice.filter((_, i) => i !== index),
+      vimages: prev.vimages.filter((_, i) => i !== index)
+    }));
   };
 
   // Add a new category
@@ -376,6 +362,7 @@ const EditServicePage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -411,7 +398,12 @@ const EditServicePage = () => {
       }
     } catch (error) {
       console.error('Error adding category:', error);
-      toast.error('Failed to add category');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        navigate('/login');
+      } else {
+        toast.error('Failed to add category');
+      }
     } finally {
       setIsAddingCategory(false);
     }
@@ -433,29 +425,48 @@ const EditServicePage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
-      // Create form data
+      // Create form data exactly as backend expects
       const formData = new FormData();
       
-      // Add service ID
+      // Add service ID (required for edit)
       formData.append('id', serviceId);
       
       // Add service details
-      Object.entries(serviceData).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
+      formData.append('name', serviceData.name);
+      formData.append('description', serviceData.description);
+      formData.append('price', serviceData.price);
+      formData.append('link', serviceData.link || '');
+      formData.append('category', serviceData.category || '');
+      formData.append('sub', serviceData.sub || '');
+      formData.append('status', serviceData.status);
+      formData.append('payment', serviceData.payment);
       
-      // Add service image if a new one was selected
+      // Add service image only if a new one was selected
       if (serviceImage) {
         formData.append('image', serviceImage);
       }
       
-      // Add variants data
-      variants.forEach((variant, index) => {
-        formData.append(`vname[${index}]`, variant.name);
-        formData.append(`vprice[${index}]`, variant.price);
+      // Add variants data as arrays (backend uses getlist())
+      variants.vname.forEach(name => formData.append('vname', name));
+      variants.vprice.forEach(price => formData.append('vprice', price));
+      
+      // Add variant images (only new ones)
+      variants.vimages.forEach(image => {
+        if (image) {
+          formData.append('vimage', image);
+        }
+      });
+
+      console.log('Updating service:', {
+        serviceId,
+        serviceData,
+        variantCount: variants.vname.length,
+        hasNewImage: !!serviceImage,
+        variantImageCount: variants.vimages.filter(img => img).length
       });
 
       // Submit the service update
@@ -470,20 +481,27 @@ const EditServicePage = () => {
         }
       );
 
+      console.log('Update response:', response.data);
+
       if (response.data.message === "service updated successfully") {
         toast.success('Service updated successfully');
-        navigate('/ProductPage');
+        navigate('/products');
       }
     } catch (error) {
       console.error('Error updating service:', error);
-      toast.error('Failed to update service');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        navigate('/login');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to update service');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDiscard = () => {
-    navigate('/ProductPage'); // Navigate back to the product page
+    navigate('/products'); // Navigate back to products page
   };
 
   if (isFetching) {
@@ -493,7 +511,10 @@ const EditServicePage = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           <DashboardHeader title="Edit Service" />
           <div className="flex-1 flex items-center justify-center">
-            <Loader className="w-10 h-10 animate-spin text-purple-600" />
+            <div className="text-center">
+              <Loader className="w-10 h-10 animate-spin text-purple-600 mx-auto mb-4" />
+              <p className="text-gray-600">Loading service data...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -510,7 +531,7 @@ const EditServicePage = () => {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-6">
             <div className="flex items-center gap-4 mb-6">
-              <Link to="/ProductPage">
+              <Link to="/products">
                 <Button variant="outline" size="icon" className="h-7 w-7">
                   <ChevronLeft className="h-4 w-4" />
                   <span className="sr-only">Back</span>
@@ -560,7 +581,7 @@ const EditServicePage = () => {
                     <CardContent>
                       <div className="grid gap-6">
                         <div className="grid gap-3">
-                          <Label htmlFor="name">Service Name</Label>
+                          <Label htmlFor="name">Service Name *</Label>
                           <Input
                             id="name"
                             name="name"
@@ -583,11 +604,12 @@ const EditServicePage = () => {
                           />
                         </div>
                         <div className="grid gap-3">
-                          <Label htmlFor="price">Service Price</Label>
+                          <Label htmlFor="price">Service Price *</Label>
                           <Input
                             id="price"
                             name="price"
                             type="number"
+                            step="0.01"
                             value={serviceData.price}
                             onChange={handleInputChange}
                             placeholder="Enter price"
@@ -609,6 +631,21 @@ const EditServicePage = () => {
                             Add a link if this service has additional resources or information
                           </p>
                         </div>
+                        <div className="grid gap-3">
+                          <Label htmlFor="payment">Payment Required</Label>
+                          <Select
+                            value={serviceData.payment.toString()}
+                            onValueChange={(value) => handleSelectChange('payment', value === 'true')}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment option" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="true">Yes, payment required</SelectItem>
+                              <SelectItem value="false">No, free service</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -616,7 +653,7 @@ const EditServicePage = () => {
                   {/* Variations Section */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Service Variations</CardTitle>
+                      <CardTitle>Service Variations (Optional)</CardTitle>
                       <CardDescription>
                         Manage different options for your service
                       </CardDescription>
@@ -625,77 +662,40 @@ const EditServicePage = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Image</TableHead>
                             <TableHead>Name</TableHead>
                             <TableHead>Price</TableHead>
+                            <TableHead>Image</TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {variants.length === 0 ? (
+                          {variants.vname.length === 0 ? (
                             <TableRow>
                               <TableCell colSpan="4" className="py-4 text-center text-gray-500">
                                 No variants added yet
                               </TableCell>
                             </TableRow>
                           ) : (
-                            variants.map((variant, index) => (
+                            variants.vname.map((name, index) => (
                               <TableRow key={index}>
+                                <TableCell className="font-semibold">{name}</TableCell>
+                                <TableCell>${parseFloat(variants.vprice[index]).toFixed(2)}</TableCell>
                                 <TableCell>
-                                  {variant.vimage ? (
-                                    <img
-                                      src={typeof variant.vimage === 'string' && variant.vimage.startsWith('data:') ? 
-                                        variant.vimage : 
-                                        `data:image/jpeg;base64,${variant.vimage}`}
-                                      alt={variant.name}
-                                      className="w-12 h-12 object-cover rounded-md"
-                                    />
+                                  {variants.vimages[index] ? (
+                                    <span className="text-green-600 text-sm">✓ New</span>
                                   ) : (
-                                    <div className="w-12 h-12 bg-gray-100 flex items-center justify-center rounded-md">
-                                      <span className="text-xs text-gray-400">No image</span>
-                                    </div>
+                                    <span className="text-gray-400 text-sm">No image</span>
                                   )}
                                 </TableCell>
-                                <TableCell className="font-semibold">{variant.name}</TableCell>
-                                <TableCell>${parseFloat(variant.price).toFixed(2)}</TableCell>
                                 <TableCell>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                                        <span className="sr-only">Open menu</span>
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                            Delete
-                                          </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              This will remove the variant from your service.
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction 
-                                              onClick={() => handleDeleteVariant(index)}
-                                              className="bg-red-600 text-white hover:bg-red-700"
-                                              disabled={isDeleting}
-                                            >
-                                              {isDeleting ? 'Deleting...' : 'Delete'}
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeVariant(index)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))
@@ -742,18 +742,11 @@ const EditServicePage = () => {
                               ) : categories.length === 0 ? (
                                 <SelectItem value="no_categories" disabled>No categories available</SelectItem>
                               ) : (
-                                categories.map((cat, idx) => {
-                                  // Check if this category is a duplicate (based on previous items)
-                                  const value = cat && cat.trim() !== '' ? 
-                                    (categories.indexOf(cat) === idx ? cat : `${cat}_${idx}`) : 
-                                    `category_${idx}`;
-                                  
-                                  return (
-                                    <SelectItem key={`cat_${idx}`} value={value}>
-                                      {cat || `Category ${idx + 1}`}
-                                    </SelectItem>
-                                  );
-                                })
+                                categories.map((cat, idx) => (
+                                  <SelectItem key={idx} value={cat}>
+                                    {cat}
+                                  </SelectItem>
+                                ))
                               )}
                             </SelectContent>
                           </Select>
@@ -773,18 +766,11 @@ const EditServicePage = () => {
                               ) : subs.length === 0 ? (
                                 <SelectItem value="no_subcategories" disabled>No subcategories available</SelectItem>
                               ) : (
-                                subs.map((sub, idx) => {
-                                  // Check if this subcategory is a duplicate
-                                  const value = sub && sub.trim() !== '' ? 
-                                    (subs.indexOf(sub) === idx ? sub : `${sub}_${idx}`) : 
-                                    `subcategory_${idx}`;
-                                  
-                                  return (
-                                    <SelectItem key={`sub_${idx}`} value={value}>
-                                      {sub || `Subcategory ${idx + 1}`}
-                                    </SelectItem>
-                                  );
-                                })
+                                subs.map((sub, idx) => (
+                                  <SelectItem key={idx} value={sub}>
+                                    {sub}
+                                  </SelectItem>
+                                ))
                               )}
                             </SelectContent>
                           </Select>
@@ -850,9 +836,15 @@ const EditServicePage = () => {
                             src={serviceImagePreview}
                             alt="Service preview"
                             className="aspect-square w-full rounded-md object-cover"
-                            height="300"
-                            width="300"
+                            onError={(e) => {
+                              console.log('Image failed to load:', serviceImagePreview);
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
                           />
+                          <div className="hidden w-full h-64 bg-gray-100 items-center justify-center rounded-md">
+                            <span className="text-gray-500">Image not found</span>
+                          </div>
                           <Button
                             type="button"
                             variant="outline"
@@ -861,10 +853,14 @@ const EditServicePage = () => {
                             onClick={() => {
                               setServiceImage(null);
                               setServiceImagePreview(null);
+                              setHasExistingImage(false);
                             }}
                           >
                             <X className="h-4 w-4" />
                           </Button>
+                          {!hasExistingImage && (
+                            <p className="text-xs text-green-600 mt-2">New image selected - will be uploaded when you save</p>
+                          )}
                         </div>
                       ) : (
                         <div className="border-2 border-dashed rounded-lg p-8 text-center">
@@ -883,7 +879,7 @@ const EditServicePage = () => {
                             </label>
                             <p className="pl-1">or drag and drop</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF up to 3MB</p>
+                          <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF, WebP up to 10MB</p>
                         </div>
                       )}
                     </CardContent>
@@ -907,7 +903,7 @@ const EditServicePage = () => {
                   className="bg-purple-600 text-white"
                 >
                   {isLoading ? 'Saving...' : 'Save Changes'}
-                  </Button>
+                </Button>
               </div>
             </form>
           </div>
@@ -916,17 +912,17 @@ const EditServicePage = () => {
 
       {/* Variant Modal */}
       <Dialog open={showVariantModal} onOpenChange={setShowVariantModal}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add Service Variant</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="name">Variant Name</Label>
+              <Label htmlFor="vname">Variant Name *</Label>
               <Input
-                id="name"
-                name="name"
-                value={currentVariant.name}
+                id="vname"
+                name="vname"
+                value={currentVariant.vname}
                 onChange={handleVariantInputChange}
                 placeholder="e.g. Basic Package"
                 className="mt-1"
@@ -934,12 +930,13 @@ const EditServicePage = () => {
               />
             </div>
             <div>
-              <Label htmlFor="price">Price</Label>
+              <Label htmlFor="vprice">Price *</Label>
               <Input
-                id="price"
-                name="price"
+                id="vprice"
+                name="vprice"
                 type="number"
-                value={currentVariant.price}
+                step="0.01"
+                value={currentVariant.vprice}
                 onChange={handleVariantInputChange}
                 placeholder="e.g. 99.99"
                 className="mt-1"
@@ -947,13 +944,13 @@ const EditServicePage = () => {
               />
             </div>
             <div>
-              <Label>Variant Image</Label>
+              <Label>Variant Image *</Label>
               {variantImagePreview ? (
                 <div className="relative mt-1">
                   <img
                     src={variantImagePreview}
                     alt="Variant preview"
-                    className="w-full h-40 object-cover rounded-md"
+                    className="w-full h-40 object-cover rounded-md border"
                   />
                   <Button
                     type="button"
@@ -980,31 +977,31 @@ const EditServicePage = () => {
                           className="sr-only"
                           onChange={handleVariantImageUpload}
                           accept="image/*"
+                          required
                         />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF up to 3MB</p>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF, WebP up to 10MB</p>
                   </div>
                 </div>
               )}
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowVariantModal(false)}
+            >
+              Cancel
+            </Button>
             <Button
               type="button"
               onClick={handleAddVariant}
-              disabled={isAddingVariant}
               className="bg-purple-600 text-white"
             >
-              {isAddingVariant ? (
-                <>
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                'Add Variant'
-              )}
+              Add Variant
             </Button>
           </div>
         </DialogContent>
@@ -1018,7 +1015,7 @@ const EditServicePage = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="category">Category Name</Label>
+              <Label htmlFor="category">Category Name *</Label>
               <Input
                 id="category"
                 name="category"
@@ -1041,7 +1038,14 @@ const EditServicePage = () => {
               />
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCategoryModal(false)}
+            >
+              Cancel
+            </Button>
             <Button
               type="button"
               onClick={handleAddCategory}

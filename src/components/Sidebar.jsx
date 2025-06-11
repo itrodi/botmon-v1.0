@@ -102,10 +102,10 @@ const Sidebar = () => {
                 MAIN MENU
               </span>
             </div>
-            <SidebarLink href="/dashboard" icon={Grid} isActive={true}>Overview</SidebarLink>
-            <SidebarLink href="/dashboard/products" icon={ShoppingBag}>Product Page</SidebarLink>
-            <SidebarLink href="/dashboard/chat" icon={MessageSquare}>Chat Bot</SidebarLink>
-            <SidebarLink href="/dashboard/payment" icon={CreditCard}>Payment</SidebarLink>
+            <SidebarLink href="/Overview" icon={Grid} isActive={true}>Overview</SidebarLink>
+            <SidebarLink href="/ProductPage" icon={ShoppingBag}>Product Page</SidebarLink>
+            <SidebarLink href="/Chatbot" icon={MessageSquare}>Chat Bot</SidebarLink>
+            <SidebarLink href="/Payments" icon={CreditCard}>Payment</SidebarLink>
           </div>
 
           {/* Social Page */}
@@ -115,8 +115,8 @@ const Sidebar = () => {
                 SOCIAL PAGE
               </span>
             </div>
-            <SidebarLink href="/dashboard/notifications" icon={Bell}>Notification</SidebarLink>
-            <SidebarLink href="/dashboard/messages" icon={Mail}>Messages</SidebarLink>
+            <SidebarLink href="/Notifications" icon={Bell}>Notification</SidebarLink>
+            <SidebarLink href="/Messages" icon={Mail}>Messages</SidebarLink>
             <SidebarLink href="/dashboard/comments" icon={MessageCircle}>Comments</SidebarLink>
           </div>
 
@@ -127,10 +127,10 @@ const Sidebar = () => {
                 OTHERS
               </span>
             </div>
-            <SidebarLink href="/dashboard/customers" icon={Users}>Customers</SidebarLink>
-            <SidebarLink href="/dashboard/orders" icon={ClipboardList}>Orders</SidebarLink>
-            <SidebarLink href="/dashboard/analytics" icon={BarChart}>Analytics</SidebarLink>
-            <SidebarLink href="/dashboard/settings" icon={Settings}>Settings</SidebarLink>
+            <SidebarLink href="/Customers" icon={Users}>Customers</SidebarLink>
+            <SidebarLink href="/Orders" icon={ClipboardList}>Orders</SidebarLink>
+            <SidebarLink href="/Bookings" icon={BarChart}>Bookings</SidebarLink>
+            <SidebarLink href="/Settings" icon={Settings}>Settings</SidebarLink>
           </div>
         </div>
       </div>

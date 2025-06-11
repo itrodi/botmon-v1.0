@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
-<<<<<<< HEAD
 const AuthenticationPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -73,76 +72,6 @@ const AuthenticationPage = () => {
               <p className="text-gray-600 max-w-md">
                 Streamline Your Communication with BOTMON AI-Powered Vendor Message Replies
               </p>
-=======
-export function AuthenticationPage() {
-  
-
-
-  return (
-    <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
-          <div className="grid gap-2 text-center">
-            <h1 className="text-3xl font-bold">Sign Up</h1>
-            <p className="text-balance text-muted-foreground">
-              Sign up with a few steps and start automating and managing your business with ease.
-            </p>
-          </div>
-          <form >
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="fname">First Name</Label>
-                <Input
-                  id="fname"
-                  type="text"
-                  placeholder="Enter your first name"
-                  required
-                  name="fname"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="lname">Last Name</Label>
-                <Input
-                  id="lname"
-                  type="text"
-                  placeholder="Enter your last name"
-                  required
-                  name="lname"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  name="email"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="text"
-                  placeholder="+234"
-                  required
-                  name="phone"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  name="password"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing Up...' : 'Sign Up'}
-              </Button>
->>>>>>> f902abcd8b2bc6ec422fe85e865c954ccb36859f
             </div>
           </div>
         </div>
