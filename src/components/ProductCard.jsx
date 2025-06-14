@@ -28,7 +28,9 @@ const ProductCard = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
-  const isActive = status === 'active';
+  // Handle different status formats (string or boolean)
+  const isActive = status === 'active' || status === true;
+  const currentStatus = typeof status === 'string' ? status : (status ? 'active' : 'inactive');
   const hasVariants = vname && vname.length > 0;
 
   const handleDeleteClick = () => {
@@ -55,6 +57,29 @@ const ProductCard = ({
     }
   };
 
+  // Format price display
+  const formatPrice = (priceValue) => {
+    const numPrice = Number(priceValue || 0);
+    return numPrice.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Get status color
+  const getStatusColor = () => {
+    switch (currentStatus) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'inactive':
+        return 'bg-red-100 text-red-800';
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
       {/* Product Image */}
@@ -78,14 +103,8 @@ const ProductCard = ({
         
         {/* Status Badge */}
         <div className="absolute top-2 left-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            status === 'active' 
-              ? 'bg-green-100 text-green-800' 
-              : status === 'inactive'
-              ? 'bg-red-100 text-red-800'
-              : 'bg-yellow-100 text-yellow-800'
-          }`}>
-            {status}
+          <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor()}`}>
+            {currentStatus}
           </span>
         </div>
 
@@ -103,21 +122,22 @@ const ProductCard = ({
       <div className="space-y-3">
         {/* Title and Actions */}
         <div className="flex items-start justify-between">
-          <h3 className="font-medium text-sm leading-tight flex-1 pr-2" title={title}>
+          <h3 className="font-medium text-sm leading-tight flex-1 pr-2 line-clamp-2" title={title}>
             {title}
           </h3>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button 
               onClick={() => onEdit(id)} 
-              className="text-purple-400 hover:text-purple-600 p-1 rounded transition-colors"
+              className="text-gray-400 hover:text-purple-600 p-1 rounded transition-colors"
               title="Edit product"
             >
               <Edit2 className="w-4 h-4" />
             </button>
             <button 
               onClick={handleDeleteClick} 
-              className="text-red-400 hover:text-red-600 p-1 rounded transition-colors"
+              className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
               title="Delete product"
+              disabled={isDeleting}
             >
               <Trash className="w-4 h-4" />
             </button>
@@ -126,8 +146,8 @@ const ProductCard = ({
 
         {/* Price and Quantity */}
         <div className="flex items-center justify-between">
-          <span className="font-semibold text-lg">
-            ${Number(price || 0).toLocaleString()}
+          <span className="font-semibold text-lg text-gray-900">
+            ${formatPrice(price)}
           </span>
           <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
             QTY: {quantity || 0}
@@ -138,8 +158,10 @@ const ProductCard = ({
         {hasVariants && (
           <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
             <span className="font-medium">Variants: </span>
-            {vname.slice(0, 2).join(', ')}
-            {vname.length > 2 && ` +${vname.length - 2} more`}
+            <span className="text-gray-500">
+              {vname.slice(0, 2).join(', ')}
+              {vname.length > 2 && ` +${vname.length - 2} more`}
+            </span>
           </div>
         )}
 
@@ -154,6 +176,7 @@ const ProductCard = ({
               checked={isActive} 
               onCheckedChange={handleToggle}
               disabled={isToggling}
+              className="data-[state=checked]:bg-purple-600"
             />
           </div>
         </div>
@@ -166,7 +189,11 @@ const ProductCard = ({
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete the product "{title}". This action cannot be undone.
-              {hasVariants && ` This product has ${vname.length} variant(s) that will also be deleted.`}
+              {hasVariants && (
+                <span className="block mt-2 font-medium">
+                  Warning: This product has {vname.length} variant{vname.length > 1 ? 's' : ''} that will also be deleted.
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -174,7 +201,7 @@ const ProductCard = ({
             <AlertDialogAction
               onClick={handleConfirmDelete}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
               {isDeleting ? (
                 <>

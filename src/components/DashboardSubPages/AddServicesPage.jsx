@@ -37,25 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 const AddServicesPage = () => {
   const navigate = useNavigate();
@@ -134,11 +116,23 @@ const AddServicesPage = () => {
 
       console.log('Categories response:', response.data);
 
+      // Convert object to array since backend returns {"0": "cat1", "1": "cat2", ...}
       if (response.data.categories) {
-        setCategories(response.data.categories);
+        const categoriesObj = response.data.categories;
+        const categoriesArray = Object.keys(categoriesObj)
+          .sort((a, b) => Number(a) - Number(b))
+          .map(key => categoriesObj[key])
+          .filter(cat => cat);
+        setCategories(categoriesArray);
       }
+      
       if (response.data.subs) {
-        setSubs(response.data.subs);
+        const subsObj = response.data.subs;
+        const subsArray = Object.keys(subsObj)
+          .sort((a, b) => Number(a) - Number(b))
+          .map(key => subsObj[key])
+          .filter(sub => sub);
+        setSubs(subsArray);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -235,8 +229,8 @@ const AddServicesPage = () => {
   // Add a new variant (locally, will be sent with service)
   const handleAddVariant = () => {
     // Validate variant data
-    if (!currentVariant.vname || !currentVariant.vprice || !variantImage) {
-      toast.error('Please fill in name, price, and upload an image for the variant');
+    if (!currentVariant.vname || !currentVariant.vprice) {
+      toast.error('Please fill in name and price for the variant');
       return;
     }
 
@@ -244,7 +238,7 @@ const AddServicesPage = () => {
     setVariants(prev => ({
       vname: [...prev.vname, currentVariant.vname],
       vprice: [...prev.vprice, currentVariant.vprice],
-      vimages: [...prev.vimages, variantImage] // Store the actual file
+      vimages: [...prev.vimages, variantImage] // Store the actual file (can be null)
     }));
     
     // Reset the form
@@ -316,6 +310,9 @@ const AddServicesPage = () => {
         // Close the modal
         setShowCategoryModal(false);
         toast.success('Category added successfully');
+        
+        // Refresh categories to ensure consistency
+        fetchCategories();
       }
     } catch (error) {
       console.error('Error adding category:', error);
@@ -361,7 +358,7 @@ const AddServicesPage = () => {
       formData.append('category', serviceData.category || '');
       formData.append('sub', serviceData.sub || '');
       formData.append('status', serviceData.status);
-      formData.append('payment', serviceData.payment);
+      formData.append('payment', serviceData.payment.toString());
       
       // Add service image
       formData.append('image', serviceImage);
@@ -831,7 +828,7 @@ const AddServicesPage = () => {
               />
             </div>
             <div>
-              <Label>Variant Image *</Label>
+              <Label>Variant Image (Optional)</Label>
               {variantImagePreview ? (
                 <div className="relative mt-1">
                   <img
@@ -864,7 +861,6 @@ const AddServicesPage = () => {
                           className="sr-only"
                           onChange={handleVariantImageUpload}
                           accept="image/*"
-                          required
                         />
                       </label>
                       <p className="pl-1">or drag and drop</p>

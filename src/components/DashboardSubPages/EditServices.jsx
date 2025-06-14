@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import {
@@ -37,29 +37,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 const EditServicePage = () => {
   const navigate = useNavigate();
-  const { id: serviceId } = useParams(); // Get service ID from URL params
+  const [searchParams] = useSearchParams();
+  const serviceId = searchParams.get('id'); // Get service ID from query params
   
   // State for modals
   const [showVariantModal, setShowVariantModal] = useState(false);
@@ -88,6 +71,9 @@ const EditServicePage = () => {
     vprice: [],
     vimages: [] // Store new variant images
   });
+  
+  // Existing variant images from backend
+  const [existingVariantImages, setExistingVariantImages] = useState([]);
   
   // Current variant being added
   const [currentVariant, setCurrentVariant] = useState({
@@ -167,7 +153,7 @@ const EditServicePage = () => {
         payment: service.payment !== undefined ? service.payment : true
       });
 
-      // Handle image preview (backend stores S3 URLs, not base64)
+      // Handle image preview (backend stores S3 URLs)
       if (service.image) {
         setServiceImagePreview(service.image);
         setHasExistingImage(true);
@@ -180,6 +166,11 @@ const EditServicePage = () => {
           vprice: service.vprice || [],
           vimages: [] // No new images initially
         });
+        
+        // Store existing variant images separately
+        if (service.vimage && Array.isArray(service.vimage)) {
+          setExistingVariantImages(service.vimage);
+        }
       }
 
     } catch (error) {
@@ -212,11 +203,25 @@ const EditServicePage = () => {
         }
       });
 
+      console.log('Categories response:', response.data);
+
+      // Convert object to array since backend returns {"0": "cat1", "1": "cat2", ...}
       if (response.data.categories) {
-        setCategories(response.data.categories);
+        const categoriesObj = response.data.categories;
+        const categoriesArray = Object.keys(categoriesObj)
+          .sort((a, b) => Number(a) - Number(b))
+          .map(key => categoriesObj[key])
+          .filter(cat => cat);
+        setCategories(categoriesArray);
       }
+      
       if (response.data.subs) {
-        setSubs(response.data.subs);
+        const subsObj = response.data.subs;
+        const subsArray = Object.keys(subsObj)
+          .sort((a, b) => Number(a) - Number(b))
+          .map(key => subsObj[key])
+          .filter(sub => sub);
+        setSubs(subsArray);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -314,8 +319,8 @@ const EditServicePage = () => {
   // Add a new variant (locally, will be sent with service update)
   const handleAddVariant = () => {
     // Validate variant data
-    if (!currentVariant.vname || !currentVariant.vprice || !variantImage) {
-      toast.error('Please fill in name, price, and upload an image for the variant');
+    if (!currentVariant.vname || !currentVariant.vprice) {
+      toast.error('Please fill in name and price for the variant');
       return;
     }
 
@@ -323,7 +328,7 @@ const EditServicePage = () => {
     setVariants(prev => ({
       vname: [...prev.vname, currentVariant.vname],
       vprice: [...prev.vprice, currentVariant.vprice],
-      vimages: [...prev.vimages, variantImage] // Store the actual file
+      vimages: [...prev.vimages, variantImage] // Store the actual file (can be null)
     }));
     
     // Reset the form
@@ -346,6 +351,11 @@ const EditServicePage = () => {
       vprice: prev.vprice.filter((_, i) => i !== index),
       vimages: prev.vimages.filter((_, i) => i !== index)
     }));
+    
+    // Also remove from existing images if applicable
+    if (existingVariantImages[index]) {
+      setExistingVariantImages(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
   // Add a new category
@@ -395,6 +405,9 @@ const EditServicePage = () => {
         // Close the modal
         setShowCategoryModal(false);
         toast.success('Category added successfully');
+        
+        // Refresh categories to ensure consistency
+        fetchCategories();
       }
     } catch (error) {
       console.error('Error adding category:', error);
@@ -443,7 +456,7 @@ const EditServicePage = () => {
       formData.append('category', serviceData.category || '');
       formData.append('sub', serviceData.sub || '');
       formData.append('status', serviceData.status);
-      formData.append('payment', serviceData.payment);
+      formData.append('payment', serviceData.payment.toString());
       
       // Add service image only if a new one was selected
       if (serviceImage) {
@@ -683,6 +696,8 @@ const EditServicePage = () => {
                                 <TableCell>
                                   {variants.vimages[index] ? (
                                     <span className="text-green-600 text-sm">✓ New</span>
+                                  ) : existingVariantImages[index] ? (
+                                    <span className="text-blue-600 text-sm">✓ Existing</span>
                                   ) : (
                                     <span className="text-gray-400 text-sm">No image</span>
                                   )}
@@ -944,7 +959,7 @@ const EditServicePage = () => {
               />
             </div>
             <div>
-              <Label>Variant Image *</Label>
+              <Label>Variant Image (Optional)</Label>
               {variantImagePreview ? (
                 <div className="relative mt-1">
                   <img
@@ -977,7 +992,6 @@ const EditServicePage = () => {
                           className="sr-only"
                           onChange={handleVariantImageUpload}
                           accept="image/*"
-                          required
                         />
                       </label>
                       <p className="pl-1">or drag and drop</p>

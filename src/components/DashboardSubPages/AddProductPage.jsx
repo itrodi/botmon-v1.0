@@ -104,11 +104,23 @@ const AddProductPage = () => {
 
       console.log('Categories response:', response.data);
 
+      // Convert object to array since backend returns {0: "cat1", 1: "cat2", ...}
       if (response.data.categories) {
-        setCategories(response.data.categories);
+        const categoriesObj = response.data.categories;
+        const categoriesArray = Object.keys(categoriesObj)
+          .sort((a, b) => Number(a) - Number(b)) // Sort by numeric key
+          .map(key => categoriesObj[key])
+          .filter(cat => cat); // Filter out empty values
+        setCategories(categoriesArray);
       }
+      
       if (response.data.subs) {
-        setSubs(response.data.subs);
+        const subsObj = response.data.subs;
+        const subsArray = Object.keys(subsObj)
+          .sort((a, b) => Number(a) - Number(b)) // Sort by numeric key
+          .map(key => subsObj[key])
+          .filter(sub => sub); // Filter out empty values
+        setSubs(subsArray);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -292,6 +304,9 @@ const AddProductPage = () => {
         // Close the modal
         setShowCategoryModal(false);
         toast.success('Category added successfully');
+        
+        // Refresh categories to ensure consistency
+        fetchCategories();
       }
     } catch (error) {
       console.error('Error adding category:', error);

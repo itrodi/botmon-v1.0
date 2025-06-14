@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -24,7 +24,8 @@ import {
 
 const EditProductPage = () => {
   const navigate = useNavigate();
-  const { id: productId } = useParams(); // Get product ID from URL params
+  const [searchParams] = useSearchParams();
+  const productId = searchParams.get('id'); // Get product ID from query params
 
   // State for modals
   const [showVariantModal, setShowVariantModal] = useState(false);
@@ -58,6 +59,9 @@ const EditProductPage = () => {
     vtype: [],
     vimages: [] // Store new variant images
   });
+  
+  // Existing variant images from backend
+  const [existingVariantImages, setExistingVariantImages] = useState([]);
   
   // Current variant being added
   const [currentVariant, setCurrentVariant] = useState({
@@ -143,7 +147,7 @@ const EditProductPage = () => {
         status: product.status || 'active'
       });
 
-      // Handle image preview (backend stores S3 URLs, not base64)
+      // Handle image preview (backend stores S3 URLs)
       if (product.image) {
         setProductImagePreview(product.image);
         setHasExistingImage(true);
@@ -160,6 +164,11 @@ const EditProductPage = () => {
           vtype: product.vtype || [],
           vimages: [] // No new images initially
         });
+        
+        // Store existing variant images separately
+        if (product.vimage && Array.isArray(product.vimage)) {
+          setExistingVariantImages(product.vimage);
+        }
       }
 
     } catch (error) {
@@ -186,11 +195,25 @@ const EditProductPage = () => {
         }
       });
 
+      console.log('Categories response:', response.data);
+
+      // Convert object to array since backend returns {"0": "cat1", "1": "cat2", ...}
       if (response.data.categories) {
-        setCategories(response.data.categories);
+        const categoriesObj = response.data.categories;
+        const categoriesArray = Object.keys(categoriesObj)
+          .sort((a, b) => Number(a) - Number(b))
+          .map(key => categoriesObj[key])
+          .filter(cat => cat);
+        setCategories(categoriesArray);
       }
+      
       if (response.data.subs) {
-        setSubs(response.data.subs);
+        const subsObj = response.data.subs;
+        const subsArray = Object.keys(subsObj)
+          .sort((a, b) => Number(a) - Number(b))
+          .map(key => subsObj[key])
+          .filter(sub => sub);
+        setSubs(subsArray);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -326,6 +349,11 @@ const EditProductPage = () => {
       vtype: prev.vtype.filter((_, i) => i !== index),
       vimages: prev.vimages.filter((_, i) => i !== index)
     }));
+    
+    // Also remove from existing images if applicable
+    if (existingVariantImages[index]) {
+      setExistingVariantImages(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
   // Add a new category
@@ -374,6 +402,9 @@ const EditProductPage = () => {
         // Close the modal
         setShowCategoryModal(false);
         toast.success('Category added successfully');
+        
+        // Refresh categories to ensure consistency
+        fetchCategories();
       }
     } catch (error) {
       console.error('Error adding category:', error);
@@ -640,11 +671,12 @@ const EditProductPage = () => {
                       onClick={() => {
                         setProductImage(null);
                         setProductImagePreview(null);
+                        setHasExistingImage(false);
                       }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
-                    {!hasExistingImage && (
+                    {productImage && (
                       <p className="text-xs text-green-600">New image selected - will be uploaded when you save</p>
                     )}
                   </div>
@@ -787,6 +819,8 @@ const EditProductPage = () => {
                             <td className="py-2">
                               {variants.vimages[index] ? (
                                 <span className="text-green-600 text-sm">✓ New</span>
+                              ) : existingVariantImages[index] ? (
+                                <span className="text-blue-600 text-sm">✓ Existing</span>
                               ) : (
                                 <span className="text-gray-400 text-sm">No image</span>
                               )}

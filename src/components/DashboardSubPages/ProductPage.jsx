@@ -63,7 +63,7 @@ const ProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
-        navigate('/login'); // Redirect to login if no token
+        navigate('/login');
         return;
       }
 
@@ -79,17 +79,28 @@ const ProductPage = () => {
       // Ensure all products have required fields with defaults
       allProducts = allProducts.map(product => ({
         ...product,
-        id: product.id || product._id, // Handle both id and _id
-        status: product.status !== undefined ? product.status : true, // Default to true if undefined
+        id: product.id || product._id,
+        // Convert boolean status to string if needed
+        status: typeof product.status === 'boolean' 
+          ? (product.status ? 'active' : 'inactive')
+          : (product.status || 'active'),
         quantity: product.quantity || 0,
         price: product.price || 0,
         name: product.name || 'Untitled Product',
-        image: product.image || '' // Handle missing images
+        image: product.image || '',
+        // Include variant arrays for ProductCard
+        vname: product.vname || [],
+        vprice: product.vprice || [],
+        vquantity: product.vquantity || [],
+        vsize: product.vsize || [],
+        vcolor: product.vcolor || [],
+        vtype: product.vtype || [],
+        vimage: product.vimage || []
       }));
       
       // Apply any active filters
       const filteredProducts = filterActive 
-        ? allProducts.filter(p => p.status === true) 
+        ? allProducts.filter(p => p.status === 'active') 
         : allProducts;
       
       // Calculate pagination
@@ -138,17 +149,22 @@ const ProductPage = () => {
       // Ensure all services have required fields with defaults
       allServices = allServices.map(service => ({
         ...service,
-        id: service.id || service._id, // Handle both id and _id
-        status: service.status !== undefined ? service.status : true, // Default to true if undefined
+        id: service.id || service._id,
+        // Services use 'published' instead of 'active'
+        status: service.status || 'published',
         price: service.price || 0,
         name: service.name || 'Untitled Service',
-        image: service.image || '', // Handle missing images
-        payment: service.payment !== undefined ? service.payment : true // Default payment to true
+        image: service.image || '',
+        payment: service.payment !== undefined ? service.payment : true,
+        // Include variant arrays for ServiceCard
+        vname: service.vname || [],
+        vprice: service.vprice || [],
+        vimage: service.vimage || []
       }));
       
       // Apply any active filters
       const filteredServices = filterActive 
-        ? allServices.filter(s => s.status === true) 
+        ? allServices.filter(s => s.status === 'published' || s.status === 'active') 
         : allServices;
       
       // Calculate pagination
@@ -175,7 +191,7 @@ const ProductPage = () => {
     }
   };
 
-  const handleToggleStatus = async (id, currentStatus) => {
+  const handleToggleStatus = async (id, newStatus) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -183,15 +199,16 @@ const ProductPage = () => {
         return;
       }
 
+      // Services use 'service-status' endpoint, products use 'product-status'
       const endpoint = activeTab === 'services' 
-        ? 'https://api.automation365.io/update-service-status'
-        : 'https://api.automation365.io/update-status';
+        ? 'https://api.automation365.io/product-status' // Backend uses same endpoint
+        : 'https://api.automation365.io/product-status';
 
       const response = await axios.post(
         endpoint,
         {
           id,
-          status: !currentStatus
+          status: newStatus
         },
         {
           headers: {
@@ -201,26 +218,26 @@ const ProductPage = () => {
         }
       );
 
-      if (response.data === "done") {
+      if (response.data.message === "Status updated") {
         toast.success('Status updated successfully');
         
         // Update the local state immediately for better UX
         if (activeTab === 'products') {
           setProducts(prevProducts => 
             prevProducts.map(product => 
-              product.id === id ? { ...product, status: !currentStatus } : product
+              product.id === id ? { ...product, status: newStatus } : product
             )
           );
         } else {
           setServices(prevServices => 
             prevServices.map(service => 
-              service.id === id ? { ...service, status: !currentStatus } : service
+              service.id === id ? { ...service, status: newStatus } : service
             )
           );
         }
         
         // If filter is active and item is now inactive, it should disappear
-        if (filterActive && currentStatus === true) {
+        if (filterActive && (newStatus !== 'active' && newStatus !== 'published')) {
           // Re-fetch to update the filtered view
           if (activeTab === 'products') {
             fetchProducts();
@@ -242,7 +259,7 @@ const ProductPage = () => {
   };
 
   const handleEdit = (id) => {
-    // Navigate to edit page with product/service id
+    // Navigate to edit page with product/service id as query param
     if (activeTab === 'products') {
       navigate(`/EditProduct?id=${id}`);
     } else {
@@ -251,13 +268,7 @@ const ProductPage = () => {
   };
 
   const handleDelete = async (id) => {
-    // Add confirmation dialog
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete this ${activeTab === 'services' ? 'service' : 'product'}?`
-    );
-    
-    if (!confirmDelete) return;
-
+    // The ProductCard/ServiceCard component handles the confirmation dialog
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -326,7 +337,81 @@ const ProductPage = () => {
 
   const displayData = activeTab === 'services' ? services : products;
 
-  // [Rest of the pagination code remains the same...]
+  // Pagination helper functions
+  const renderPaginationButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    
+    // Previous button
+    buttons.push(
+      <PaginationButton
+        key="prev"
+        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+        active={false}
+      >
+        &lt;
+      </PaginationButton>
+    );
+
+    // Page numbers
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+    if (endPage - startPage + 1 < maxVisible) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+
+    if (startPage > 1) {
+      buttons.push(
+        <PaginationButton key={1} onClick={() => setCurrentPage(1)} active={false}>
+          1
+        </PaginationButton>
+      );
+      if (startPage > 2) {
+        buttons.push(<span key="dots1" className="px-2">...</span>);
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      buttons.push(
+        <PaginationButton
+          key={i}
+          onClick={() => setCurrentPage(i)}
+          active={i === currentPage}
+        >
+          {i}
+        </PaginationButton>
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        buttons.push(<span key="dots2" className="px-2">...</span>);
+      }
+      buttons.push(
+        <PaginationButton
+          key={totalPages}
+          onClick={() => setCurrentPage(totalPages)}
+          active={false}
+        >
+          {totalPages}
+        </PaginationButton>
+      );
+    }
+
+    // Next button
+    buttons.push(
+      <PaginationButton
+        key="next"
+        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+        active={false}
+      >
+        &gt;
+      </PaginationButton>
+    );
+
+    return buttons;
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -415,11 +500,12 @@ const ProductPage = () => {
                             image={item.image}
                             title={item.name}
                             price={item.price}
-                            qty={item.quantity}
-                            isEnabled={item.status}
-                            onEdit={() => handleEdit(item.id)}
-                            onToggle={() => handleToggleStatus(item.id, item.status)}
-                            onDelete={() => handleDelete(item.id)}
+                            quantity={item.quantity}
+                            status={item.status}
+                            vname={item.vname}
+                            onEdit={handleEdit}
+                            onToggle={handleToggleStatus}
+                            onDelete={handleDelete}
                           />
                         ) : (
                           <ServiceCard
@@ -428,10 +514,12 @@ const ProductPage = () => {
                             image={item.image}
                             title={item.name}
                             price={item.price}
-                            isEnabled={item.status}
-                            onEdit={() => handleEdit(item.id)}
-                            onToggle={() => handleToggleStatus(item.id, item.status)}
-                            onDelete={() => handleDelete(item.id)}
+                            status={item.status}
+                            payment={item.payment}
+                            vname={item.vname}
+                            onEdit={handleEdit}
+                            onToggle={handleToggleStatus}
+                            onDelete={handleDelete}
                           />
                         )
                       ))}
