@@ -82,7 +82,7 @@ const AuthenticationPage = () => {
         <div className="hidden md:block p-6 text-right">
           <div className="text-sm">
             Already have an account?{" "}
-            <a href="/login" className="text-purple-600 font-medium">
+            <a href="/Login" className="text-purple-600 font-medium">
               Login
             </a>
           </div>
