@@ -117,7 +117,7 @@ const Sidebar = () => {
             </div>
             <SidebarLink href="/Notifications" icon={Bell}>Notification</SidebarLink>
             <SidebarLink href="/Messages" icon={Mail}>Messages</SidebarLink>
-            <SidebarLink href="/dashboard/comments" icon={MessageCircle}>Comments</SidebarLink>
+           
           </div>
 
           {/* Others */}

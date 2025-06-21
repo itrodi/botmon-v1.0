@@ -112,13 +112,15 @@ const SingleCustomerPage = () => {
     toast.success('Customer data exported successfully');
   };
 
-  // Calculate summary statistics
+  // Calculate summary statistics using the raw total_price value
   const totalTransactions = customer.transactions?.length || 0;
   const successfulTransactions = customer.transactions?.filter(t => 
     t.status?.toLowerCase().includes('confirmed') || 
     t.status?.toLowerCase().includes('accepted') || 
     t.status?.toLowerCase().includes('successful')
   ).length || 0;
+  
+  // Use the raw total_price for calculations
   const averageOrderValue = totalTransactions > 0 
     ? (customer.total_price / totalTransactions).toFixed(2)
     : '0.00';

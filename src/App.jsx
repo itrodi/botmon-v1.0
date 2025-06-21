@@ -69,7 +69,7 @@ function App() {
               <Customers/>
             </ProtectedRoute>
           }/>
-          <Route exact path="/SingleCustomerPage" element={
+          <Route exact path="/customer/:id" element={
             <ProtectedRoute>
               <SingleCustomerPage/>
             </ProtectedRoute>

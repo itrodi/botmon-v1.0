@@ -53,18 +53,22 @@ const Customers = () => {
       ['Instagram', 'WhatsApp', 'Messenger'].forEach(platform => {
         if (data[platform] && Array.isArray(data[platform])) {
           data[platform].forEach(customer => {
-            allCustomers.push({
-              ...customer,
+            // Create a unique customer object that preserves all original data
+            const customerData = {
+              ...customer, // Keep all original fields including transactions
               platform,
               id: `${platform}-${customer.username}`, // Create unique ID
               name: customer.username || 'Unknown User',
               avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.username || 'U')}&background=${getPlatformColor(platform)}&color=fff`,
+              // Keep both formatted and raw values
               transactionVolume: `$${customer.total_price.toFixed(2)}`,
+              total_price: customer.total_price, // Keep raw value for calculations
               completedOrders: customer.total_items,
               address: customer.address || 'No address provided',
               email: customer.email || 'No email provided',
               phone: customer.phone || 'No phone provided'
-            });
+            };
+            allCustomers.push(customerData);
           });
         }
       });
@@ -132,7 +136,7 @@ const Customers = () => {
   };
 
   const handleCustomerClick = (customer) => {
-    // Navigate to single customer page with customer data
+    // Navigate to single customer page with complete customer data
     navigate(`/customer/${customer.id}`, { state: { customer } });
   };
 

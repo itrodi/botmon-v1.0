@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, CalendarIcon, Loader, Package, Truck, CheckCircle } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Loader, Package, Truck, CheckCircle } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -39,7 +39,7 @@ const Orders = () => {
     { id: 'all', label: 'All' },
     { id: 'pending', label: 'Pending' },
     { id: 'confirmed', label: 'Confirmed' },
-    { id: 'cancelled', label: 'Cancelled' },
+    { id: 'rejected', label: 'Rejected' },
   ];
 
   // Fetch orders on component mount
@@ -71,19 +71,25 @@ const Orders = () => {
       // Process the response data
       const ordersData = response.data || [];
       const processedOrders = ordersData.map(order => {
-        // Determine platform if not provided
+        // Determine platform from source or platform field
         let platform = order.platform;
-        if (!platform) {
+        if (!platform && order.source) {
+          // Capitalize the source to match backend expectations
           if (order.source === 'instagram') platform = 'Instagram';
           else if (order.source === 'whatsapp') platform = 'Whatsapp';
           else if (order.source === 'messenger') platform = 'Messenger';
-          else platform = 'Unknown';
+          else platform = order.source;
+        } else if (!platform) {
+          platform = 'Unknown';
         }
+        
+        // Normalize status - if no status, it's Pending
+        let status = order.status || 'Pending';
         
         return {
           ...order,
           platform,
-          status: order.status || 'Pending',
+          status,
           ids: order.ids || order.id || order._id,
           email: order.email || 'No email provided',
           'product-name': order['product-name'] || order.product_name || order.name || 'Product',
@@ -94,7 +100,7 @@ const Orders = () => {
           phone: order.phone || 'No phone provided',
           image: order.image || order.images?.[0] || '',
           images: order.images || [order.image].filter(Boolean),
-          created_at: order.created_at || new Date().toISOString()
+          created_at: order.created_at || order.timestamp || new Date().toISOString()
         };
       });
 
@@ -116,13 +122,23 @@ const Orders = () => {
   const filterOrdersByTab = () => {
     let filtered = [...orders];
 
-    // Filter by status
+    // Filter by status - handle backend status values properly
     if (activeTab !== 'all') {
       filtered = filtered.filter(order => {
-        const status = order.status?.toLowerCase();
-        if (activeTab === 'pending') return !status || status === 'pending';
-        if (activeTab === 'confirmed') return status === 'confirmed';
-        if (activeTab === 'cancelled') return status === 'cancelled';
+        const status = order.status; // Keep original case
+        
+        if (activeTab === 'pending') {
+          // Orders without status or explicitly "Pending"
+          return !status || status === 'Pending';
+        }
+        if (activeTab === 'confirmed') {
+          // Backend uses "Confirmed" with capital C
+          return status === 'Confirmed';
+        }
+        if (activeTab === 'rejected') {
+          // Backend uses "Rejected" with capital R
+          return status === 'Rejected';
+        }
         return false;
       });
     }
@@ -181,29 +197,33 @@ const Orders = () => {
 
       if (response.data.status === 'successful') {
         toast.success('Order confirmed successfully');
-        // Update local state
+        // Update local state with proper status
         setOrders(prevOrders => 
           prevOrders.map(order => 
             order.ids === selectedOrder.ids 
-              ? { ...order, status: 'Confirmed' }
+              ? { ...order, status: 'Confirmed' } // Use capital C to match backend
               : order
           )
         );
         setSelectedOrder(null);
-        // Optionally refresh orders
-        fetchOrders();
       }
     } catch (error) {
       console.error('Error confirming order:', error);
-      toast.error('Failed to confirm order');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to confirm order');
+      }
     }
   };
 
-  const handleCancelOrder = async () => {
+  const handleRejectOrder = async () => {
     if (!selectedOrder) return;
 
-    const confirmCancel = window.confirm('Are you sure you want to cancel this order?');
-    if (!confirmCancel) return;
+    const reason = window.prompt('Please provide a reason for rejecting this order:');
+    if (reason === null) return; // User cancelled
 
     try {
       const token = localStorage.getItem('token');
@@ -218,7 +238,8 @@ const Orders = () => {
           ids: selectedOrder.ids,
           'product-name': selectedOrder['product-name'],
           platform: selectedOrder.platform,
-          email: selectedOrder.email
+          email: selectedOrder.email,
+          reason: reason || 'No reason provided'
         },
         {
           headers: {
@@ -229,29 +250,37 @@ const Orders = () => {
       );
 
       if (response.data.status === 'successful') {
-        toast.success('Order cancelled successfully');
-        // Remove from local state
+        toast.success('Order rejected successfully');
+        // Update local state with proper status
         setOrders(prevOrders => 
-          prevOrders.filter(order => order.ids !== selectedOrder.ids)
+          prevOrders.map(order => 
+            order.ids === selectedOrder.ids 
+              ? { ...order, status: 'Rejected' } // Use capital R to match backend
+              : order
+          )
         );
         setSelectedOrder(null);
-        // Optionally refresh orders
-        fetchOrders();
       }
     } catch (error) {
-      console.error('Error cancelling order:', error);
-      toast.error('Failed to cancel order');
+      console.error('Error rejecting order:', error);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to reject order');
+      }
     }
   };
 
   const getStatusColor = (status) => {
-    const statusLower = status?.toLowerCase() || 'pending';
-    switch (statusLower) {
-      case 'confirmed':
+    // Handle backend status values with proper casing
+    switch (status) {
+      case 'Confirmed':
         return 'bg-green-100 text-green-800';
-      case 'cancelled':
+      case 'Rejected':
         return 'bg-red-100 text-red-800';
-      case 'pending':
+      case 'Pending':
       default:
         return 'bg-yellow-100 text-yellow-800';
     }
@@ -271,6 +300,19 @@ const Orders = () => {
     if (days < 7) return `${days} days ago`;
     return format(date, 'MMM dd, yyyy');
   };
+
+  // Get order stats for display
+  const getOrderStats = () => {
+    const stats = {
+      total: orders.length,
+      pending: orders.filter(o => !o.status || o.status === 'Pending').length,
+      confirmed: orders.filter(o => o.status === 'Confirmed').length,
+      rejected: orders.filter(o => o.status === 'Rejected').length
+    };
+    return stats;
+  };
+
+  const stats = getOrderStats();
 
   // Pagination logic
   const indexOfLastOrder = currentPage * ordersPerPage;
@@ -375,6 +417,22 @@ const Orders = () => {
                   Refresh
                 </Button>
               </div>
+              
+              {/* Order Stats */}
+              <div className="flex gap-2 text-sm">
+                <span className="px-3 py-1 bg-gray-100 rounded-full">
+                  Total: {stats.total}
+                </span>
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                  Pending: {stats.pending}
+                </span>
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full">
+                  Confirmed: {stats.confirmed}
+                </span>
+                <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full">
+                  Rejected: {stats.rejected}
+                </span>
+              </div>
             </div>
 
             {/* Filter Tabs */}
@@ -390,6 +448,13 @@ const Orders = () => {
                     }`}
                 >
                   {tab.label}
+                  {tab.id !== 'all' && (
+                    <span className="ml-2">
+                      ({tab.id === 'pending' ? stats.pending : 
+                        tab.id === 'confirmed' ? stats.confirmed :
+                        tab.id === 'rejected' ? stats.rejected : 0})
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -404,6 +469,7 @@ const Orders = () => {
                 {/* No Orders Message */}
                 {currentOrders.length === 0 ? (
                   <div className="bg-white rounded-lg p-8 text-center">
+                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <div className="text-gray-500 mb-4">
                       {searchTerm 
                         ? 'No orders found matching your search'
@@ -656,9 +722,9 @@ const Orders = () => {
                   <Button
                     className="flex-1 bg-red-100 text-red-600 hover:bg-red-200"
                     variant="ghost"
-                    onClick={handleCancelOrder}
+                    onClick={handleRejectOrder}
                   >
-                    Cancel Order
+                    Reject Order
                   </Button>
                   <Button 
                     className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
@@ -666,6 +732,21 @@ const Orders = () => {
                   >
                     Confirm
                   </Button>
+                </div>
+              )}
+
+              {/* Show appropriate message for confirmed/rejected orders */}
+              {selectedOrder.status === 'Confirmed' && (
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                  <p className="text-green-700 font-medium">This order has been confirmed</p>
+                </div>
+              )}
+
+              {selectedOrder.status === 'Rejected' && (
+                <div className="bg-red-50 p-4 rounded-lg text-center">
+                  <X className="w-6 h-6 text-red-600 mx-auto mb-2" />
+                  <p className="text-red-700 font-medium">This order has been rejected</p>
                 </div>
               )}
             </div>
@@ -733,7 +814,10 @@ const Orders = () => {
                 <div className="absolute h-12 border-l-2 border-purple-200 left-4 -top-8 z-[-1]" />
               </div>
             </div>
-            <Button className="w-full mt-8 bg-purple-600 hover:bg-purple-700 text-white">
+            <Button 
+              className="w-full mt-8 bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={() => setShowTrackingModal(false)}
+            >
               Close
             </Button>
           </div>
