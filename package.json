@@ -33,6 +33,7 @@
     "clsx": "^2.1.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.0.0",
+    "jspdf": "^3.0.1",
     "lucide-react": "^0.363.0",
     "postcss-preset-env": "^9.5.2",
     "react": "^18.2.0",

@@ -130,7 +130,7 @@ const Sidebar = () => {
             <SidebarLink href="/Customers" icon={Users}>Customers</SidebarLink>
             <SidebarLink href="/Orders" icon={ClipboardList}>Orders</SidebarLink>
             <SidebarLink href="/Bookings" icon={BarChart}>Bookings</SidebarLink>
-            <SidebarLink href="/Settings" icon={Settings}>Settings</SidebarLink>
+            <SidebarLink href="/ManageStore" icon={Settings}>Settings</SidebarLink>
           </div>
         </div>
       </div>

@@ -132,7 +132,7 @@ const Login = () => {
                 disabled={loading}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg disabled:opacity-50"
               >
-                {loading ? 'Creating Account...' : 'Login'}
+                {loading ? 'Logging in...' : 'Login'}
               </Button>
 
               <div className="relative">

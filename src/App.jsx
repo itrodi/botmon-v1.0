@@ -31,6 +31,10 @@ import Analytics from './components/Dashboard/Analytics';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import StoreSettings from './components/DashboardSubPages/StoreSettings';
+import BankAccount from './components/DashboardSubPages/BankAccount';
+import LinkAccount from './components/DashboardSubPages/LinkAccount';
+import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
+
 // ... other imports remain the same
 
 function App() {
@@ -172,6 +176,21 @@ function App() {
            <Route exact path="/StoreSetting" element={
             <ProtectedRoute>
               <StoreSettings/>
+            </ProtectedRoute>
+          }/>
+          <Route exact path="/Bank" element={
+            <ProtectedRoute>
+              <BankAccount/>
+            </ProtectedRoute>
+          }/>
+          <Route exact path="/Link" element={
+            <ProtectedRoute>
+              <LinkAccount/>
+            </ProtectedRoute>
+          }/>
+           <Route exact path="/Advance" element={
+            <ProtectedRoute>
+              <AdvanceSetting/>
             </ProtectedRoute>
           }/>
           

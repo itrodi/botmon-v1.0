@@ -487,10 +487,10 @@ const ManageStore = () => {
           <Link to="/Bank" className="font-semibold hover:text-purple-600 transition-colors">
             Payments
           </Link>
-          <Link to="/LinkAccount" className="font-semibold hover:text-purple-600 transition-colors">
+          <Link to="/Link" className="font-semibold hover:text-purple-600 transition-colors">
             Connect Social channels
           </Link>
-          <Link to="/AdvanceSettings" className="font-semibold hover:text-purple-600 transition-colors">
+          <Link to="/Advance" className="font-semibold hover:text-purple-600 transition-colors">
             Advance
           </Link>
         </nav>
