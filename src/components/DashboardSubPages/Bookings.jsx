@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, CalendarIcon, X, Clock, Loader } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, X, Clock, Loader } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as UICalendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,7 @@ const Bookings = () => {
     { id: 'pending', label: 'Pending' },
     { id: 'accepted', label: 'Accepted' },
     { id: 'rescheduled', label: 'Rescheduled' },
+    { id: 'rejected', label: 'Rejected' },
   ];
 
   const timeSlots = [
@@ -53,11 +54,12 @@ const Bookings = () => {
     '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
   ];
 
-  // Fetch bookings on component mount and when activeTab changes
+  // Fetch bookings on component mount
   useEffect(() => {
     fetchBookings();
   }, []);
 
+  // Filter bookings when activeTab, bookings, or searchTerm changes
   useEffect(() => {
     filterBookingsByTab();
   }, [activeTab, bookings, searchTerm]);
@@ -78,30 +80,45 @@ const Bookings = () => {
         }
       });
 
-      // Process the response data - ensure each booking has a platform
+      // The backend returns a flat array combining all three collections
       const bookingsData = response.data || [];
-      const processedBookings = bookingsData.map(booking => {
-        // Determine platform based on the collection it came from
+      
+      // Process each booking to ensure proper structure
+      const processedBookings = bookingsData.map((booking, index) => {
+        // Since backend doesn't include platform info, we need to determine it
+        // This is a limitation - you might want to add platform info in backend
+        // For now, we'll try to infer from available data or set default
         let platform = booking.platform;
         if (!platform) {
-          // You might need to adjust this based on your actual data structure
-          if (booking.source === 'instagram') platform = 'Instagram';
-          else if (booking.source === 'whatsapp') platform = 'Whatsapp';
-          else if (booking.source === 'messenger') platform = 'Messenger';
-          else platform = 'Unknown';
+          // Try to infer platform from data structure or set default
+          if (booking.instagram_id || booking.insta_id) {
+            platform = 'Instagram';
+          } else if (booking.whatsapp_id || booking.wa_id) {
+            platform = 'Whatsapp';
+          } else if (booking.messenger_id || booking.msg_id) {
+            platform = 'Messenger';
+          } else {
+            // Default assignment - you might need to adjust this logic
+            // based on your actual data structure
+            platform = ['Instagram', 'Whatsapp', 'Messenger'][index % 3];
+          }
         }
         
         return {
           ...booking,
           platform,
+          // Normalize status field
           status: booking.status || 'Pending',
-          // Ensure all required fields exist
-          ids: booking.ids || booking.id || booking._id,
+          // Ensure all required fields exist with fallbacks
+          ids: booking.ids || booking.id || booking._id || `booking_${index}`,
           email: booking.email || 'No email provided',
-          'service-name': booking['service-name'] || booking.service_name || 'Service',
+          'service-name': booking['service-name'] || booking.service_name || booking.serviceName || 'Service',
           date: booking.date || 'Not scheduled',
           time: booking.time || 'Not scheduled',
-          description: booking.description || 'No description available'
+          description: booking.description || booking.message || 'No description available',
+          // Add any other fields that might be missing
+          customer_name: booking.customer_name || booking.name || 'Unknown Customer',
+          phone: booking.phone || 'Not provided'
         };
       });
 
@@ -126,21 +143,40 @@ const Bookings = () => {
     // Filter by status
     if (activeTab !== 'all') {
       filtered = filtered.filter(booking => {
-        const status = booking.status?.toLowerCase();
-        if (activeTab === 'pending') return !status || status === 'pending';
-        if (activeTab === 'accepted') return status === 'accepted';
-        if (activeTab === 'rescheduled') return status === 'rescheduled';
-        return false;
+        const status = booking.status?.toLowerCase() || 'pending';
+        switch (activeTab) {
+          case 'pending':
+            return status === 'pending' || !booking.status;
+          case 'accepted':
+            return status === 'accepted';
+          case 'rescheduled':
+            return status === 'rescheduled';
+          case 'rejected':
+            return status === 'rejected';
+          default:
+            return true;
+        }
       });
     }
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(booking => 
-        booking.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking['service-name']?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.ids?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    // Filter by search term - search across multiple fields
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(booking => {
+        const searchableFields = [
+          booking.email,
+          booking['service-name'],
+          booking.ids,
+          booking.customer_name,
+          booking.phone,
+          booking.description,
+          booking.platform
+        ];
+        
+        return searchableFields.some(field => 
+          field?.toString().toLowerCase().includes(searchLower)
+        );
+      });
     }
 
     setFilteredBookings(filtered);
@@ -153,6 +189,7 @@ const Bookings = () => {
   const handleAccept = async () => {
     if (!selectedSchedule) return;
 
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -187,12 +224,12 @@ const Bookings = () => {
           )
         );
         setSelectedSchedule(null);
-        // Optionally refresh bookings
-        fetchBookings();
       }
     } catch (error) {
       console.error('Error accepting booking:', error);
-      toast.error('Failed to accept booking');
+      toast.error(error.response?.data?.error || 'Failed to accept booking');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -208,6 +245,7 @@ const Bookings = () => {
   const handleRejectSubmit = async () => {
     if (!selectedSchedule) return;
 
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -221,7 +259,8 @@ const Bookings = () => {
           ids: selectedSchedule.ids,
           'service-name': selectedSchedule['service-name'],
           platform: selectedSchedule.platform,
-          email: selectedSchedule.email
+          email: selectedSchedule.email,
+          reason: cancelReason
         },
         {
           headers: {
@@ -233,19 +272,23 @@ const Bookings = () => {
 
       if (response.data.status === 'successful') {
         toast.success('Booking rejected successfully');
-        // Remove from local state
+        // Update local state to reflect rejection
         setBookings(prevBookings => 
-          prevBookings.filter(booking => booking.ids !== selectedSchedule.ids)
+          prevBookings.map(booking => 
+            booking.ids === selectedSchedule.ids 
+              ? { ...booking, status: 'Rejected' }
+              : booking
+          )
         );
         setShowCancelReason(false);
         setCancelReason('');
         setSelectedSchedule(null);
-        // Optionally refresh bookings
-        fetchBookings();
       }
     } catch (error) {
       console.error('Error rejecting booking:', error);
-      toast.error('Failed to reject booking');
+      toast.error(error.response?.data?.error || 'Failed to reject booking');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -268,6 +311,7 @@ const Bookings = () => {
     
     if (!selectedSchedule) return;
 
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -285,7 +329,8 @@ const Bookings = () => {
           platform: selectedSchedule.platform,
           email: selectedSchedule.email,
           date: formattedDate,
-          time: time
+          time: time,
+          reason: rescheduleReason
         },
         {
           headers: {
@@ -308,12 +353,12 @@ const Bookings = () => {
         setShowTimeSelect(false);
         setRescheduleReason('');
         setSelectedSchedule(null);
-        // Optionally refresh bookings
-        fetchBookings();
       }
     } catch (error) {
       console.error('Error rescheduling booking:', error);
-      toast.error('Failed to reschedule booking');
+      toast.error(error.response?.data?.error || 'Failed to reschedule booking');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -321,18 +366,41 @@ const Bookings = () => {
     const statusLower = status?.toLowerCase() || 'pending';
     switch (statusLower) {
       case 'accepted':
-        return 'text-green-600 bg-green-50';
+        return 'text-green-600 bg-green-50 border-green-200';
       case 'rescheduled':
-        return 'text-blue-600 bg-blue-50';
+        return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'rejected':
+        return 'text-red-600 bg-red-50 border-red-200';
       case 'pending':
       default:
-        return 'text-yellow-600 bg-yellow-50';
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
     }
   };
 
   const getPlatformIcon = (platform) => {
-    // You can add platform-specific icons here
-    return platform?.substring(0, 1).toUpperCase() || 'B';
+    switch (platform?.toLowerCase()) {
+      case 'instagram':
+        return 'IG';
+      case 'whatsapp':
+        return 'WA';
+      case 'messenger':
+        return 'MS';
+      default:
+        return platform?.substring(0, 2).toUpperCase() || 'B';
+    }
+  };
+
+  const getPlatformColor = (platform) => {
+    switch (platform?.toLowerCase()) {
+      case 'instagram':
+        return 'bg-pink-100 text-pink-600';
+      case 'whatsapp':
+        return 'bg-green-100 text-green-600';
+      case 'messenger':
+        return 'bg-blue-100 text-blue-600';
+      default:
+        return 'bg-purple-100 text-purple-600';
+    }
   };
 
   return (
@@ -350,8 +418,8 @@ const Bookings = () => {
                 <div className="relative flex-1 sm:flex-none">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input 
-                    placeholder="Search bookings..." 
-                    className="pl-9 pr-4 w-full sm:w-64"
+                    placeholder="Search by email, service, ID, customer name..." 
+                    className="pl-9 pr-4 w-full sm:w-80"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -360,9 +428,15 @@ const Bookings = () => {
                   variant="outline" 
                   className="flex items-center gap-2"
                   onClick={fetchBookings}
+                  disabled={loading}
                 >
-                  Refresh
+                  {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Refresh'}
                 </Button>
+              </div>
+
+              {/* Results Count */}
+              <div className="text-sm text-gray-600">
+                {filteredBookings.length} of {bookings.length} bookings
               </div>
             </div>
 
@@ -379,12 +453,20 @@ const Bookings = () => {
                     }`}
                 >
                   {tab.label}
+                  <span className="ml-1 text-xs opacity-75">
+                    ({tab.id === 'all' ? bookings.length : 
+                      bookings.filter(b => {
+                        const status = b.status?.toLowerCase() || 'pending';
+                        return tab.id === 'pending' ? (status === 'pending' || !b.status) :
+                               status === tab.id;
+                      }).length})
+                  </span>
                 </button>
               ))}
             </div>
 
             {/* Loading State */}
-            {loading ? (
+            {loading && bookings.length === 0 ? (
               <div className="flex justify-center items-center py-12">
                 <Loader className="w-8 h-8 animate-spin text-purple-600" />
               </div>
@@ -394,10 +476,22 @@ const Bookings = () => {
                 {filteredBookings.length === 0 ? (
                   <div className="bg-white rounded-lg p-8 text-center">
                     <div className="text-gray-500 mb-4">
-                      {searchTerm 
-                        ? 'No bookings found matching your search'
-                        : `No ${activeTab === 'all' ? '' : activeTab} bookings found`
-                      }
+                      {bookings.length === 0 ? (
+                        'No bookings found'
+                      ) : searchTerm ? (
+                        <>
+                          No bookings found matching "<span className="font-medium">{searchTerm}</span>"
+                          <Button 
+                            variant="link" 
+                            className="ml-2 p-0 h-auto text-purple-600"
+                            onClick={() => setSearchTerm('')}
+                          >
+                            Clear search
+                          </Button>
+                        </>
+                      ) : (
+                        `No ${activeTab === 'all' ? '' : activeTab} bookings found`
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -408,40 +502,42 @@ const Bookings = () => {
                         <div
                           key={booking.ids}
                           onClick={() => handleScheduleClick(booking)}
-                          className="bg-white p-6 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                          className="bg-white p-6 rounded-lg cursor-pointer hover:shadow-md transition-shadow border border-gray-200"
                         >
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-semibold">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold ${getPlatformColor(booking.platform)}`}>
                                 {getPlatformIcon(booking.platform)}
                               </div>
-                              <div>
-                                <h3 className="font-medium text-gray-900">{booking.email}</h3>
-                                <p className="text-xs text-gray-500">{booking.platform}</p>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="font-medium text-gray-900 truncate">{booking.customer_name}</h3>
+                                <p className="text-xs text-gray-500 truncate">{booking.email}</p>
                               </div>
                             </div>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
                               {booking.status || 'Pending'}
                             </span>
                           </div>
                           
-                          <h4 className="font-medium mb-2 text-gray-900">{booking['service-name']}</h4>
+                          <h4 className="font-medium mb-2 text-gray-900 truncate">{booking['service-name']}</h4>
                           <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                             {booking.description}
                           </p>
                           
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" /> {booking.time}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <CalendarIcon className="w-4 h-4" /> {booking.date}
-                            </span>
+                          <div className="space-y-2 text-sm text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4 flex-shrink-0" /> 
+                              <span className="truncate">{booking.time}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <CalendarIcon className="w-4 h-4 flex-shrink-0" /> 
+                              <span className="truncate">{booking.date}</span>
+                            </div>
                           </div>
                           
                           <div className="mt-3 pt-3 border-t border-gray-100">
-                            <p className="text-xs text-gray-500">
-                              Booking ID: {booking.ids}
+                            <p className="text-xs text-gray-500 truncate">
+                              ID: {booking.ids}
                             </p>
                           </div>
                         </div>
@@ -465,6 +561,9 @@ const Bookings = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">
+                  <span className="font-medium">Customer:</span> {selectedSchedule.customer_name}
+                </p>
+                <p className="text-sm text-gray-600">
                   <span className="font-medium">Email:</span> {selectedSchedule.email}
                 </p>
                 <p className="text-sm text-gray-600">
@@ -476,6 +575,21 @@ const Bookings = () => {
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">Status:</span> {selectedSchedule.status || 'Pending'}
                 </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Date:</span> {selectedSchedule.date}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Time:</span> {selectedSchedule.time}
+                </p>
+                {selectedSchedule.phone && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Phone:</span> {selectedSchedule.phone}
+                  </p>
+                )}
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Description:</span>
+                  <p className="mt-1">{selectedSchedule.description}</p>
+                </div>
               </div>
               
               {(!selectedSchedule.status || selectedSchedule.status === 'Pending') && (
@@ -484,20 +598,23 @@ const Bookings = () => {
                     variant="outline" 
                     className="text-red-600 hover:bg-red-50"
                     onClick={handleCancel}
+                    disabled={loading}
                   >
                     Reject
                   </Button>
                   <Button 
                     variant="outline"
                     onClick={handleReschedule}
+                    disabled={loading}
                   >
                     Reschedule
                   </Button>
                   <Button 
                     className="bg-purple-600 hover:bg-purple-700 text-white"
                     onClick={handleAccept}
+                    disabled={loading}
                   >
-                    Accept
+                    {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Accept'}
                   </Button>
                 </div>
               )}
@@ -560,8 +677,9 @@ const Bookings = () => {
               <Button 
                 className="bg-red-600 hover:bg-red-700 text-white"
                 onClick={handleRejectSubmit}
+                disabled={loading}
               >
-                Reject Booking
+                {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Reject Booking'}
               </Button>
             </div>
           </div>
@@ -609,7 +727,7 @@ const Bookings = () => {
             <DialogTitle>Select New Date</DialogTitle>
           </DialogHeader>
           <div className="p-4">
-            <Calendar
+            <UICalendar
               mode="single"
               selected={selectedDate}
               onSelect={(date) => {
@@ -638,6 +756,7 @@ const Bookings = () => {
                 variant="outline"
                 className="text-sm hover:bg-purple-50 hover:text-purple-600"
                 onClick={() => handleTimeSelect(time)}
+                disabled={loading}
               >
                 {time}
               </Button>

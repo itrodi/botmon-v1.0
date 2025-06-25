@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Plus, Edit2, Filter, Loader } from 'lucide-react';
+import { Download, Plus, Edit2, Filter, Loader, Search, X } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ProductCard from '../ProductCard';
 import ServiceCard from '../ServiceCard';
 
@@ -38,24 +39,40 @@ const PaginationButton = ({ children, active, onClick }) => (
 
 const ProductPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('products');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [allServices, setAllServices] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [filterActive, setFilterActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   const productsPerPage = 8;
 
-  // Fetch products and services on component mount and tab/filter change
+  // Get search query from URL params
   useEffect(() => {
-    if (activeTab === 'products') {
-      fetchProducts();
-    } else {
-      fetchServices();
+    const urlParams = new URLSearchParams(location.search);
+    const searchParam = urlParams.get('search');
+    if (searchParam) {
+      setSearchQuery(searchParam);
     }
-  }, [activeTab, currentPage, filterActive]);
+  }, [location]);
+
+  // Fetch products and services on component mount
+  useEffect(() => {
+    fetchProducts();
+    fetchServices();
+  }, []);
+
+  // Apply filters and pagination when data or filters change
+  useEffect(() => {
+    applyFiltersAndPagination();
+  }, [allProducts, allServices, activeTab, currentPage, filterActive, searchQuery]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -74,13 +91,12 @@ const ProductPage = () => {
       });
 
       // Process the response data
-      let allProducts = response.data || [];
+      let products = response.data || [];
       
       // Ensure all products have required fields with defaults
-      allProducts = allProducts.map(product => ({
+      products = products.map(product => ({
         ...product,
         id: product.id || product._id,
-        // Convert boolean status to string if needed
         status: typeof product.status === 'boolean' 
           ? (product.status ? 'active' : 'inactive')
           : (product.status || 'active'),
@@ -88,7 +104,8 @@ const ProductPage = () => {
         price: product.price || 0,
         name: product.name || 'Untitled Product',
         image: product.image || '',
-        // Include variant arrays for ProductCard
+        category: product.category || '',
+        description: product.description || '',
         vname: product.vname || [],
         vprice: product.vprice || [],
         vquantity: product.vquantity || [],
@@ -98,21 +115,7 @@ const ProductPage = () => {
         vimage: product.vimage || []
       }));
       
-      // Apply any active filters
-      const filteredProducts = filterActive 
-        ? allProducts.filter(p => p.status === 'active') 
-        : allProducts;
-      
-      // Calculate pagination
-      const totalProductPages = Math.ceil(filteredProducts.length / productsPerPage);
-      setTotalPages(totalProductPages);
-      
-      // Paginate the results
-      const startIndex = (currentPage - 1) * productsPerPage;
-      const endIndex = startIndex + productsPerPage;
-      
-      const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
-      setProducts(paginatedProducts);
+      setAllProducts(products);
     } catch (error) {
       console.error('Error fetching products:', error);
       if (error.response?.status === 401) {
@@ -128,12 +131,9 @@ const ProductPage = () => {
   };
 
   const fetchServices = async () => {
-    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        toast.error('Please login first');
-        navigate('/login');
         return;
       }
 
@@ -144,39 +144,25 @@ const ProductPage = () => {
       });
 
       // Process the response data
-      let allServices = response.data || [];
+      let services = response.data || [];
       
       // Ensure all services have required fields with defaults
-      allServices = allServices.map(service => ({
+      services = services.map(service => ({
         ...service,
         id: service.id || service._id,
-        // Services use 'published' instead of 'active'
         status: service.status || 'published',
         price: service.price || 0,
         name: service.name || 'Untitled Service',
         image: service.image || '',
+        category: service.category || '',
+        description: service.description || '',
         payment: service.payment !== undefined ? service.payment : true,
-        // Include variant arrays for ServiceCard
         vname: service.vname || [],
         vprice: service.vprice || [],
         vimage: service.vimage || []
       }));
       
-      // Apply any active filters
-      const filteredServices = filterActive 
-        ? allServices.filter(s => s.status === 'published' || s.status === 'active') 
-        : allServices;
-      
-      // Calculate pagination
-      const totalServicePages = Math.ceil(filteredServices.length / productsPerPage);
-      setTotalPages(totalServicePages);
-      
-      // Paginate the results
-      const startIndex = (currentPage - 1) * productsPerPage;
-      const endIndex = startIndex + productsPerPage;
-      
-      const paginatedServices = filteredServices.slice(startIndex, endIndex);
-      setServices(paginatedServices);
+      setAllServices(services);
     } catch (error) {
       console.error('Error fetching services:', error);
       if (error.response?.status === 401) {
@@ -186,9 +172,66 @@ const ProductPage = () => {
       } else {
         toast.error('Failed to load services');
       }
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const applyFiltersAndPagination = () => {
+    const isProducts = activeTab === 'products';
+    const sourceData = isProducts ? allProducts : allServices;
+    
+    // Apply search filter
+    let filteredData = sourceData;
+    if (searchQuery.trim()) {
+      const searchTerm = searchQuery.toLowerCase();
+      filteredData = sourceData.filter(item => 
+        item.name?.toLowerCase().includes(searchTerm) ||
+        item.description?.toLowerCase().includes(searchTerm) ||
+        item.category?.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply active filter
+    if (filterActive) {
+      filteredData = filteredData.filter(item => 
+        isProducts 
+          ? item.status === 'active' 
+          : (item.status === 'published' || item.status === 'active')
+      );
+    }
+    
+    // Calculate pagination
+    const totalItems = filteredData.length;
+    const totalPages = Math.ceil(totalItems / productsPerPage);
+    setTotalPages(totalPages);
+    
+    // Paginate the results
+    const startIndex = (currentPage - 1) * productsPerPage;
+    const endIndex = startIndex + productsPerPage;
+    const paginatedData = filteredData.slice(startIndex, endIndex);
+    
+    if (isProducts) {
+      setProducts(paginatedData);
+    } else {
+      setServices(paginatedData);
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setCurrentPage(1); // Reset to first page on search
+    
+    // Update URL without triggering a page reload
+    const newUrl = query.trim() 
+      ? `${location.pathname}?search=${encodeURIComponent(query)}`
+      : location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setCurrentPage(1);
+    window.history.replaceState({}, '', location.pathname);
   };
 
   const handleToggleStatus = async (id, newStatus) => {
@@ -199,13 +242,8 @@ const ProductPage = () => {
         return;
       }
 
-      // Services use 'service-status' endpoint, products use 'product-status'
-      const endpoint = activeTab === 'services' 
-        ? 'https://api.automation365.io/product-status' // Backend uses same endpoint
-        : 'https://api.automation365.io/product-status';
-
       const response = await axios.post(
-        endpoint,
+        'https://api.automation365.io/product-status',
         {
           id,
           status: newStatus
@@ -221,29 +259,19 @@ const ProductPage = () => {
       if (response.data.message === "Status updated") {
         toast.success('Status updated successfully');
         
-        // Update the local state immediately for better UX
+        // Update the local state
         if (activeTab === 'products') {
-          setProducts(prevProducts => 
+          setAllProducts(prevProducts => 
             prevProducts.map(product => 
               product.id === id ? { ...product, status: newStatus } : product
             )
           );
         } else {
-          setServices(prevServices => 
+          setAllServices(prevServices => 
             prevServices.map(service => 
               service.id === id ? { ...service, status: newStatus } : service
             )
           );
-        }
-        
-        // If filter is active and item is now inactive, it should disappear
-        if (filterActive && (newStatus !== 'active' && newStatus !== 'published')) {
-          // Re-fetch to update the filtered view
-          if (activeTab === 'products') {
-            fetchProducts();
-          } else {
-            fetchServices();
-          }
         }
       }
     } catch (error) {
@@ -259,7 +287,6 @@ const ProductPage = () => {
   };
 
   const handleEdit = (id) => {
-    // Navigate to edit page with product/service id as query param
     if (activeTab === 'products') {
       navigate(`/EditProduct?id=${id}`);
     } else {
@@ -268,7 +295,6 @@ const ProductPage = () => {
   };
 
   const handleDelete = async (id) => {
-    // The ProductCard/ServiceCard component handles the confirmation dialog
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -296,15 +322,9 @@ const ProductPage = () => {
         
         // Update the local state by removing the deleted item
         if (activeTab === 'products') {
-          setProducts(prevProducts => prevProducts.filter(product => product.id !== id));
+          setAllProducts(prevProducts => prevProducts.filter(product => product.id !== id));
         } else {
-          setServices(prevServices => prevServices.filter(service => service.id !== id));
-        }
-        
-        // Check if we need to go to previous page after deletion
-        const currentItems = activeTab === 'products' ? products : services;
-        if (currentItems.length === 1 && currentPage > 1) {
-          setCurrentPage(currentPage - 1);
+          setAllServices(prevServices => prevServices.filter(service => service.id !== id));
         }
       }
     } catch (error) {
@@ -320,29 +340,27 @@ const ProductPage = () => {
   };
 
   const handleAddNew = () => {
-    // Navigate to add product or service page
     navigate(activeTab === 'products' ? '/AddProductPage' : '/AddServices');
   };
 
   const handleFilterToggle = () => {
     setFilterActive(!filterActive);
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   };
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setCurrentPage(1); // Reset to first page when changing tabs
-    setFilterActive(false); // Reset filter when changing tabs
+    setCurrentPage(1);
   };
 
   const displayData = activeTab === 'services' ? services : products;
+  const hasSearchQuery = searchQuery.trim().length > 0;
 
   // Pagination helper functions
   const renderPaginationButtons = () => {
     const buttons = [];
     const maxVisible = 5;
     
-    // Previous button
     buttons.push(
       <PaginationButton
         key="prev"
@@ -353,7 +371,6 @@ const ProductPage = () => {
       </PaginationButton>
     );
 
-    // Page numbers
     let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
     let endPage = Math.min(totalPages, startPage + maxVisible - 1);
 
@@ -399,7 +416,6 @@ const ProductPage = () => {
       );
     }
 
-    // Next button
     buttons.push(
       <PaginationButton
         key="next"
@@ -463,6 +479,36 @@ const ProductPage = () => {
               </div>
             </div>
 
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="relative max-w-md">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <Input
+                  type="search"
+                  placeholder={`Search ${activeTab}...`}
+                  className="pl-10 pr-10 bg-white"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {hasSearchQuery && (
+                <p className="text-sm text-gray-600 mt-2">
+                  Showing results for "<span className="font-medium">{searchQuery}</span>"
+                  {filterActive && " (active only)"}
+                </p>
+              )}
+            </div>
+
             {/* Loading State */}
             {loading ? (
               <div className="flex justify-center items-center py-12">
@@ -474,12 +520,22 @@ const ProductPage = () => {
                 {displayData.length === 0 ? (
                   <div className="bg-white rounded-lg p-8 text-center shadow-sm">
                     <div className="text-gray-500 mb-4">
-                      {filterActive 
-                        ? `No active ${activeTab === 'services' ? 'services' : 'products'} found`
-                        : `No ${activeTab === 'services' ? 'services' : 'products'} found`
+                      {hasSearchQuery 
+                        ? `No ${activeTab} found matching "${searchQuery}"`
+                        : filterActive 
+                          ? `No active ${activeTab} found`
+                          : `No ${activeTab} found`
                       }
                     </div>
-                    {!filterActive && (
+                    {hasSearchQuery ? (
+                      <Button 
+                        variant="outline"
+                        onClick={clearSearch}
+                        className="mr-2"
+                      >
+                        Clear search
+                      </Button>
+                    ) : !filterActive && (
                       <Button 
                         className="bg-purple-600 hover:bg-purple-700 text-white"
                         onClick={handleAddNew}

@@ -34,6 +34,8 @@ import StoreSettings from './components/DashboardSubPages/StoreSettings';
 import BankAccount from './components/DashboardSubPages/BankAccount';
 import LinkAccount from './components/DashboardSubPages/LinkAccount';
 import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
+import IndividualProductPage from './components/IndividualProductPage';
+import IndividualServicePage from './components/IndividualServicePage';
 
 // ... other imports remain the same
 
@@ -193,6 +195,17 @@ function App() {
               <AdvanceSetting/>
             </ProtectedRoute>
           }/>
+            <Route exact path="/product/:id" element={
+            <ProtectedRoute>
+              <IndividualProductPage/>
+            </ProtectedRoute>
+          }/>
+             <Route exact path="/service/:id" element={
+            <ProtectedRoute>
+              <IndividualServicePage/>
+            </ProtectedRoute>
+          }/>
+          
           
           
           {/* Onboarding routes - these should probably be protected too */}

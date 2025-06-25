@@ -30,6 +30,48 @@ const NotificationPage = () => {
     call: true
   });
 
+  // Get notification type for filtering
+  const getNotificationType = (notification) => {
+    const platform = notification.platform?.toLowerCase();
+    const type = notification.Type?.toLowerCase() || notification.type?.toLowerCase();
+    
+    if (type === 'product') return 'order';
+    if (platform) return 'chat';
+    
+    return type || 'order';
+  };
+
+  // Generate notification title from data
+  const getNotificationTitle = (notification) => {
+    const customerName = notification.name || 'Customer';
+    const platform = notification.platform || '';
+    const type = notification.Type || notification.type || '';
+    
+    if (type === 'Product') {
+      return `New Order from ${customerName}${platform ? ` via ${platform}` : ''}`;
+    }
+    
+    return notification.title || notification.subject || `${type} from ${customerName}`;
+  };
+
+  // Generate notification message from data
+  const getNotificationMessage = (notification) => {
+    if (notification.message || notification.body || notification.description) {
+      return notification.message || notification.body || notification.description;
+    }
+    
+    const productName = notification.pname || 'Product';
+    const quantity = notification.quantity || '1';
+    const price = notification.price || '0';
+    const status = notification.status || 'Pending';
+    
+    if (notification.Type === 'Product') {
+      return `Order for ${productName} (Qty: ${quantity}) - ₦${price} • Status: ${status}`;
+    }
+    
+    return 'New activity recorded';
+  };
+
   // Fetch notifications on mount and set up auto-refresh
   useEffect(() => {
     fetchNotifications();
@@ -85,16 +127,29 @@ const NotificationPage = () => {
       
       if (result.status === 'success' && result.data) {
         // Process and sort notifications by timestamp (newest first)
-        const processedNotifications = result.data.map(notif => ({
-          ...notif,
-          timestamp: notif.timestamp || notif.created_at || new Date().toISOString(),
-          // Ensure we have an id field for operations
-          id: notif.ids || notif.id || notif._id,
-          // Ensure marked field exists
-          marked: notif.marked || false
-        })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const processedNotifications = result.data.map(notif => {
+          const processedNotif = {
+            ...notif,
+            timestamp: notif.timestamp || notif.created_at || new Date().toISOString(),
+            // Ensure we have an id field for operations
+            id: notif.ids || notif.id || notif._id,
+            // Ensure marked field exists
+            marked: notif.marked || false,
+            // Add computed fields for easier access
+            notificationType: getNotificationType(notif),
+            title: getNotificationTitle(notif),
+            message: getNotificationMessage(notif)
+          };
+          
+          console.log('Processing notification:', {
+            original: notif,
+            processed: processedNotif
+          });
+          
+          return processedNotif;
+        }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        console.log('Processed notifications:', processedNotifications);
+        console.log('All processed notifications:', processedNotifications);
         setNotifications(processedNotifications);
       } else {
         console.warn('Unexpected API response format:', result);
@@ -170,34 +225,54 @@ const NotificationPage = () => {
     }
   };
 
-  // Get notification icon based on type
-  const getNotificationIcon = (type) => {
+  // Get notification icon based on type and platform
+  const getNotificationIcon = (notification) => {
+    const type = notification.Type?.toLowerCase() || notification.type?.toLowerCase();
+    const platform = notification.platform?.toLowerCase();
+    
+    // Platform-based icons
+    if (platform === 'instagram') {
+      return <ShoppingBag className="w-4 h-4 text-pink-600" />;
+    } else if (platform === 'whatsapp') {
+      return <MessageCircle className="w-4 h-4 text-green-600" />;
+    } else if (platform === 'facebook' || platform === 'messenger') {
+      return <MessageCircle className="w-4 h-4 text-blue-600" />;
+    }
+    
+    // Type-based icons
     const icons = {
+      'product': <ShoppingBag className="w-4 h-4 text-orange-600" />,
+      'order': <ShoppingBag className="w-4 h-4 text-orange-600" />,
       'new_customer': <User className="w-4 h-4 text-purple-600" />,
       'successful_transaction': <BadgeCheck className="w-4 h-4 text-green-600" />,
       'failed_transaction': <XCircle className="w-4 h-4 text-red-600" />,
       'new_chat': <MessageCircle className="w-4 h-4 text-blue-600" />,
-      'new_order': <ShoppingBag className="w-4 h-4 text-orange-600" />,
       'payment_received': <DollarSign className="w-4 h-4 text-green-600" />,
-      'order': <ShoppingBag className="w-4 h-4 text-orange-600" />,
-      'payment': <DollarSign className="w-4 h-4 text-green-600" />,
       'customer': <User className="w-4 h-4 text-purple-600" />,
       'chat': <MessageCircle className="w-4 h-4 text-blue-600" />
     };
     return icons[type] || <Bell className="w-4 h-4 text-gray-600" />;
   };
 
-  // Get background color for avatar based on type
-  const getAvatarColor = (type) => {
+  // Get background color for avatar based on platform/type
+  const getAvatarColor = (notification) => {
+    const platform = notification.platform?.toLowerCase();
+    const type = notification.Type?.toLowerCase() || notification.type?.toLowerCase();
+    
+    // Platform-based colors
+    if (platform === 'instagram') return 'E4405F';
+    if (platform === 'whatsapp') return '25D366';
+    if (platform === 'facebook' || platform === 'messenger') return '1877F2';
+    
+    // Type-based colors
     const colors = {
+      'product': 'f97316',
+      'order': 'f97316',
       'new_customer': '6d28d9',
       'successful_transaction': '22c55e',
       'failed_transaction': 'ef4444',
       'new_chat': '3b82f6',
-      'new_order': 'f97316',
       'payment_received': '22c55e',
-      'order': 'f97316',
-      'payment': '22c55e',
       'customer': '6d28d9',
       'chat': '3b82f6'
     };
@@ -233,10 +308,22 @@ const NotificationPage = () => {
       filtered = filtered.filter(notif => {
         if (filterType === 'unread') return !notif.marked;
         if (filterType === 'read') return notif.marked;
-        return notif.type === filterType;
+        
+        const notificationType = getNotificationType(notif);
+        const matches = notificationType === filterType;
+        
+        console.log('Filtering notification:', {
+          notification: notif,
+          filterType,
+          notificationType,
+          matches
+        });
+        
+        return matches;
       });
     }
     
+    console.log('Filtered notifications:', filtered);
     return filtered;
   };
 
@@ -385,11 +472,12 @@ const NotificationPage = () => {
                       <option value="all">All</option>
                       <option value="unread">Unread</option>
                       <option value="read">Read</option>
-                      <option value="new_customer">New Customers</option>
-                      <option value="successful_transaction">Transactions</option>
-                      <option value="new_chat">Chats</option>
                       <option value="order">Orders</option>
-                      <option value="payment">Payments</option>
+                      <option value="chat">Chats</option>
+                      <option value="new_customer">New Customers</option>
+                      <option value="successful_transaction">Successful Transactions</option>
+                      <option value="failed_transaction">Failed Transactions</option>
+                      <option value="payment_received">Payments</option>
                     </select>
                   </div>
                 </div>
@@ -426,14 +514,14 @@ const NotificationPage = () => {
                           >
                             <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
                               <img 
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(notification.title || notification.message || 'User')}&background=${getAvatarColor(notification.type)}&color=fff`}
-                                alt={notification.title || 'Notification'}
+                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(getNotificationTitle(notification))}&background=${getAvatarColor(notification)}&color=fff`}
+                                alt={getNotificationTitle(notification)}
                                 className="w-full h-full object-cover"
                               />
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-medium truncate">
-                                {notification.title || notification.subject || 'Notification'}
+                                {getNotificationTitle(notification)}
                                 {!notification.marked && (
                                   <span className="ml-2 text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">
                                     New
@@ -441,13 +529,39 @@ const NotificationPage = () => {
                                 )}
                               </h3>
                               <p className="text-gray-500 text-sm truncate">
-                                {notification.message || notification.body || notification.description || 'No description'}
+                                {getNotificationMessage(notification)}
                               </p>
-                              {notification.type && (
-                                <span className="text-xs text-gray-400 capitalize">
-                                  {notification.type.replace('_', ' ')}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                {notification.platform && (
+                                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
+                                    notification.platform.toLowerCase() === 'instagram' 
+                                      ? 'bg-pink-100 text-pink-700' 
+                                      : notification.platform.toLowerCase() === 'whatsapp'
+                                      ? 'bg-green-100 text-green-700'
+                                      : notification.platform.toLowerCase() === 'facebook' || notification.platform.toLowerCase() === 'messenger'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {notification.platform}
+                                  </span>
+                                )}
+                                {notification.status && (
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    notification.status === 'Confirmed' 
+                                      ? 'bg-green-100 text-green-700' 
+                                      : notification.status === 'Rejected'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {notification.status}
+                                  </span>
+                                )}
+                                {notification.paid && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                    Paid
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="text-sm text-gray-500 hidden sm:block">
@@ -458,7 +572,7 @@ const NotificationPage = () => {
                               ) : notification.marked ? (
                                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                               ) : (
-                                getNotificationIcon(notification.type)
+                                getNotificationIcon(notification)
                               )}
                             </div>
                           </div>

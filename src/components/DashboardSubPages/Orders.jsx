@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, ChevronLeft, ChevronRight, Loader, Package, Truck, CheckCircle } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -32,7 +32,9 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const searchTimeoutRef = useRef(null);
   const ordersPerPage = 8;
 
   const tabs = [
@@ -47,9 +49,32 @@ const Orders = () => {
     fetchOrders();
   }, []);
 
-  // Filter orders when tab, search term, or orders change
+  // Filter orders when tab, search term, or orders change (with debouncing for search)
   useEffect(() => {
-    filterOrdersByTab();
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If there's a search term, debounce the filtering
+    if (searchTerm) {
+      setIsSearching(true);
+      searchTimeoutRef.current = setTimeout(() => {
+        filterOrdersByTab();
+        setIsSearching(false);
+      }, 300); // 300ms delay
+    } else {
+      // No search term, filter immediately
+      filterOrdersByTab();
+      setIsSearching(false);
+    }
+
+    // Cleanup timeout
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [activeTab, orders, searchTerm]);
 
   const fetchOrders = async () => {
@@ -70,6 +95,8 @@ const Orders = () => {
 
       // Process the response data
       const ordersData = response.data || [];
+      console.log('Fetched orders:', ordersData); // Debug log
+      
       const processedOrders = ordersData.map(order => {
         // Determine platform from source or platform field
         let platform = order.platform;
@@ -92,18 +119,32 @@ const Orders = () => {
           status,
           ids: order.ids || order.id || order._id,
           email: order.email || 'No email provided',
-          'product-name': order['product-name'] || order.product_name || order.name || 'Product',
-          price: order.price || 0,
-          quantity: order.quantity || 1,
-          customer_name: order.customer_name || order.customer || 'Customer',
+          'product-name': order['product-name'] || order.product_name || order.pname || order.name || 'Product',
+          price: parseFloat(order.price) || 0,
+          quantity: parseInt(order.quantity) || 1,
+          customer_name: order.customer_name || order.name || order.customer || 'Customer',
           address: order.address || 'No address provided',
           phone: order.phone || 'No phone provided',
           image: order.image || order.images?.[0] || '',
           images: order.images || [order.image].filter(Boolean),
-          created_at: order.created_at || order.timestamp || new Date().toISOString()
+          created_at: order.created_at || order.timestamp || new Date().toISOString(),
+          // Add searchable text for better search functionality
+          searchableText: [
+            order.email,
+            order['product-name'] || order.product_name || order.pname || order.name,
+            order.ids || order.id,
+            order.customer_name || order.name || order.customer,
+            order.phone,
+            order.address,
+            order.platform,
+            order.status,
+            order.category,
+            order.sub
+          ].filter(Boolean).join(' ').toLowerCase()
         };
       });
 
+      console.log('Processed orders:', processedOrders); // Debug log
       setOrders(processedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -143,21 +184,59 @@ const Orders = () => {
       });
     }
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(order => 
-        order.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order['product-name']?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.ids?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    // Enhanced search functionality
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      console.log('Searching for:', searchLower); // Debug log
+      
+      filtered = filtered.filter(order => {
+        // Multi-field search with fallbacks
+        const searchFields = [
+          order.email,
+          order['product-name'],
+          order.ids?.toString(),
+          order.customer_name,
+          order.phone,
+          order.address,
+          order.platform,
+          order.status,
+          order.category,
+          order.sub,
+          order.searchableText // Combined searchable text
+        ];
+
+        // Check if any field contains the search term
+        const matches = searchFields.some(field => {
+          if (!field) return false;
+          const fieldStr = field.toString().toLowerCase();
+          return fieldStr.includes(searchLower);
+        });
+
+        console.log(`Order ${order.ids} matches search:`, matches); // Debug log
+        return matches;
+      });
     }
+
+    console.log('Filtered orders:', filtered); // Debug log
 
     // Sort by date (newest first)
     filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     setFilteredOrders(filtered);
     setCurrentPage(1); // Reset to first page when filtering
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    console.log('Search term changed:', value); // Debug log
+  };
+
+  // Clear search function
+  const clearSearch = () => {
+    setSearchTerm('');
+    console.log('Search cleared'); // Debug log
   };
 
   const handleOrderClick = (order) => {
@@ -404,17 +483,35 @@ const Orders = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input 
                     placeholder="Search orders..." 
-                    className="pl-9 bg-white"
+                    className="pl-9 pr-10 bg-white"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleSearchChange}
                   />
+                  {searchTerm && (
+                    <button
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  {isSearching && (
+                    <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
+                      <Loader className="w-4 h-4 animate-spin text-purple-600" />
+                    </div>
+                  )}
                 </div>
                 <Button 
                   variant="outline" 
                   className="flex items-center gap-2"
                   onClick={fetchOrders}
+                  disabled={loading}
                 >
-                  Refresh
+                  {loading ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Refresh'
+                  )}
                 </Button>
               </div>
               
@@ -434,6 +531,29 @@ const Orders = () => {
                 </span>
               </div>
             </div>
+
+            {/* Search Results Info */}
+            {searchTerm && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-800 font-medium">
+                      {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found for "{searchTerm}"
+                    </p>
+                    <p className="text-blue-600 text-sm mt-1">
+                      Search includes: Customer name, email, product name, order ID, phone, address, platform, and status
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={clearSearch}
+                    className="text-blue-600 hover:bg-blue-100"
+                  >
+                    Clear search
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Filter Tabs */}
             <div className="flex space-x-1 bg-white p-1 rounded-lg w-fit">
@@ -472,10 +592,19 @@ const Orders = () => {
                     <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <div className="text-gray-500 mb-4">
                       {searchTerm 
-                        ? 'No orders found matching your search'
+                        ? `No orders found matching "${searchTerm}"`
                         : `No ${activeTab === 'all' ? '' : activeTab} orders found`
                       }
                     </div>
+                    {searchTerm && (
+                      <Button
+                        variant="outline"
+                        onClick={clearSearch}
+                        className="mt-2"
+                      >
+                        Clear search to see all orders
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -511,7 +640,7 @@ const Orders = () => {
                           </div>
                           <h3 className="font-medium line-clamp-1">{order['product-name']}</h3>
                           <p className="text-sm text-gray-600 mt-1">
-                            ${order.price} × {order.quantity}
+                            ₦{order.price} × {order.quantity}
                           </p>
                           <div className="mt-2 flex items-center justify-between text-sm">
                             <span className="text-gray-500">{getTimeAgo(order.created_at)}</span>
@@ -551,6 +680,7 @@ const Orders = () => {
                               Showing <span className="font-medium">{indexOfFirstOrder + 1}</span> to{' '}
                               <span className="font-medium">{Math.min(indexOfLastOrder, filteredOrders.length)}</span> of{' '}
                               <span className="font-medium">{filteredOrders.length}</span> results
+                              {searchTerm && <span> for "{searchTerm}"</span>}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -659,7 +789,7 @@ const Orders = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="text-sm font-medium text-gray-500">Price</h4>
-                    <p className="text-lg font-semibold">${selectedOrder.price}</p>
+                    <p className="text-lg font-semibold">₦{selectedOrder.price}</p>
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-gray-500">Quantity</h4>
@@ -670,7 +800,7 @@ const Orders = () => {
                 <div>
                   <h4 className="text-sm font-medium text-gray-500">Total Amount</h4>
                   <p className="text-xl font-bold text-purple-600">
-                    ${(selectedOrder.price * selectedOrder.quantity).toFixed(2)}
+                    ₦{(selectedOrder.price * selectedOrder.quantity).toFixed(2)}
                   </p>
                 </div>
 
