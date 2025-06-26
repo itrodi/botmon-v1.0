@@ -63,8 +63,11 @@ const Onboarding2 = () => {
   const handleOAuthCallback = async (code, state) => {
     const platform = state; // We'll pass platform as state parameter
     
-    if (!userToken) {
+    // Get token directly from localStorage (more reliable than state)
+    const token = localStorage.getItem('token');
+    if (!token) {
       toast.error('Authentication required. Please login again.');
+      window.location.href = '/login';
       return;
     }
 
@@ -86,17 +89,13 @@ const Onboarding2 = () => {
           throw new Error('Unknown platform');
       }
 
-      // Send the authorization code to backend with JWT token
-      const response = await fetch(`https://api.automation365.io${endpoint}`, {
-        method: 'POST',
+      // Make GET request to backend with code as query parameter (matching backend expectation)
+      const response = await fetch(`https://api.automation365.io${endpoint}?code=${code}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${userToken}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          code: code,
-          redirect_uri: `${window.location.origin}/onboarding2`
-        })
+        }
       });
 
       const data = await response.json();
@@ -105,7 +104,8 @@ const Onboarding2 = () => {
         setLinkedAccounts(prev => ({ ...prev, [platform]: true }));
         
         // Save to localStorage
-        const updated = { ...linkedAccounts, [platform]: true };
+        const currentLinked = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
+        const updated = { ...currentLinked, [platform]: true };
         localStorage.setItem('linkedAccounts', JSON.stringify(updated));
         
         toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} account linked successfully!`);
