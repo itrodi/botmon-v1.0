@@ -31,15 +31,6 @@ const Onboarding2 = () => {
     }
     setUserToken(token);
 
-    // Check if we're returning from OAuth callback
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    
-    if (code && state) {
-      handleOAuthCallback(code, state);
-    }
-
     // Check existing linked accounts
     checkLinkedAccounts();
   }, []);
@@ -50,90 +41,62 @@ const Onboarding2 = () => {
     if (!token) return;
 
     try {
-      // You might want to add an endpoint to check linked accounts
-      // For now, we'll check localStorage or implement a backend endpoint
+      // Check localStorage for now - you might want to add a backend endpoint to check linked accounts
       const linked = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
       setLinkedAccounts(linked);
+      
+      // TODO: Add backend endpoint to fetch actual linked account status
+      // const response = await fetch('https://api.automation365.io/linked-accounts', {
+      //   headers: { 'Authorization': `Bearer ${token}` }
+      // });
+      // const data = await response.json();
+      // setLinkedAccounts(data.linkedAccounts);
     } catch (error) {
       console.error('Error checking linked accounts:', error);
     }
   };
 
-  // Handle OAuth callback
-  const handleOAuthCallback = async (code, state) => {
-    const platform = state; // We'll pass platform as state parameter
-    
-    // Get token directly from localStorage (more reliable than state)
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast.error('Authentication required. Please login again.');
-      window.location.href = '/login';
-      return;
-    }
+  // Add periodic check for linked accounts (useful after OAuth redirects)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkLinkedAccounts();
+    }, 5000); // Check every 5 seconds
 
-    try {
-      setLoading(prev => ({ ...prev, [platform]: true }));
+    return () => clearInterval(interval);
+  }, []);
 
-      let endpoint = '';
-      switch (platform) {
-        case 'messenger':
-          endpoint = '/auth/messenger';
-          break;
-        case 'instagram':
-          endpoint = '/auth/instagram';
-          break;
-        case 'whatsapp':
-          endpoint = '/auth/whatsapp';
-          break;
-        default:
-          throw new Error('Unknown platform');
-      }
-
-      // Make GET request to backend with code as query parameter (matching backend expectation)
-      const response = await fetch(`https://api.automation365.io${endpoint}?code=${code}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setLinkedAccounts(prev => ({ ...prev, [platform]: true }));
-        
-        // Save to localStorage
-        const currentLinked = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
-        const updated = { ...currentLinked, [platform]: true };
-        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
-        
-        toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} account linked successfully!`);
-        
-        // Clear URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else {
-        throw new Error(data.error || `Failed to link ${platform} account`);
-      }
-    } catch (error) {
-      console.error(`Error linking ${platform}:`, error);
-      toast.error(error.message || `Failed to link ${platform} account`);
-    } finally {
-      setLoading(prev => ({ ...prev, [platform]: false }));
-    }
+  // Handle manual refresh
+  const handleRefreshStatus = () => {
+    checkLinkedAccounts();
+    toast.success('Status refreshed');
   };
 
   // Facebook/Messenger Login Handler
   const loginWithFacebook = () => {
     setLoading(prev => ({ ...prev, facebook: true }));
     
-    // Facebook OAuth URL for Messenger permissions - redirect to frontend
+    // Get user token for embedding in state
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      setLoading(prev => ({ ...prev, facebook: false }));
+      return;
+    }
+    
+    // Encode token and platform in state parameter
+    const stateData = {
+      platform: 'messenger',
+      token: token
+    };
+    const encodedState = btoa(JSON.stringify(stateData)); // Base64 encode the state
+    
+    // Facebook OAuth URL for Messenger permissions - redirect to backend with encoded state
     const facebookAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     facebookAuthUrl.searchParams.set('client_id', '639118129084539');
-    facebookAuthUrl.searchParams.set('redirect_uri', `${window.location.origin}/onboarding2`);
+    facebookAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/messenger');
     facebookAuthUrl.searchParams.set('response_type', 'code');
     facebookAuthUrl.searchParams.set('scope', 'pages_manage_metadata,pages_messaging,business_management');
-    facebookAuthUrl.searchParams.set('state', 'messenger'); // Use state to identify platform
+    facebookAuthUrl.searchParams.set('state', encodedState); // Encoded user token + platform
     
     // Redirect to Facebook OAuth
     window.location.href = facebookAuthUrl.toString();
@@ -170,14 +133,29 @@ const Onboarding2 = () => {
   const loginWithInstagram = () => {
     setLoading(prev => ({ ...prev, instagram: true }));
     
-    // Instagram OAuth URL - redirect to frontend
+    // Get user token for embedding in state
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      setLoading(prev => ({ ...prev, instagram: false }));
+      return;
+    }
+    
+    // Encode token and platform in state parameter
+    const stateData = {
+      platform: 'instagram',
+      token: token
+    };
+    const encodedState = btoa(JSON.stringify(stateData)); // Base64 encode the state
+    
+    // Instagram OAuth URL - redirect to backend with encoded state
     const instagramAuthUrl = new URL('https://www.instagram.com/oauth/authorize');
     instagramAuthUrl.searchParams.set('force_reauth', 'true');
     instagramAuthUrl.searchParams.set('client_id', '9440795702651023');
-    instagramAuthUrl.searchParams.set('redirect_uri', `${window.location.origin}/onboarding2`);
+    instagramAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/instagram');
     instagramAuthUrl.searchParams.set('response_type', 'code');
     instagramAuthUrl.searchParams.set('scope', 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights');
-    instagramAuthUrl.searchParams.set('state', 'instagram');
+    instagramAuthUrl.searchParams.set('state', encodedState);
     
     // Redirect to Instagram OAuth
     window.location.href = instagramAuthUrl.toString();
@@ -187,13 +165,28 @@ const Onboarding2 = () => {
   const loginWithWhatsApp = () => {
     setLoading(prev => ({ ...prev, whatsapp: true }));
     
-    // WhatsApp Business API OAuth URL - redirect to frontend
+    // Get user token for embedding in state
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      setLoading(prev => ({ ...prev, whatsapp: false }));
+      return;
+    }
+    
+    // Encode token and platform in state parameter
+    const stateData = {
+      platform: 'whatsapp',
+      token: token
+    };
+    const encodedState = btoa(JSON.stringify(stateData)); // Base64 encode the state
+    
+    // WhatsApp Business API OAuth URL - redirect to backend with encoded state
     const whatsappAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     whatsappAuthUrl.searchParams.set('client_id', '639118129084539');
-    whatsappAuthUrl.searchParams.set('redirect_uri', `${window.location.origin}/onboarding2`);
+    whatsappAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/whatsapp');
     whatsappAuthUrl.searchParams.set('response_type', 'code');
     whatsappAuthUrl.searchParams.set('scope', 'whatsapp_business_messaging,whatsapp_business_management,business_management');
-    whatsappAuthUrl.searchParams.set('state', 'whatsapp');
+    whatsappAuthUrl.searchParams.set('state', encodedState);
     
     // Redirect to Facebook OAuth for WhatsApp
     window.location.href = whatsappAuthUrl.toString();
@@ -391,10 +384,20 @@ const Onboarding2 = () => {
 
             {/* Status Summary */}
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600">
                   {Object.values(linkedAccounts).filter(Boolean).length} of {socialPlatforms.filter(p => p.available).length} available accounts linked
                 </span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRefreshStatus}
+                  className="text-xs"
+                >
+                  Refresh Status
+                </Button>
+              </div>
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-purple-600 font-medium">
                   {Object.values(linkedAccounts).filter(Boolean).length > 0 ? 'Ready to continue' : 'Select accounts to link'}
                 </span>
@@ -408,6 +411,11 @@ const Onboarding2 = () => {
                     width: `${(Object.values(linkedAccounts).filter(Boolean).length / socialPlatforms.filter(p => p.available).length) * 100}%`
                   }}
                 />
+              </div>
+              
+              {/* OAuth Flow Info */}
+              <div className="mt-3 text-xs text-gray-500">
+                <p>After clicking a platform, you'll be redirected to authorize the connection. Once complete, click "Refresh Status" to see the updated status.</p>
               </div>
             </div>
 
