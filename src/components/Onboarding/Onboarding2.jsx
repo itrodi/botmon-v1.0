@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Globe, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Globe, ArrowRight, Check, Loader2, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const Onboarding2 = () => {
   const [linkedAccounts, setLinkedAccounts] = useState({
@@ -17,156 +18,171 @@ const Onboarding2 = () => {
     whatsapp: false
   });
 
-  // Initialize Facebook SDK
-  useEffect(() => {
-    // Load Facebook SDK
-    window.fbAsyncInit = function() {
-      window.FB.init({
-        appId      : '639118129084539',
-        cookie     : true,
-        xfbml      : true,
-        version    : 'v21.0'
-      });
-    };
+  const [userToken, setUserToken] = useState(null);
 
-    // Load the SDK asynchronously
-    (function(d, s, id) {
-      var js, fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
-      js = d.createElement(s); js.id = id;
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      fjs.parentNode.insertBefore(js, fjs);
-    }(document, 'script', 'facebook-jssdk'));
+  // Get user token on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      // Redirect to login page
+      window.location.href = '/login';
+      return;
+    }
+    setUserToken(token);
+
+    // Check if we're returning from OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    
+    if (code && state) {
+      handleOAuthCallback(code, state);
+    }
+
+    // Check existing linked accounts
+    checkLinkedAccounts();
   }, []);
 
-  // Facebook Login Handler
-  const loginWithFacebook = () => {
-    setLoading({ ...loading, facebook: true });
-    
-    window.FB.login(function(response) {
-      if (response.authResponse) {
-        console.log('Facebook Access Token: ', response.authResponse.accessToken);
-        
-        // Get user info
-        window.FB.api('/me', { fields: 'id,name,email' }, function(userInfo) {
-          console.log('User Info:', userInfo);
-          
-          // Send access token and user info to your backend
-          sendTokenToBackend('facebook', {
-            accessToken: response.authResponse.accessToken,
-            userID: response.authResponse.userID,
-            userInfo: userInfo
-          });
-        });
-        
-        // Get Facebook Pages (for business accounts)
-        window.FB.api('/me/accounts', function(pages) {
-          console.log('Facebook Pages:', pages);
-          // You can let users select which page to connect
-        });
-        
-        setLinkedAccounts({ ...linkedAccounts, facebook: true });
-        setLoading({ ...loading, facebook: false });
-      } else {
-        console.log('User cancelled login or did not fully authorize.');
-        setLoading({ ...loading, facebook: false });
-      }
-    }, {
-      scope: 'public_profile,pages_manage_metadata,pages_messaging,instagram_basic,instagram_manage_messages,business_management,whatsapp_business_messaging'
-    });
-  };
+  // Check which accounts are already linked
+  const checkLinkedAccounts = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-  // Twitter Login Handler (OAuth 1.0a - requires backend implementation)
-  const loginWithTwitter = () => {
-    setLoading({ ...loading, twitter: true });
-    
-    // Twitter uses OAuth 1.0a which requires backend implementation
-    // This is a placeholder - you'll need to implement the actual flow
-    console.log('Twitter login - implement OAuth flow through backend');
-    
-    // Example: Redirect to your backend OAuth endpoint
-    // window.location.href = '/api/auth/twitter';
-    
-    setTimeout(() => {
-      setLoading({ ...loading, twitter: false });
-      alert('Twitter integration requires backend OAuth implementation');
-    }, 1000);
-  };
-
-  // Instagram Login Handler (through Facebook Graph API)
-  const loginWithInstagram = () => {
-    setLoading({ ...loading, instagram: true });
-    
-    // Instagram Business accounts are linked through Facebook
-    // First check if Facebook is connected
-    if (!linkedAccounts.facebook) {
-      alert('Please connect your Facebook account first. Instagram Business accounts are managed through Facebook.');
-      setLoading({ ...loading, instagram: false });
-      return;
-    }
-    
-    // Get Instagram Business Accounts connected to Facebook Pages
-    window.FB.api('/me/accounts', function(response) {
-      if (response.data) {
-        // For each Facebook Page, check for connected Instagram account
-        response.data.forEach(page => {
-          window.FB.api(
-            `/${page.id}?fields=instagram_business_account`,
-            function(instagramResponse) {
-              if (instagramResponse.instagram_business_account) {
-                console.log('Instagram Business Account found:', instagramResponse.instagram_business_account);
-                setLinkedAccounts({ ...linkedAccounts, instagram: true });
-              }
-            }
-          );
-        });
-      }
-      setLoading({ ...loading, instagram: false });
-    });
-  };
-
-  // WhatsApp Business Login Handler (through Facebook Business Manager)
-  const loginWithWhatsApp = () => {
-    setLoading({ ...loading, whatsapp: true });
-    
-    // WhatsApp Business API requires Facebook Business verification
-    if (!linkedAccounts.facebook) {
-      alert('Please connect your Facebook account first. WhatsApp Business API is managed through Facebook Business Manager.');
-      setLoading({ ...loading, whatsapp: false });
-      return;
-    }
-    
-    // This requires WhatsApp Business API setup
-    console.log('WhatsApp Business - requires Business Manager setup');
-    
-    setTimeout(() => {
-      setLoading({ ...loading, whatsapp: false });
-      alert('WhatsApp Business API requires additional setup through Facebook Business Manager');
-    }, 1000);
-  };
-
-  // Send token to backend
-  const sendTokenToBackend = async (platform, data) => {
     try {
-      const response = await fetch('/api/social-media/link', {
-        method: 'POST',
+      // You might want to add an endpoint to check linked accounts
+      // For now, we'll check localStorage or implement a backend endpoint
+      const linked = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
+      setLinkedAccounts(linked);
+    } catch (error) {
+      console.error('Error checking linked accounts:', error);
+    }
+  };
+
+  // Handle OAuth callback
+  const handleOAuthCallback = async (code, state) => {
+    const platform = state; // We'll pass platform as state parameter
+    
+    if (!userToken) return;
+
+    try {
+      setLoading(prev => ({ ...prev, [platform]: true }));
+
+      let endpoint = '';
+      switch (platform) {
+        case 'messenger':
+          endpoint = '/auth/messenger';
+          break;
+        case 'instagram':
+          endpoint = '/auth/instagram';
+          break;
+        case 'whatsapp':
+          endpoint = '/auth/whatsapp';
+          break;
+        default:
+          throw new Error('Unknown platform');
+      }
+
+      const response = await fetch(`https://api.automation365.io${endpoint}?code=${code}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          platform,
-          ...data
-        })
+          'Authorization': `Bearer ${userToken}`,
+          'Content-Type': 'application/json'
+        }
       });
-      
-      if (response.ok) {
-        console.log(`${platform} account linked successfully`);
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setLinkedAccounts(prev => ({ ...prev, [platform]: true }));
+        
+        // Save to localStorage
+        const updated = { ...linkedAccounts, [platform]: true };
+        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
+        
+        toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} account linked successfully!`);
+        
+        // Clear URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
       } else {
-        console.error(`Failed to link ${platform} account`);
+        throw new Error(data.error || `Failed to link ${platform} account`);
       }
     } catch (error) {
-      console.error('Error sending token to backend:', error);
+      console.error(`Error linking ${platform}:`, error);
+      toast.error(error.message || `Failed to link ${platform} account`);
+    } finally {
+      setLoading(prev => ({ ...prev, [platform]: false }));
     }
+  };
+
+  // Facebook/Messenger Login Handler
+  const loginWithFacebook = () => {
+    setLoading(prev => ({ ...prev, facebook: true }));
+    
+    // Facebook OAuth URL for Messenger permissions
+    const facebookAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
+    facebookAuthUrl.searchParams.set('client_id', '639118129084539');
+    facebookAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/messenger');
+    facebookAuthUrl.searchParams.set('response_type', 'code');
+    facebookAuthUrl.searchParams.set('scope', 'pages_manage_metadata,pages_messaging,business_management');
+    facebookAuthUrl.searchParams.set('state', 'messenger'); // Use state to identify platform
+    
+    // Redirect to Facebook OAuth
+    window.location.href = facebookAuthUrl.toString();
+  };
+
+  // Twitter Login Handler
+  const loginWithTwitter = () => {
+    setLoading(prev => ({ ...prev, twitter: true }));
+    
+    // Twitter OAuth 2.0 (if you have Twitter API v2 setup)
+    toast.error('Twitter integration requires additional setup. Please contact support.');
+    
+    // For Twitter, you'll need to implement OAuth 1.0a or OAuth 2.0
+    // Here's a placeholder for OAuth 2.0:
+    /*
+    const twitterAuthUrl = new URL('https://twitter.com/i/oauth2/authorize');
+    twitterAuthUrl.searchParams.set('response_type', 'code');
+    twitterAuthUrl.searchParams.set('client_id', 'YOUR_TWITTER_CLIENT_ID');
+    twitterAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/twitter');
+    twitterAuthUrl.searchParams.set('scope', 'tweet.read tweet.write users.read');
+    twitterAuthUrl.searchParams.set('state', 'twitter');
+    twitterAuthUrl.searchParams.set('code_challenge', 'challenge');
+    twitterAuthUrl.searchParams.set('code_challenge_method', 'plain');
+    
+    window.location.href = twitterAuthUrl.toString();
+    */
+    
+    setTimeout(() => {
+      setLoading(prev => ({ ...prev, twitter: false }));
+    }, 1000);
+  };
+
+  // Instagram Login Handler
+  const loginWithInstagram = () => {
+    setLoading(prev => ({ ...prev, instagram: true }));
+    
+    // Use the provided Instagram OAuth URL with state parameter
+    const instagramAuthUrl = 'https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=9440795702651023&redirect_uri=https://api.automation365.io/auth/instagram&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights&state=instagram';
+    
+    // Redirect to Instagram OAuth
+    window.location.href = instagramAuthUrl;
+  };
+
+  // WhatsApp Business Login Handler
+  const loginWithWhatsApp = () => {
+    setLoading(prev => ({ ...prev, whatsapp: true }));
+    
+    // WhatsApp Business API OAuth URL
+    const whatsappAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
+    whatsappAuthUrl.searchParams.set('client_id', '639118129084539');
+    whatsappAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/whatsapp');
+    whatsappAuthUrl.searchParams.set('response_type', 'code');
+    whatsappAuthUrl.searchParams.set('scope', 'whatsapp_business_messaging,whatsapp_business_management,business_management');
+    whatsappAuthUrl.searchParams.set('state', 'whatsapp');
+    
+    // Redirect to Facebook OAuth for WhatsApp
+    window.location.href = whatsappAuthUrl.toString();
   };
 
   const handleContinue = () => {
@@ -175,45 +191,78 @@ const Onboarding2 = () => {
       .map(([platform]) => platform);
     
     if (linkedPlatforms.length === 0) {
-      alert('Please link at least one social media account to continue');
+      toast.error('Please link at least one social media account to continue');
       return;
     }
     
     console.log('Linked platforms:', linkedPlatforms);
-    // Navigate to next step or dashboard
-    // window.location.href = '/dashboard';
+    toast.success('Setup complete! Redirecting to dashboard...');
+    
+    // Navigate to dashboard after a short delay
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 1500);
   };
 
+  // Platform configurations
   const socialPlatforms = [
     {
       id: 'facebook',
-      name: 'Link Facebook Account',
+      name: 'Link Facebook/Messenger',
+      description: 'Connect your Facebook Page for Messenger integration',
       icon: '📘',
       bgColor: 'bg-blue-100',
-      onClick: loginWithFacebook
-    },
-    {
-      id: 'twitter',
-      name: 'Link Twitter Account',
-      icon: '🐦',
-      bgColor: 'bg-blue-50',
-      onClick: loginWithTwitter
+      textColor: 'text-blue-700',
+      onClick: loginWithFacebook,
+      available: true
     },
     {
       id: 'instagram',
-      name: 'Link Instagram Account',
+      name: 'Link Instagram Business',
+      description: 'Connect your Instagram Business account',
       icon: '📷',
-      bgColor: 'bg-pink-50',
-      onClick: loginWithInstagram
+      bgColor: 'bg-pink-100',
+      textColor: 'text-pink-700',
+      onClick: loginWithInstagram,
+      available: true
     },
     {
       id: 'whatsapp',
-      name: 'Link WhatsApp Account',
+      name: 'Link WhatsApp Business',
+      description: 'Connect your WhatsApp Business API',
       icon: '💬',
-      bgColor: 'bg-green-50',
-      onClick: loginWithWhatsApp
+      bgColor: 'bg-green-100',
+      textColor: 'text-green-700',
+      onClick: loginWithWhatsApp,
+      available: true
+    },
+    {
+      id: 'twitter',
+      name: 'Link Twitter/X Account',
+      description: 'Twitter integration (Coming soon)',
+      icon: '🐦',
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-600',
+      onClick: loginWithTwitter,
+      available: false
     }
   ];
+
+  // Check if user is authenticated
+  if (!userToken) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold mb-2">Authentication Required</h1>
+          <p className="text-gray-600 mb-4">Please login to continue with account linking</p>
+          <Button onClick={() => window.location.href = '/login'}>
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex">
@@ -231,9 +280,9 @@ const Onboarding2 = () => {
               <span className="text-4xl">🤖💬</span>
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold">Link Account</h1>
+              <h1 className="text-2xl font-bold">Link Your Accounts</h1>
               <p className="text-gray-600">
-                Kindly select your preferred social media platform to continue onboarding
+                Connect your social media platforms to start automating customer interactions and manage bookings seamlessly.
               </p>
             </div>
           </div>
@@ -253,9 +302,9 @@ const Onboarding2 = () => {
 
         {/* Mobile Only Title */}
         <div className="md:hidden p-6 space-y-2">
-          <h1 className="text-2xl font-bold">Link Account</h1>
+          <h1 className="text-2xl font-bold">Link Your Accounts</h1>
           <p className="text-gray-600">
-            Kindly select your preferred social media platform to continue onboarding
+            Connect your social media platforms to start automating customer interactions.
           </p>
         </div>
 
@@ -265,49 +314,107 @@ const Onboarding2 = () => {
             {socialPlatforms.map((platform) => (
               <div
                 key={platform.id}
-                onClick={!linkedAccounts[platform.id] && !loading[platform.id] ? platform.onClick : undefined}
-                className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
+                className={`p-4 border rounded-lg transition-all ${
                   linkedAccounts[platform.id]
-                    ? 'border-green-500 bg-green-50 cursor-default'
+                    ? 'border-green-500 bg-green-50'
                     : loading[platform.id]
-                    ? 'border-gray-200 bg-gray-50 cursor-wait'
-                    : 'border-gray-200 hover:border-purple-300 hover:shadow-sm cursor-pointer'
+                    ? 'border-gray-200 bg-gray-50'
+                    : platform.available
+                    ? 'border-gray-200 hover:border-purple-300 hover:shadow-sm cursor-pointer'
+                    : 'border-gray-200 bg-gray-50 opacity-60'
                 }`}
+                onClick={
+                  !linkedAccounts[platform.id] && 
+                  !loading[platform.id] && 
+                  platform.available 
+                    ? platform.onClick 
+                    : undefined
+                }
               >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 flex items-center justify-center ${platform.bgColor} rounded-lg`}>
-                    <span className="text-2xl">{platform.icon}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 flex items-center justify-center ${platform.bgColor} rounded-lg`}>
+                      <span className="text-2xl">{platform.icon}</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {linkedAccounts[platform.id] 
+                            ? platform.name.replace('Link', 'Linked') 
+                            : platform.name}
+                        </span>
+                        {linkedAccounts[platform.id] && (
+                          <Check className="w-4 h-4 text-green-600" />
+                        )}
+                        {!platform.available && (
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
+                            Coming Soon
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {platform.description}
+                      </p>
+                    </div>
                   </div>
-                  <span className="font-medium">
-                    {linkedAccounts[platform.id] ? `${platform.name.replace('Link', 'Linked')} ✓` : platform.name}
-                  </span>
+                  
+                  <div className="flex items-center">
+                    {loading[platform.id] ? (
+                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                    ) : linkedAccounts[platform.id] ? (
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                    ) : platform.available ? (
+                      <ArrowRight className="w-5 h-5 text-purple-600" />
+                    ) : (
+                      <div className="w-5 h-5" />
+                    )}
+                  </div>
                 </div>
-                {loading[platform.id] ? (
-                  <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
-                ) : linkedAccounts[platform.id] ? (
-                  <Check className="w-5 h-5 text-green-600" />
-                ) : (
-                  <ArrowRight className="w-5 h-5 text-purple-600" />
-                )}
               </div>
             ))}
 
             {/* Status Summary */}
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                {Object.values(linkedAccounts).filter(Boolean).length} of {socialPlatforms.length} accounts linked
-              </p>
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">
+                  {Object.values(linkedAccounts).filter(Boolean).length} of {socialPlatforms.filter(p => p.available).length} available accounts linked
+                </span>
+                <span className="text-purple-600 font-medium">
+                  {Object.values(linkedAccounts).filter(Boolean).length > 0 ? 'Ready to continue' : 'Select accounts to link'}
+                </span>
+              </div>
+              
+              {/* Progress bar */}
+              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${(Object.values(linkedAccounts).filter(Boolean).length / socialPlatforms.filter(p => p.available).length) * 100}%`
+                  }}
+                />
+              </div>
             </div>
 
             {/* Continue Button */}
-            <div className="pt-6">
+            <div className="pt-4">
               <Button 
                 onClick={handleContinue}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                 disabled={Object.values(linkedAccounts).every(val => !val)}
               >
-                Continue
+                {Object.values(linkedAccounts).some(val => val) 
+                  ? 'Continue to Dashboard' 
+                  : 'Link an account to continue'}
               </Button>
+            </div>
+
+            {/* Help Text */}
+            <div className="text-center">
+              <p className="text-xs text-gray-500">
+                You can link additional accounts later from your dashboard settings.
+              </p>
             </div>
           </div>
         </div>
