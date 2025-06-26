@@ -63,7 +63,10 @@ const Onboarding2 = () => {
   const handleOAuthCallback = async (code, state) => {
     const platform = state; // We'll pass platform as state parameter
     
-    if (!userToken) return;
+    if (!userToken) {
+      toast.error('Authentication required. Please login again.');
+      return;
+    }
 
     try {
       setLoading(prev => ({ ...prev, [platform]: true }));
@@ -83,12 +86,17 @@ const Onboarding2 = () => {
           throw new Error('Unknown platform');
       }
 
-      const response = await fetch(`https://api.automation365.io${endpoint}?code=${code}`, {
-        method: 'GET',
+      // Send the authorization code to backend with JWT token
+      const response = await fetch(`https://api.automation365.io${endpoint}`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${userToken}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          code: code,
+          redirect_uri: `${window.location.origin}/onboarding2`
+        })
       });
 
       const data = await response.json();
@@ -119,10 +127,10 @@ const Onboarding2 = () => {
   const loginWithFacebook = () => {
     setLoading(prev => ({ ...prev, facebook: true }));
     
-    // Facebook OAuth URL for Messenger permissions
+    // Facebook OAuth URL for Messenger permissions - redirect to frontend
     const facebookAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     facebookAuthUrl.searchParams.set('client_id', '639118129084539');
-    facebookAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/messenger');
+    facebookAuthUrl.searchParams.set('redirect_uri', `${window.location.origin}/onboarding2`);
     facebookAuthUrl.searchParams.set('response_type', 'code');
     facebookAuthUrl.searchParams.set('scope', 'pages_manage_metadata,pages_messaging,business_management');
     facebookAuthUrl.searchParams.set('state', 'messenger'); // Use state to identify platform
@@ -162,21 +170,27 @@ const Onboarding2 = () => {
   const loginWithInstagram = () => {
     setLoading(prev => ({ ...prev, instagram: true }));
     
-    // Use the provided Instagram OAuth URL with state parameter
-    const instagramAuthUrl = 'https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=9440795702651023&redirect_uri=https://api.automation365.io/auth/instagram&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights&state=instagram';
+    // Instagram OAuth URL - redirect to frontend
+    const instagramAuthUrl = new URL('https://www.instagram.com/oauth/authorize');
+    instagramAuthUrl.searchParams.set('force_reauth', 'true');
+    instagramAuthUrl.searchParams.set('client_id', '9440795702651023');
+    instagramAuthUrl.searchParams.set('redirect_uri', `${window.location.origin}/onboarding2`);
+    instagramAuthUrl.searchParams.set('response_type', 'code');
+    instagramAuthUrl.searchParams.set('scope', 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights');
+    instagramAuthUrl.searchParams.set('state', 'instagram');
     
     // Redirect to Instagram OAuth
-    window.location.href = instagramAuthUrl;
+    window.location.href = instagramAuthUrl.toString();
   };
 
   // WhatsApp Business Login Handler
   const loginWithWhatsApp = () => {
     setLoading(prev => ({ ...prev, whatsapp: true }));
     
-    // WhatsApp Business API OAuth URL
+    // WhatsApp Business API OAuth URL - redirect to frontend
     const whatsappAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     whatsappAuthUrl.searchParams.set('client_id', '639118129084539');
-    whatsappAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/whatsapp');
+    whatsappAuthUrl.searchParams.set('redirect_uri', `${window.location.origin}/onboarding2`);
     whatsappAuthUrl.searchParams.set('response_type', 'code');
     whatsappAuthUrl.searchParams.set('scope', 'whatsapp_business_messaging,whatsapp_business_management,business_management');
     whatsappAuthUrl.searchParams.set('state', 'whatsapp');
