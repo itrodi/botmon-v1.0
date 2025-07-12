@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Globe, ArrowRight, Check, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -19,6 +19,83 @@ const Onboarding2 = () => {
   });
 
   const [userToken, setUserToken] = useState(null);
+  const fbInitialized = useRef(false);
+
+  // Initialize Facebook SDK
+  useEffect(() => {
+    if (!fbInitialized.current) {
+      // Create fb-root div if it doesn't exist
+      if (!document.getElementById('fb-root')) {
+        const fbRoot = document.createElement('div');
+        fbRoot.id = 'fb-root';
+        document.body.appendChild(fbRoot);
+      }
+
+      // Load Facebook SDK
+      window.fbAsyncInit = function() {
+        window.FB.init({
+          appId: '639118129084539',
+          autoLogAppEvents: true,
+          xfbml: true,
+          version: 'v23.0'
+        });
+        fbInitialized.current = true;
+      };
+
+      // Load SDK script
+      const script = document.createElement('script');
+      script.src = 'https://connect.facebook.net/en_US/sdk.js';
+      script.async = true;
+      script.defer = true;
+      script.crossOrigin = 'anonymous';
+      document.body.appendChild(script);
+    }
+
+    // Listen for WhatsApp Embedded Signup messages
+    const handleMessage = (event) => {
+      if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") {
+        return;
+      }
+      
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'WA_EMBEDDED_SIGNUP') {
+          if (data.event === 'FINISH') {
+            const { phone_number_id, waba_id } = data.data;
+            console.log("WhatsApp signup completed:", { phone_number_id, waba_id });
+            
+            // Mark WhatsApp as linked and save to localStorage
+            setLinkedAccounts(prev => {
+              const updated = { ...prev, whatsapp: true };
+              localStorage.setItem('linkedAccounts', JSON.stringify(updated));
+              return updated;
+            });
+            setLoading(prev => ({ ...prev, whatsapp: false }));
+            toast.success('Successfully linked WhatsApp Business account');
+            
+            // Optionally save the phone_number_id and waba_id
+            localStorage.setItem('whatsapp_config', JSON.stringify({ phone_number_id, waba_id }));
+            
+          } else if (data.event === 'CANCEL') {
+            const { current_step } = data.data;
+            console.warn("WhatsApp signup cancelled at step:", current_step);
+            setLoading(prev => ({ ...prev, whatsapp: false }));
+            toast.error('WhatsApp signup was cancelled');
+          } else if (data.event === 'ERROR') {
+            const { error_message } = data.data;
+            console.error("WhatsApp signup error:", error_message);
+            setLoading(prev => ({ ...prev, whatsapp: false }));
+            toast.error(`WhatsApp signup error: ${error_message}`);
+          }
+        }
+      } catch (e) {
+        console.log('Non-JSON response from Facebook:', event.data);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   // Get user token on component mount
   useEffect(() => {
@@ -30,6 +107,26 @@ const Onboarding2 = () => {
       return;
     }
     setUserToken(token);
+
+    // Check for OAuth callback parameters (for Instagram)
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const username = urlParams.get('username');
+    const profilePicture = urlParams.get('profile_picture');
+    
+    if (success === 'true') {
+      setLinkedAccounts(prev => {
+        const updated = { ...prev, instagram: true };
+        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
+        return updated;
+      });
+      toast.success(`Successfully linked Instagram${username ? ` (@${username})` : ''}`);
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (success === 'false') {
+      toast.error('Failed to link Instagram. Please try again.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
     // Check existing linked accounts
     checkLinkedAccounts();
@@ -109,21 +206,6 @@ const Onboarding2 = () => {
     // Twitter OAuth 2.0 (if you have Twitter API v2 setup)
     toast.error('Twitter integration requires additional setup. Please contact support.');
     
-    // For Twitter, you'll need to implement OAuth 1.0a or OAuth 2.0
-    // Here's a placeholder for OAuth 2.0:
-    /*
-    const twitterAuthUrl = new URL('https://twitter.com/i/oauth2/authorize');
-    twitterAuthUrl.searchParams.set('response_type', 'code');
-    twitterAuthUrl.searchParams.set('client_id', 'YOUR_TWITTER_CLIENT_ID');
-    twitterAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/twitter');
-    twitterAuthUrl.searchParams.set('scope', 'tweet.read tweet.write users.read');
-    twitterAuthUrl.searchParams.set('state', 'twitter');
-    twitterAuthUrl.searchParams.set('code_challenge', 'challenge');
-    twitterAuthUrl.searchParams.set('code_challenge_method', 'plain');
-    
-    window.location.href = twitterAuthUrl.toString();
-    */
-    
     setTimeout(() => {
       setLoading(prev => ({ ...prev, twitter: false }));
     }, 1000);
@@ -161,35 +243,70 @@ const Onboarding2 = () => {
     window.location.href = instagramAuthUrl.toString();
   };
 
-  // WhatsApp Business Login Handler
+  // WhatsApp Business Login Handler with Embedded Signup
   const loginWithWhatsApp = () => {
+    if (!window.FB) {
+      toast.error('Facebook SDK not loaded. Please refresh and try again.');
+      return;
+    }
+
     setLoading(prev => ({ ...prev, whatsapp: true }));
     
-    // Get user token for embedding in state
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error('Please login first');
       setLoading(prev => ({ ...prev, whatsapp: false }));
       return;
     }
-    
-    // Encode token and platform in state parameter
-    const stateData = {
-      platform: 'whatsapp',
-      token: token
+
+    // Facebook login callback for Embedded Signup
+    const fbLoginCallback = async (response) => {
+      if (response.authResponse) {
+        const code = response.authResponse.code;
+        console.log('WhatsApp Embedded Signup code received:', code);
+        
+        // Send code to backend - note that the Flask backend expects Authorization header
+        try {
+          const backendResponse = await fetch('https://api.automation365.io/auth/whatsapp?code=' + code, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (backendResponse.ok) {
+            const data = await backendResponse.json();
+            console.log('WhatsApp backend response:', data);
+            
+            // The Embedded Signup flow will continue and send messages via postMessage
+            // The actual linking confirmation will come from the WA_EMBEDDED_SIGNUP messages
+          } else {
+            const error = await backendResponse.json();
+            console.error('Backend error:', error);
+            toast.error('Failed to process WhatsApp authorization');
+            setLoading(prev => ({ ...prev, whatsapp: false }));
+          }
+        } catch (error) {
+          console.error('Error calling backend:', error);
+          toast.error('Failed to connect to server');
+          setLoading(prev => ({ ...prev, whatsapp: false }));
+        }
+      } else {
+        // User cancelled or error occurred
+        setLoading(prev => ({ ...prev, whatsapp: false }));
+        if (response.status === 'unknown') {
+          toast.error('WhatsApp setup cancelled');
+        }
+      }
     };
-    const encodedState = btoa(JSON.stringify(stateData)); // Base64 encode the state
-    
-    // WhatsApp Business API OAuth URL - redirect to backend with encoded state
-    const whatsappAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
-    whatsappAuthUrl.searchParams.set('client_id', '639118129084539');
-    whatsappAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/whatsapp');
-    whatsappAuthUrl.searchParams.set('response_type', 'code');
-    whatsappAuthUrl.searchParams.set('scope', 'whatsapp_business_messaging,whatsapp_business_management,business_management');
-    whatsappAuthUrl.searchParams.set('state', encodedState);
-    
-    // Redirect to Facebook OAuth for WhatsApp
-    window.location.href = whatsappAuthUrl.toString();
+
+    // Launch WhatsApp Embedded Signup
+    window.FB.login(fbLoginCallback, {
+      config_id: '4214295362161201', // Configuration ID for WhatsApp Embedded Signup
+      response_type: 'code', // must be set to 'code' for System User access token
+      override_default_response_type: true, // when true, any response types passed in the "response_type" will take precedence over the default types
+      extras: { "version": "v3" }
+    });
   };
 
   const handleContinue = () => {
