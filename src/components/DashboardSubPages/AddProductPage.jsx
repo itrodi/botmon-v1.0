@@ -157,7 +157,7 @@ const AddProductPage = () => {
   // Handle status change specifically
   const handleStatusChange = (value) => {
     // Convert string value to boolean
-    const booleanStatus = value === 'true';
+    const booleanStatus = value === 'active';
     setProductData(prev => ({
       ...prev,
       status: booleanStatus
@@ -371,8 +371,8 @@ const AddProductPage = () => {
       formData.append('sub', productData.sub || '');
       formData.append('category', productData.category || '');
       
-      // IMPORTANT: Send status as string representation of boolean
-      // Backend expects it to be converted to boolean on their side
+      // Send status as string since FormData converts everything to strings
+      // Backend should handle the conversion from "true"/"false" string to boolean
       formData.append('status', productData.status.toString());
       
       // Add product image
@@ -558,15 +558,15 @@ const AddProductPage = () => {
                     Product Status
                   </label>
                   <Select
-                    value={productData.status ? 'true' : 'false'}
+                    value={productData.status ? 'active' : 'inactive'}
                     onValueChange={handleStatusChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="true">Active</SelectItem>
-                      <SelectItem value="false">Inactive</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-sm text-gray-500">
