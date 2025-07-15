@@ -157,7 +157,7 @@ const AddProductPage = () => {
   // Handle status change specifically
   const handleStatusChange = (value) => {
     // Convert string value to boolean
-    const booleanStatus = value === 'active';
+    const booleanStatus = value === 'true';
     setProductData(prev => ({
       ...prev,
       status: booleanStatus
@@ -558,15 +558,15 @@ const AddProductPage = () => {
                     Product Status
                   </label>
                   <Select
-                    value={productData.status ? 'active' : 'inactive'}
+                    value={productData.status ? 'true' : 'false'}
                     onValueChange={handleStatusChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="true">Active</SelectItem>
+                      <SelectItem value="false">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-sm text-gray-500">

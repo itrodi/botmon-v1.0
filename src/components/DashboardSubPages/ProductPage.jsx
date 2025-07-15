@@ -98,8 +98,8 @@ const ProductPage = () => {
         ...product,
         id: product.id || product._id,
         status: typeof product.status === 'boolean' 
-          ? (product.status ? 'active' : 'inactive')
-          : (product.status || 'active'),
+          ? (product.status ? 'true' : 'false')
+          : (product.status || 'true'),
         quantity: product.quantity || 0,
         price: product.price || 0,
         name: product.name || 'Untitled Product',
@@ -194,8 +194,8 @@ const ProductPage = () => {
     if (filterActive) {
       filteredData = filteredData.filter(item => 
         isProducts 
-          ? item.status === 'active' 
-          : (item.status === 'published' || item.status === 'active')
+          ? item.status === 'true' 
+          : (item.status === 'published' || item.status === 'true')
       );
     }
     
