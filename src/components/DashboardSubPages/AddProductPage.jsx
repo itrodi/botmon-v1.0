@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import {
@@ -26,7 +25,7 @@ const AddProductPage = () => {
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   
-  // Main product state - matching backend exactly
+  // Main product state - matching backend exactly with boolean status
   const [productData, setProductData] = useState({
     name: '',
     description: '',
@@ -36,7 +35,7 @@ const AddProductPage = () => {
     link: '',
     category: '',
     sub: '',
-    status: 'active' // Default status
+    status: true // Boolean: true = active, false = inactive
   });
   
   // Product image state
@@ -96,17 +95,25 @@ const AddProductPage = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/add-products', {
+      const response = await fetch('https://api.automation365.io/add-products', {
+        method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      console.log('Categories response:', response.data);
+      console.log('Categories response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      const data = await response.json();
+      console.log('Categories response:', data);
 
       // Convert object to array since backend returns {0: "cat1", 1: "cat2", ...}
-      if (response.data.categories) {
-        const categoriesObj = response.data.categories;
+      if (data.categories) {
+        const categoriesObj = data.categories;
         const categoriesArray = Object.keys(categoriesObj)
           .sort((a, b) => Number(a) - Number(b)) // Sort by numeric key
           .map(key => categoriesObj[key])
@@ -114,8 +121,8 @@ const AddProductPage = () => {
         setCategories(categoriesArray);
       }
       
-      if (response.data.subs) {
-        const subsObj = response.data.subs;
+      if (data.subs) {
+        const subsObj = data.subs;
         const subsArray = Object.keys(subsObj)
           .sort((a, b) => Number(a) - Number(b)) // Sort by numeric key
           .map(key => subsObj[key])
@@ -144,6 +151,16 @@ const AddProductPage = () => {
     setProductData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  // Handle status change specifically
+  const handleStatusChange = (value) => {
+    // Convert string value to boolean
+    const booleanStatus = value === 'active';
+    setProductData(prev => ({
+      ...prev,
+      status: booleanStatus
     }));
   };
 
@@ -275,18 +292,25 @@ const AddProductPage = () => {
         return;
       }
 
-      const response = await axios.post(
+      const response = await fetch(
         'https://api.automation365.io/add-category',
-        newCategory,
         {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          body: JSON.stringify(newCategory)
         }
       );
 
-      if (response.data === "done") {
+      if (!response.ok) {
+        throw new Error('Failed to add category');
+      }
+
+      const result = await response.json();
+
+      if (result === "done") {
         // Update local categories and subs lists
         if (newCategory.category && !categories.includes(newCategory.category)) {
           setCategories(prev => [...prev, newCategory.category]);
@@ -317,8 +341,7 @@ const AddProductPage = () => {
   };
 
   // Submit the form to add a product
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     
     // Validate required fields
     if (!productData.name || !productData.price || !productData.quantity || !productImage) {
@@ -347,7 +370,10 @@ const AddProductPage = () => {
       formData.append('link', productData.link || '');
       formData.append('sub', productData.sub || '');
       formData.append('category', productData.category || '');
-      formData.append('status', productData.status);
+      
+      // IMPORTANT: Send status as string representation of boolean
+      // Backend expects it to be converted to boolean on their side
+      formData.append('status', productData.status.toString());
       
       // Add product image
       if (productImage) {
@@ -369,28 +395,38 @@ const AddProductPage = () => {
         }
       });
 
-      console.log('Submitting product with variants:', {
-        productData,
+      console.log('Submitting product with status:', productData.status);
+      console.log('Product data:', {
+        ...productData,
+        status: productData.status,
+        statusType: typeof productData.status,
         variantCount: variants.vname.length,
-        hasProductImage: !!productImage,
-        variantImageCount: variants.vimages.filter(img => img).length
+        hasProductImage: !!productImage
       });
 
       // Submit the product
-      const response = await axios.post(
+      const response = await fetch(
         'https://api.automation365.io/upload',
-        formData,
         {
+          method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
         }
       );
 
-      console.log('Upload response:', response.data);
+      console.log('Upload response status:', response.status);
 
-      if (response.data.message === "done") {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add product');
+      }
+
+      const data = await response.json();
+      console.log('Upload response:', data);
+
+      if (data.message === "done") {
         toast.success('Product added successfully');
         // Reset form
         setProductData({
@@ -402,7 +438,7 @@ const AddProductPage = () => {
           link: '',
           category: '',
           sub: '',
-          status: 'active'
+          status: true // Reset to active (true)
         });
         setProductImage(null);
         setProductImagePreview(null);
@@ -418,7 +454,7 @@ const AddProductPage = () => {
       }
     } catch (error) {
       console.error('Error uploading product:', error);
-      toast.error(error.response?.data?.error || 'Failed to add product');
+      toast.error(error.message || 'Failed to add product');
     } finally {
       setIsLoading(false);
     }
@@ -433,7 +469,7 @@ const AddProductPage = () => {
         
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-6">
-            <form className="space-y-8" onSubmit={handleSubmit}>
+            <div className="space-y-8">{/* Changed from form to div */}
               {/* Basic Info */}
               <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
                 <h3 className="text-lg font-medium border-b pb-2">Product Information</h3>
@@ -447,7 +483,6 @@ const AddProductPage = () => {
                     value={productData.name}
                     onChange={handleInputChange}
                     placeholder="Enter product name" 
-                    required
                   />
                 </div>
 
@@ -476,7 +511,6 @@ const AddProductPage = () => {
                       type="number" 
                       step="0.01"
                       placeholder="Enter price" 
-                      required
                     />
                   </div>
                   <div>
@@ -489,7 +523,6 @@ const AddProductPage = () => {
                       onChange={handleInputChange}
                       type="number"
                       placeholder="Enter quantity" 
-                      required
                     />
                   </div>
                   <div>
@@ -522,11 +555,11 @@ const AddProductPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
+                    Product Status
                   </label>
                   <Select
-                    value={productData.status}
-                    onValueChange={(value) => handleSelectChange('status', value)}
+                    value={productData.status ? 'active' : 'inactive'}
+                    onValueChange={handleStatusChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
@@ -534,9 +567,11 @@ const AddProductPage = () => {
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Active products will be visible in your store
+                  </p>
                 </div>
               </div>
 
@@ -577,7 +612,6 @@ const AddProductPage = () => {
                           className="sr-only" 
                           onChange={handleImageUpload}
                           accept="image/*"
-                          required
                         />
                       </label>
                       <p className="pl-1">or drag and drop</p>
@@ -730,14 +764,15 @@ const AddProductPage = () => {
               <div className="flex justify-end gap-4">
                 <Button type="button" variant="outline">Cancel</Button>
                 <Button 
-                  type="submit" 
+                  type="button"
                   className="bg-purple-600 text-white"
                   disabled={isLoading}
+                  onClick={handleSubmit}
                 >
                   {isLoading ? 'Uploading Product...' : 'Upload Product'}
                 </Button>
               </div>
-            </form>
+            </div>
           </div>
         </main>
       </div>
@@ -756,7 +791,6 @@ const AddProductPage = () => {
                 value={currentVariant.name}
                 onChange={handleVariantInputChange}
                 placeholder="e.g., Large Size"
-                required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -769,7 +803,6 @@ const AddProductPage = () => {
                   value={currentVariant.price}
                   onChange={handleVariantInputChange}
                   placeholder="0.00"
-                  required
                 />
               </div>
               <div>
@@ -780,7 +813,6 @@ const AddProductPage = () => {
                   value={currentVariant.quantity}
                   onChange={handleVariantInputChange}
                   placeholder="0"
-                  required
                 />
               </div>
             </div>
@@ -889,7 +921,6 @@ const AddProductPage = () => {
                 value={newCategory.category}
                 onChange={handleCategoryInputChange}
                 placeholder="Enter category name"
-                required
               />
             </div>
             <div>

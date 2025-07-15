@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
-import { toast } from 'react-hot-toast';
 
 // Helper function to get icon based on title
 const getIconForTitle = (title) => {
@@ -229,11 +228,9 @@ const MessageContent = ({ message, onButtonClick }) => {
 const Message = ({ isUser, message, onButtonClick }) => (
   <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} mb-4`}>
     <div className="relative flex-shrink-0">
-      <img 
-        src="/api/placeholder/40/40"
-        alt="Profile"
-        className="w-10 h-10 rounded-full"
-      />
+      <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+        {isUser ? '👤' : '🤖'}
+      </div>
       {!isUser && (
         <div className="absolute -right-1 bottom-0">
           <Instagram className="w-4 h-4 text-pink-500" />
@@ -266,9 +263,6 @@ const Chatbot = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
-  const [botFlows, setBotFlows] = useState({});
-  const [chatHistoryData, setChatHistoryData] = useState(null);
-  const [mainMenuData, setMainMenuData] = useState(null);
   const messagesEndRef = useRef(null);
 
   // Scroll to bottom when messages update
@@ -280,395 +274,35 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Create flows from menu data
-  const createFlowsFromMenuData = (menuData) => {
-    const flows = {};
-    
-    if (menuData && menuData.metadata && menuData.metadata.elements) {
-      // Store the main menu under common triggers
-      const mainMenuFlow = {
-        message: menuData.message || "Main Menu Options",
-        message_type: menuData.message_type || "list",
-        metadata: menuData.metadata
-      };
-      
-      flows['hello'] = mainMenuFlow;
-      flows['hi'] = mainMenuFlow;
-      flows['start'] = mainMenuFlow;
-      flows['home'] = mainMenuFlow;
-      flows['menu'] = mainMenuFlow;
-      flows['main menu'] = mainMenuFlow;
-      
-      // Create individual flows for each button payload
-      menuData.metadata.elements.forEach(element => {
-        if (element.buttons) {
-          element.buttons.forEach(button => {
-            if (button.payload) {
-              let responseMessage = "";
-              let responseType = "text";
-              let responseMetadata = {};
-              
-              // Create specific responses based on payload
-              switch(button.payload.toLowerCase()) {
-                case 'general_product':
-                  responseMessage = "🛍️ **Product Catalog**\n\nWelcome to our product section! Here you can browse our complete catalog of items.\n\n• Featured Products\n• New Arrivals\n• Best Sellers\n• Categories\n\nWhat would you like to explore? Type 'home' to return to the main menu.";
-                  break;
-                  
-                case 'general_service':
-                  responseMessage = "⚙️ **Our Services**\n\nDiscover the services we offer:\n\n• Consultation Services\n• Technical Support\n• Custom Solutions\n• Maintenance & Updates\n\nHow can we help you today? Type 'home' to return to the main menu.";
-                  break;
-                  
-                case 'faq':
-                  responseMessage = "❓ **Frequently Asked Questions**\n\n**Q: How do I place an order?**\nA: You can place orders through our website or by contacting our support team.\n\n**Q: What are your shipping options?**\nA: We offer standard and express shipping options.\n\n**Q: How can I track my order?**\nA: Use the 'Track Order' option from the main menu.\n\nType 'home' for the main menu.";
-                  break;
-                  
-                case 'support':
-                  responseMessage = "📞 **Customer Support**\n\nNeed help? Our support team is here for you!\n\n📧 Email: support@company.com\n📱 Phone: +1 (555) 123-4567\n💬 Live Chat: Available 24/7\n\nOur team typically responds within 2-4 hours.\n\nType 'home' to return to the main menu.";
-                  break;
-                  
-                case 'time':
-                  responseMessage = "🕒 **Business Hours**\n\n**Monday - Friday:** 9:00 AM - 6:00 PM\n**Saturday:** 10:00 AM - 4:00 PM\n**Sunday:** Closed\n\n**Holiday Hours:** Please check our website for holiday schedules.\n\n**Time Zone:** Eastern Standard Time (EST)\n\nType 'home' to return to the main menu.";
-                  break;
-                  
-                case 'track':
-                  responseMessage = "📦 **Order Tracking**\n\nTo track your order, please provide:\n\n• Order Number (starts with #)\n• Email Address used for the order\n\nOr you can log into your account to view all your orders.\n\n**Need help?** Contact our support team.\n\nType 'home' to return to the main menu.";
-                  break;
-                  
-                case 'cart':
-                  responseMessage = "🛒 **Shopping Cart**\n\nYour cart is currently empty.\n\n• Browse our products to add items\n• Save items for later\n• Apply discount codes at checkout\n\nReady to shop? Type 'general_product' to view products or 'home' for the main menu.";
-                  break;
-                  
-                case 'log out':
-                  responseMessage = "👋 **Logout**\n\nYou have been successfully logged out.\n\nThank you for using our service!\n\n• Your session data has been cleared\n• Any unsaved changes may be lost\n\nType 'hello' to start a new session.";
-                  break;
-                  
-                case 'settings':
-                  responseMessage = "⚙️ **Account Settings**\n\nManage your account preferences:\n\n• Profile Information\n• Notification Settings\n• Privacy Preferences\n• Password & Security\n• Billing Information\n\nTo make changes, please log into your account on our website.\n\nType 'home' to return to the main menu.";
-                  break;
-                  
-                default:
-                  responseMessage = `You selected: ${button.title}\n\nThis feature is currently being developed. We'll have more content here soon!\n\nType 'home' or 'menu' to return to the main menu.`;
-              }
-              
-              flows[button.payload.toLowerCase()] = {
-                message: responseMessage,
-                message_type: responseType,
-                metadata: responseMetadata
-              };
-              
-              // Also map by title
-              if (button.title) {
-                flows[button.title.toLowerCase()] = flows[button.payload.toLowerCase()];
-              }
-            }
-          });
-        }
-      });
-    }
-    
-    return flows;
-  };
-
-  // Enhanced chat history processing
-  const processAllChatHistory = (data) => {
-    console.log('=== PROCESSING CHAT HISTORY ===');
-    console.log('Full data received:', JSON.stringify(data, null, 2));
-    
-    if (!data || !data.messages) {
-      console.log('No messages found in data');
-      return { flows: {}, menuData: null };
-    }
-
-    const flows = {};
-    const allMessages = [];
-    let foundMenuData = null;
-
-    // Collect ALL messages from ALL users/platforms
-    Object.entries(data.messages).forEach(([userKey, userMessages]) => {
-      console.log(`Processing messages for ${userKey}: ${userMessages.length} messages`);
-      
-      userMessages.forEach((msg, idx) => {
-        allMessages.push({
-          ...msg,
-          userKey,
-          originalIndex: idx
-        });
-        
-        // Look for main menu data
-        if (msg.message_type === 'list' && msg.metadata && msg.metadata.elements && 
-            msg.message && msg.message.includes('Main Menu')) {
-          foundMenuData = msg;
-          console.log('Found main menu data:', msg.message);
-        }
-      });
-    });
-
-    // Sort all messages by timestamp (oldest first)
-    allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    console.log(`Total messages after sorting: ${allMessages.length}`);
-
-    // Extract incoming→outgoing patterns (PRIORITY - these are real flows)
-    let flowsFound = 0;
-    for (let i = 0; i < allMessages.length - 1; i++) {
-      const current = allMessages[i];
-      const next = allMessages[i + 1];
-
-      // Look for incoming message followed by outgoing response
-      if (current.direction === 'incoming' && next.direction === 'outgoing') {
-        const trigger = current.metadata?.payload || current.message;
-        
-        console.log(`\n=== CONVERSATION FLOW FOUND #${flowsFound + 1} ===`);
-        console.log(`Trigger: "${trigger}" (${current.message_type})`);
-        console.log(`Response: "${next.message}" (${next.message_type})`);
-        console.log('Response metadata:', next.metadata);
-        
-        if (trigger) {
-          // Store the complete response with all metadata
-          flows[trigger.toLowerCase()] = {
-            message: next.message,
-            message_type: next.message_type,
-            metadata: next.metadata || {}
-          };
-
-          // Also map by title if available
-          if (current.metadata?.title) {
-            flows[current.metadata.title.toLowerCase()] = flows[trigger.toLowerCase()];
-            console.log(`Also mapped by title: "${current.metadata.title.toLowerCase()}"`);
-          }
-          
-          flowsFound++;
-        }
-      }
-    }
-
-    console.log(`\n=== CONVERSATION FLOWS SUMMARY ===`);
-    console.log(`Real conversation flows found: ${flowsFound}`);
-
-    // If we found real flows, prioritize them over menu creation
-    if (flowsFound > 0) {
-      console.log('Using real conversation flows as primary source');
-      
-      // Still add main menu triggers if we have menu data
-      if (foundMenuData) {
-        const mainMenuFlow = {
-          message: foundMenuData.message || "Main Menu Options",
-          message_type: foundMenuData.message_type || "list",
-          metadata: foundMenuData.metadata
-        };
-        
-        // Add common menu triggers
-        ['hello', 'hi', 'start', 'home', 'menu', 'main menu'].forEach(trigger => {
-          if (!flows[trigger]) { // Don't override existing flows
-            flows[trigger] = mainMenuFlow;
-          }
-        });
-      }
-    } else {
-      // Fallback to menu creation if no conversation flows found
-      console.log('No conversation flows found, creating flows from menu data');
-      if (foundMenuData) {
-        const menuFlows = createFlowsFromMenuData(foundMenuData);
-        Object.assign(flows, menuFlows);
-      }
-    }
-
-    console.log('\n=== FINAL FLOWS EXTRACTED ===');
-    console.log(`Total flows extracted: ${Object.keys(flows).length}`);
-    console.log('Available triggers:', Object.keys(flows));
-    
-    return { flows, menuData: foundMenuData };
-  };
-
-  // Get bot response based on learned flows
-  const getBotResponse = (input) => {
-    const lowerInput = input.toLowerCase().trim();
-    console.log(`\nGetting bot response for: "${input}"`);
-    console.log('Available flows:', Object.keys(botFlows));
-    
-    // Direct match (highest priority)
-    if (botFlows[lowerInput]) {
-      console.log('✅ Found direct match!');
-      return botFlows[lowerInput];
-    }
-    
-    // Partial matches for payloads
-    const partialMatch = Object.keys(botFlows).find(key => 
-      key.includes(lowerInput) || lowerInput.includes(key)
-    );
-    
-    if (partialMatch) {
-      console.log('✅ Found partial match:', partialMatch);
-      return botFlows[partialMatch];
-    }
-    
-    // Check common greetings for main menu
-    if (['hello', 'hi', 'hey', 'start', 'home', 'menu'].some(greeting => 
-      lowerInput.includes(greeting) || greeting.includes(lowerInput)
-    )) {
-      const mainMenu = botFlows['hello'] || botFlows['hi'] || botFlows['home'] || botFlows['menu'];
-      if (mainMenu) {
-        console.log('✅ Found main menu response for greeting');
-        return mainMenu;
-      }
-    }
-    
-    // Check for product-related queries
-    if (lowerInput.includes('product')) {
-      const productFlow = botFlows['general_product'] || botFlows['view products'];
-      if (productFlow) {
-        console.log('✅ Found product flow for product query');
-        return productFlow;
-      }
-    }
-    
-    // Enhanced default response with available options
-    console.log('❌ No match found, returning enhanced default response');
-    const availableOptions = Object.keys(botFlows)
-      .filter(key => !['hello', 'hi', 'start', 'home', 'menu', 'main menu'].includes(key))
-      .slice(0, 10);
-    
-    let defaultMessage = `I don't have a specific response for "${input}".`;
-    
-    if (availableOptions.length > 0) {
-      defaultMessage += ` Here are some things you can try:\n\n${availableOptions.map(opt => `• ${opt.charAt(0).toUpperCase() + opt.slice(1).replace(/_/g, ' ')}`).join('\n')}`;
-    }
-    
-    defaultMessage += `\n\nOr type "hello" to see the main menu.`;
-    
-    return {
-      message: defaultMessage,
-      message_type: "text",
-      metadata: {}
-    };
-  };
-
-  const fetchChatHistory = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('No token found');
-        setMessages([{
-          id: 'welcome',
-          content: 'Please login to test your chatbot.',
-          message: 'Please login to test your chatbot.',
-          message_type: 'text',
-          isUser: false,
-          timestamp: new Date().toISOString()
-        }]);
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log('Fetching chat history...');
-      const response = await fetch('https://api.automation365.io/test-chat-history', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch chat history: ${response.status}`);
-      }
-
-      const responseData = await response.json();
-      console.log('Raw response:', responseData);
-      
-      if (responseData.status === 'success' && responseData.data) {
-        setChatHistoryData(responseData.data);
-        
-        const { flows, menuData } = processAllChatHistory(responseData.data);
-        setBotFlows(flows);
-        setMainMenuData(menuData);
-        
-        // Show welcome message
-        const welcomeMsg = {
-          id: 'welcome',
-          content: 'Welcome! I\'ve loaded your chatbot configuration. Type "hello" to see the main menu.',
-          message: 'Welcome! I\'ve loaded your chatbot configuration. Type "hello" to see the main menu.',
-          message_type: 'text',
-          isUser: false,
-          timestamp: new Date().toISOString()
-        };
-        
-        // Check how many flows were loaded
-        const flowCount = Object.keys(flows).length;
-        const realFlowCount = Object.keys(flows).filter(key => 
-          !['hello', 'hi', 'start', 'home', 'menu', 'main menu'].includes(key)
-        ).length;
-        
-        if (realFlowCount > 6) {
-          console.log('Found rich conversation data with real flows');
-          // Show main menu automatically
-          const mainMenuFlow = flows['hello'] || flows['hi'] || flows['home'];
-          if (mainMenuFlow) {
-            console.log('Showing main menu on load');
-            setMessages([
-              welcomeMsg,
-              {
-                id: 'main-menu',
-                content: mainMenuFlow.message,
-                message: mainMenuFlow.message,
-                message_type: mainMenuFlow.message_type,
-                metadata: mainMenuFlow.metadata,
-                isUser: false,
-                timestamp: new Date().toISOString()
-              }
-            ]);
-          } else {
-            setMessages([welcomeMsg]);
-          }
-        } else {
-          console.log('Limited conversation data - showing instructions');
-          const instructionMsg = {
-            id: 'instructions',
-            content: `⚠️ **Limited Chat History Detected**\n\nI found ${flowCount} basic flows, but no rich conversation patterns.\n\n**To see the full chatbot experience:**\n• Use your chatbot on Instagram/social media\n• Create some conversations (click products, navigate menus)\n• Then come back here to test\n\n**For now, you can test basic responses:**\n• hello, hi, home (main menu)\n• faq, support, time, etc.\n\nType "hello" to start!`,
-            message: `⚠️ **Limited Chat History Detected**\n\nI found ${flowCount} basic flows, but no rich conversation patterns.\n\n**To see the full chatbot experience:**\n• Use your chatbot on Instagram/social media\n• Create some conversations (click products, navigate menus)\n• Then come back here to test\n\n**For now, you can test basic responses:**\n• hello, hi, home (main menu)\n• faq, support, time, etc.\n\nType "hello" to start!`,
-            message_type: 'text',
-            isUser: false,
-            timestamp: new Date().toISOString()
-          };
-          setMessages([instructionMsg]);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching chat history:', error);
-      setError('Failed to load chat history: ' + error.message);
-      
-      setMessages([{
-        id: 'error',
-        content: 'Failed to load chat history. You can still type messages to test the basic functionality.',
-        message: 'Failed to load chat history. You can still type messages to test the basic functionality.',
-        message_type: 'text',
-        isUser: false,
-        timestamp: new Date().toISOString()
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch chat history on component mount
+  // Initialize chat with welcome message
   useEffect(() => {
-    fetchChatHistory();
+    const token = localStorage.getItem('token');
+    const welcomeMsg = {
+      id: 'welcome',
+      content: token 
+        ? 'Welcome! I\'m your chatbot assistant. Type "hello" or click any button to get started.'
+        : 'Please login to test your chatbot.',
+      message: token 
+        ? 'Welcome! I\'m your chatbot assistant. Type "hello" or click any button to get started.'
+        : 'Please login to test your chatbot.',
+      message_type: 'text',
+      isUser: false,
+      timestamp: new Date().toISOString()
+    };
+    setMessages([welcomeMsg]);
   }, []);
 
-  const sendMessage = async (messageText, isButtonPayload = false) => {
+  const sendMessage = async (messageText, isButtonPayload = false, buttonTitle = null) => {
     if (!messageText.trim()) return;
 
+    // Get token from localStorage
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Please login to send messages');
+      setError('Please login to test your chatbot');
       return;
     }
 
-    // Don't add duplicate user message for button clicks
+    // Add user message to chat
     if (!isButtonPayload) {
       const userMessage = {
         id: `user-${Date.now()}`,
@@ -687,41 +321,50 @@ const Chatbot = () => {
     setError(null);
 
     try {
-      // Send to backend first
-      console.log('Sending to backend:', { message: messageText, isButton: isButtonPayload });
+      // Prepare the request body according to the documentation
+      let requestBody;
+      if (isButtonPayload) {
+        requestBody = {
+          type: 'button',
+          title: buttonTitle || messageText,
+          payload: messageText
+        };
+      } else {
+        requestBody = {
+          type: 'message',
+          message: messageText
+        };
+      }
+
+      console.log('Sending to API:', requestBody);
+
       const response = await fetch('https://test.automation365.io/test-chat', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          message: messageText,
-          username: 'test_user',
-          message_type: isButtonPayload ? 'button' : 'text',
-          metadata: {
-            direction: 'incoming',
-            platform: 'web',
-            ...(isButtonPayload && { payload: messageText })
-          }
-        })
+        body: JSON.stringify(requestBody)
       });
 
-      console.log('Backend response status:', response.status);
+      console.log('Response status:', response.status);
+      
+      if (response.status === 401) {
+        throw new Error('Unauthorized. Please login again.');
+      }
       
       if (!response.ok) {
         throw new Error(`Failed to send message: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Backend response data:', data);
+      console.log('Response data:', data);
       
-      // Check if backend processed the message
-      if (data && data.response && data.response !== "Nothing processed") {
-        // Use backend response
-        console.log('Using backend response');
+      // Process the response
+      if (data && data.response) {
         let botResponse = data.response;
         
+        // If response is a string, convert to message object
         if (typeof botResponse === 'string') {
           botResponse = {
             message: botResponse,
@@ -730,28 +373,27 @@ const Chatbot = () => {
           };
         }
         
+        // Create bot message
         const botMessage = {
           id: `bot-${Date.now()}`,
-          content: botResponse.message,
-          message: botResponse.message,
+          content: botResponse.message || botResponse.Type || 'I received your message',
+          message: botResponse.message || botResponse.Type || 'I received your message',
           message_type: botResponse.message_type || 'text',
           metadata: botResponse.metadata || {},
+          Type: botResponse.Type,
           isUser: false,
           timestamp: new Date().toISOString()
         };
         
         setMessages(prev => [...prev, botMessage]);
       } else {
-        // Backend didn't process, use learned flows
-        console.log('Backend returned "Nothing processed", using learned flows');
-        const learnedResponse = getBotResponse(messageText);
-        
+        // Fallback response if no data
         const botMessage = {
           id: `bot-${Date.now()}`,
-          content: learnedResponse.message,
-          message: learnedResponse.message,
-          message_type: learnedResponse.message_type || 'text',
-          metadata: learnedResponse.metadata || {},
+          content: 'I\'m sorry, I couldn\'t process your request. Please try again.',
+          message: 'I\'m sorry, I couldn\'t process your request. Please try again.',
+          message_type: 'text',
+          metadata: {},
           isUser: false,
           timestamp: new Date().toISOString()
         };
@@ -760,21 +402,20 @@ const Chatbot = () => {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setError('Failed to send message. Please try again.');
       
-      // On error, still try to use learned flows
-      const learnedResponse = getBotResponse(messageText);
-      
-      const botMessage = {
-        id: `bot-${Date.now()}`,
-        content: learnedResponse.message,
-        message: learnedResponse.message,
-        message_type: learnedResponse.message_type || 'text',
-        metadata: learnedResponse.metadata || {},
+      // Add error message to chat
+      const errorMessage = {
+        id: `error-${Date.now()}`,
+        content: 'Sorry, I encountered an error. Please try again later.',
+        message: 'Sorry, I encountered an error. Please try again later.',
+        message_type: 'text',
+        metadata: {},
         isUser: false,
         timestamp: new Date().toISOString()
       };
       
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsSending(false);
     }
@@ -803,15 +444,20 @@ const Chatbot = () => {
     
     setMessages(prev => [...prev, userMessage]);
     
-    // Send the payload
-    sendMessage(payload, true);
+    // Send the button click with both payload and title
+    sendMessage(payload, true, title);
   };
 
   const clearChat = () => {
+    const token = localStorage.getItem('token');
     const welcomeMsg = {
       id: 'welcome-new',
-      content: 'Chat cleared! Type "hello" to see the main menu.',
-      message: 'Chat cleared! Type "hello" to see the main menu.',
+      content: token 
+        ? 'Chat cleared! Type "hello" or click any button to get started.'
+        : 'Please login to test your chatbot.',
+      message: token 
+        ? 'Chat cleared! Type "hello" or click any button to get started.'
+        : 'Please login to test your chatbot.',
       message_type: 'text',
       isUser: false,
       timestamp: new Date().toISOString()
@@ -837,7 +483,7 @@ const Chatbot = () => {
                   <div>
                     <h2 className="text-lg font-medium">Test Your Bot</h2>
                     <p className="text-sm opacity-90">
-                      Testing your personalized chatbot based on your configuration
+                      Send messages or click buttons to interact with your chatbot
                     </p>
                   </div>
                   <Button
@@ -858,20 +504,13 @@ const Chatbot = () => {
                 </div>
               )}
               
-              {/* Debug Info */}
-              {Object.keys(botFlows).length > 0 && (
-                <div className="p-3 bg-blue-50 border-b border-blue-200 text-blue-700 text-sm">
-                  <strong>Chatbot Status:</strong> Loaded {Object.keys(botFlows).length} conversation flows
-                </div>
-              )}
-              
               <div className="h-[calc(100%-80px)] flex flex-col">
                 <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
                   {isLoading ? (
                     <div className="flex justify-center items-center h-full">
                       <div className="text-center">
                         <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-2" />
-                        <p className="text-gray-500">Loading your chatbot configuration...</p>
+                        <p className="text-gray-500">Loading...</p>
                       </div>
                     </div>
                   ) : (
@@ -887,11 +526,9 @@ const Chatbot = () => {
                       {isSending && (
                         <div className="flex gap-3 mb-4">
                           <div className="relative">
-                            <img 
-                              src="/api/placeholder/40/40"
-                              alt="Bot"
-                              className="w-10 h-10 rounded-full"
-                            />
+                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              🤖
+                            </div>
                             <div className="absolute -right-1 bottom-0">
                               <Instagram className="w-4 h-4 text-pink-500" />
                             </div>
@@ -909,17 +546,17 @@ const Chatbot = () => {
                 <div className="p-4 border-t bg-white">
                   <div className="flex gap-2">
                     <Input 
-                      placeholder="Type your message..."
+                      placeholder={localStorage.getItem('token') ? "Type your message..." : "Please login to send messages"}
                       className="flex-1"
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      disabled={isSending}
+                      disabled={isSending || !localStorage.getItem('token')}
                     />
                     <Button 
                       className="bg-purple-600 text-white px-8 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => sendMessage(inputMessage)}
-                      disabled={isSending || !inputMessage.trim()}
+                      disabled={isSending || !inputMessage.trim() || !localStorage.getItem('token')}
                     >
                       <Send className="w-4 h-4" />
                     </Button>
