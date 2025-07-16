@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ProductCard from '../ProductCard';
 import ServiceCard from '../ServiceCard';
 
@@ -36,6 +38,8 @@ const PaginationButton = ({ children, active, onClick }) => (
 );
 
 const ProductPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('products');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -50,10 +54,14 @@ const ProductPage = () => {
 
   const productsPerPage = 8;
 
-  // Initialize search from component props or state
+  // Get search query from URL params
   useEffect(() => {
-    // Search can be initialized from props if needed
-  }, []);
+    const urlParams = new URLSearchParams(location.search);
+    const searchParam = urlParams.get('search');
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    }
+  }, [location]);
 
   // Fetch products and services on component mount
   useEffect(() => {
@@ -72,39 +80,26 @@ const ProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/products', {
-        method: 'GET',
+      const response = await axios.get('https://api.automation365.io/products', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          localStorage.removeItem('token');
-          return;
-        }
-        throw new Error('Failed to fetch products');
-      }
-
-      const data = await response.json();
-
       // Process the response data
-      let products = data || [];
+      let products = response.data || [];
       
       // Ensure all products have required fields with defaults
-      // Keep status as boolean internally for consistency
       products = products.map(product => ({
         ...product,
         id: product.id || product._id,
-        // Normalize status to boolean
         status: typeof product.status === 'boolean' 
-          ? product.status 
-          : (product.status === 'true' || product.status === true),
+          ? (product.status ? 'true' : 'false')
+          : (product.status || 'true'),
         quantity: product.quantity || 0,
         price: product.price || 0,
         name: product.name || 'Untitled Product',
@@ -123,7 +118,13 @@ const ProductPage = () => {
       setAllProducts(products);
     } catch (error) {
       console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to load products');
+      }
     } finally {
       setLoading(false);
     }
@@ -136,26 +137,14 @@ const ProductPage = () => {
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/services', {
-        method: 'GET',
+      const response = await axios.get('https://api.automation365.io/services', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          localStorage.removeItem('token');
-          return;
-        }
-        throw new Error('Failed to fetch services');
-      }
-
-      const data = await response.json();
-
       // Process the response data
-      let services = data || [];
+      let services = response.data || [];
       
       // Ensure all services have required fields with defaults
       services = services.map(service => ({
@@ -176,7 +165,13 @@ const ProductPage = () => {
       setAllServices(services);
     } catch (error) {
       console.error('Error fetching services:', error);
-      toast.error('Failed to load services');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to load services');
+      }
     }
   };
 
@@ -197,15 +192,11 @@ const ProductPage = () => {
     
     // Apply active filter
     if (filterActive) {
-      filteredData = filteredData.filter(item => {
-        if (isProducts) {
-          // For products, check boolean status
-          return item.status === true;
-        } else {
-          // For services, check string status
-          return item.status === 'published' || item.status === 'true';
-        }
-      });
+      filteredData = filteredData.filter(item => 
+        isProducts 
+          ? item.status === 'true' 
+          : (item.status === 'published' || item.status === 'true')
+      );
     }
     
     // Calculate pagination
@@ -229,11 +220,18 @@ const ProductPage = () => {
     const query = e.target.value;
     setSearchQuery(query);
     setCurrentPage(1); // Reset to first page on search
+    
+    // Update URL without triggering a page reload
+    const newUrl = query.trim() 
+      ? `${location.pathname}?search=${encodeURIComponent(query)}`
+      : location.pathname;
+    window.history.replaceState({}, '', newUrl);
   };
 
   const clearSearch = () => {
     setSearchQuery('');
     setCurrentPage(1);
+    window.history.replaceState({}, '', location.pathname);
   };
 
   const handleToggleStatus = async (id, newStatus) => {
@@ -244,65 +242,56 @@ const ProductPage = () => {
         return;
       }
 
-      // Convert string status to boolean for products
-      const statusToSend = activeTab === 'products' 
-        ? (newStatus === 'true' || newStatus === true)
-        : newStatus;
-
-      const response = await fetch(
+      const response = await axios.post(
         'https://api.automation365.io/product-status',
         {
-          method: 'POST',
+          id,
+          status: newStatus
+        },
+        {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id,
-            status: statusToSend
-          })
+          }
         }
       );
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          localStorage.removeItem('token');
-          return;
-        }
-        throw new Error('Failed to update status');
-      }
-
-      const data = await response.json();
-
-      if (data.message === "Status updated") {
+      if (response.data.message === "Status updated") {
         toast.success('Status updated successfully');
         
         // Update the local state
         if (activeTab === 'products') {
           setAllProducts(prevProducts => 
             prevProducts.map(product => 
-              product.id === id ? { ...product, status: statusToSend } : product
+              product.id === id ? { ...product, status: newStatus } : product
             )
           );
         } else {
           setAllServices(prevServices => 
             prevServices.map(service => 
-              service.id === id ? { ...service, status: statusToSend } : service
+              service.id === id ? { ...service, status: newStatus } : service
             )
           );
         }
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error('Failed to update status');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to update status');
+      }
     }
   };
 
   const handleEdit = (id) => {
-    // In a real app, this would navigate to edit page
-    // For now, just show a message
-    toast.info(`Edit ${activeTab === 'products' ? 'product' : 'service'} with ID: ${id}`);
+    if (activeTab === 'products') {
+      navigate(`/EditProduct?id=${id}`);
+    } else {
+      navigate(`/EditService?id=${id}`);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -317,30 +306,18 @@ const ProductPage = () => {
         ? 'https://api.automation365.io/delete-services'
         : 'https://api.automation365.io/delete-products';
 
-      const response = await fetch(
+      const response = await axios.post(
         endpoint,
+        { id },
         {
-          method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ id })
+          }
         }
       );
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          localStorage.removeItem('token');
-          return;
-        }
-        throw new Error(`Failed to delete ${activeTab === 'services' ? 'service' : 'product'}`);
-      }
-
-      const data = await response.json();
-
-      if (data === "done") {
+      if (response.data === "done") {
         toast.success(`${activeTab === 'services' ? 'Service' : 'Product'} deleted successfully`);
         
         // Update the local state by removing the deleted item
@@ -352,13 +329,18 @@ const ProductPage = () => {
       }
     } catch (error) {
       console.error(`Error deleting ${activeTab === 'services' ? 'service' : 'product'}:`, error);
-      toast.error(`Failed to delete ${activeTab === 'services' ? 'service' : 'product'}`);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error(`Failed to delete ${activeTab === 'services' ? 'service' : 'product'}`);
+      }
     }
   };
 
   const handleAddNew = () => {
-    // In a real app, this would navigate to add page
-    toast.info(`Add new ${activeTab === 'products' ? 'product' : 'service'}`);
+    navigate(activeTab === 'products' ? '/AddProductPage' : '/AddServices');
   };
 
   const handleFilterToggle = () => {
@@ -575,7 +557,7 @@ const ProductPage = () => {
                             title={item.name}
                             price={item.price}
                             quantity={item.quantity}
-                            status={item.status ? 'true' : 'false'}
+                            status={item.status}
                             vname={item.vname}
                             onEdit={handleEdit}
                             onToggle={handleToggleStatus}
