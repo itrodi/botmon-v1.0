@@ -97,7 +97,56 @@ const Onboarding2 = () => {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Get user token on component mount
+  // Helper function to get Instagram profile info
+  const getInstagramProfileInfo = () => {
+    try {
+      const profileData = JSON.parse(localStorage.getItem('instagram_profile') || '{}');
+      return profileData;
+    } catch {
+      return {};
+    }
+  };
+
+  // Separate function to handle Instagram OAuth callback
+  const handleInstagramCallback = (urlParams) => {
+    const success = urlParams.get('success');
+    const username = urlParams.get('username');
+    const profilePicture = urlParams.get('profile_picture');
+    
+    // Case-insensitive check for success (handles both 'true' and 'True')
+    if (success && success.toLowerCase() === 'true') {
+      setLinkedAccounts(prev => {
+        const updated = { ...prev, instagram: true };
+        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
+        
+        // Store Instagram profile info
+        if (username || profilePicture) {
+          const profileData = {
+            username,
+            profilePicture: profilePicture ? decodeURIComponent(profilePicture) : null,
+            linkedAt: new Date().toISOString()
+          };
+          localStorage.setItem('instagram_profile', JSON.stringify(profileData));
+        }
+        
+        return updated;
+      });
+      
+      toast.success(`Successfully linked Instagram${username ? ` (@${username})` : ''}`);
+      
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Stop loading state
+      setLoading(prev => ({ ...prev, instagram: false }));
+    } else if (success && success.toLowerCase() === 'false') {
+      toast.error('Failed to link Instagram. Please try again.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setLoading(prev => ({ ...prev, instagram: false }));
+    }
+  };
+
+  // Get user token on component mount and handle OAuth callbacks
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -108,24 +157,14 @@ const Onboarding2 = () => {
     }
     setUserToken(token);
 
+    // Load previously linked accounts from localStorage
+    const savedLinkedAccounts = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
+    setLinkedAccounts(savedLinkedAccounts);
+
     // Check for OAuth callback parameters (for Instagram)
     const urlParams = new URLSearchParams(window.location.search);
-    const success = urlParams.get('success');
-    const username = urlParams.get('username');
-    const profilePicture = urlParams.get('profile_picture');
-    
-    if (success === 'true') {
-      setLinkedAccounts(prev => {
-        const updated = { ...prev, instagram: true };
-        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
-        return updated;
-      });
-      toast.success(`Successfully linked Instagram${username ? ` (@${username})` : ''}`);
-      // Clear URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (success === 'false') {
-      toast.error('Failed to link Instagram. Please try again.');
-      window.history.replaceState({}, document.title, window.location.pathname);
+    if (urlParams.has('success')) {
+      handleInstagramCallback(urlParams);
     }
 
     // Check existing linked accounts
@@ -138,9 +177,18 @@ const Onboarding2 = () => {
     if (!token) return;
 
     try {
-      // Check localStorage for now - you might want to add a backend endpoint to check linked accounts
+      // First, check localStorage for immediate update
       const linked = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
       setLinkedAccounts(linked);
+      
+      // Also check for any OAuth redirect parameters that might not have been processed
+      const urlParams = new URLSearchParams(window.location.search);
+      const success = urlParams.get('success');
+      
+      if (success && !linked.instagram) {
+        // Process any pending Instagram OAuth callback
+        handleInstagramCallback(urlParams);
+      }
       
       // TODO: Add backend endpoint to fetch actual linked account status
       // const response = await fetch('https://api.automation365.io/linked-accounts', {
@@ -328,12 +376,15 @@ const Onboarding2 = () => {
     }, 1500);
   };
 
-  // Platform configurations
+  // Platform configurations with dynamic Instagram info
+  const instagramProfile = getInstagramProfileInfo();
   const socialPlatforms = [
     {
       id: 'facebook',
-      name: 'Link Facebook/Messenger',
-      description: 'Connect your Facebook Page for Messenger integration',
+      name: linkedAccounts.facebook ? 'Linked Facebook/Messenger' : 'Link Facebook/Messenger',
+      description: linkedAccounts.facebook 
+        ? 'Facebook Page connected for Messenger' 
+        : 'Connect your Facebook Page for Messenger integration',
       icon: '📘',
       bgColor: 'bg-blue-100',
       textColor: 'text-blue-700',
@@ -342,8 +393,12 @@ const Onboarding2 = () => {
     },
     {
       id: 'instagram',
-      name: 'Link Instagram Business',
-      description: 'Connect your Instagram Business account',
+      name: linkedAccounts.instagram 
+        ? `Linked: @${instagramProfile.username || 'Instagram Business'}` 
+        : 'Link Instagram Business',
+      description: linkedAccounts.instagram 
+        ? 'Instagram Business account connected' 
+        : 'Connect your Instagram Business account',
       icon: '📷',
       bgColor: 'bg-pink-100',
       textColor: 'text-pink-700',
@@ -352,8 +407,10 @@ const Onboarding2 = () => {
     },
     {
       id: 'whatsapp',
-      name: 'Link WhatsApp Business',
-      description: 'Connect your WhatsApp Business API',
+      name: linkedAccounts.whatsapp ? 'Linked WhatsApp Business' : 'Link WhatsApp Business',
+      description: linkedAccounts.whatsapp 
+        ? 'WhatsApp Business API connected' 
+        : 'Connect your WhatsApp Business API',
       icon: '💬',
       bgColor: 'bg-green-100',
       textColor: 'text-green-700',
@@ -463,9 +520,7 @@ const Onboarding2 = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
-                          {linkedAccounts[platform.id] 
-                            ? platform.name.replace('Link', 'Linked') 
-                            : platform.name}
+                          {platform.name}
                         </span>
                         {linkedAccounts[platform.id] && (
                           <Check className="w-4 h-4 text-green-600" />
@@ -532,7 +587,7 @@ const Onboarding2 = () => {
               
               {/* OAuth Flow Info */}
               <div className="mt-3 text-xs text-gray-500">
-                <p>After clicking a platform, you'll be redirected to authorize the connection. Once complete, click "Refresh Status" to see the updated status.</p>
+                <p>After clicking a platform, you'll be redirected to authorize the connection. Once complete, you'll be redirected back here automatically.</p>
               </div>
             </div>
 
