@@ -372,7 +372,7 @@ const Onboarding2 = () => {
     
     // Navigate to dashboard after a short delay
     setTimeout(() => {
-      window.location.href = '/dashboard';
+      window.location.href = '/Overview';
     }, 1500);
   };
 
