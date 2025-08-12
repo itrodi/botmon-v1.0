@@ -54,7 +54,7 @@ const AddServicesPage = () => {
     link: '',
     category: '',
     sub: '',
-    status: 'published', // Backend default
+    status: 'true', // Backend default
     payment: true // Backend field
   });
   
@@ -397,7 +397,7 @@ const AddServicesPage = () => {
 
       if (response.data.message === "done") {
         toast.success('Service added successfully');
-        navigate('/products'); // Navigate back to products page
+        navigate('/ProductPage'); // Navigate back to products page
       }
     } catch (error) {
       console.error('Error uploading service:', error);
@@ -413,7 +413,7 @@ const AddServicesPage = () => {
   };
 
   const handleDiscard = () => {
-    navigate('/products'); // Navigate back to products page
+    navigate('/ProductPage'); // Navigate back to products page
   };
 
   return (
@@ -707,9 +707,8 @@ const AddServicesPage = () => {
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="published">Active</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="archived">Archived</SelectItem>
+                            <SelectItem value="true">Active</SelectItem>
+                            <SelectItem value="false">Inactive</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

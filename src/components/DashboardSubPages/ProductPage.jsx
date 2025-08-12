@@ -150,7 +150,7 @@ const ProductPage = () => {
       services = services.map(service => ({
         ...service,
         id: service.id || service._id,
-        status: service.status || 'published',
+        status: service.status || 'true',
         price: service.price || 0,
         name: service.name || 'Untitled Service',
         image: service.image || '',
