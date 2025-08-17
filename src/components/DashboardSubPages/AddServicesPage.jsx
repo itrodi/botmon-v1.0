@@ -397,7 +397,7 @@ const AddServicesPage = () => {
 
       if (response.data.message === "done") {
         toast.success('Service added successfully');
-        navigate('/ProductPage'); // Navigate back to products page
+        navigate('/ProductPage?tab=services'); // Navigate back to products page
       }
     } catch (error) {
       console.error('Error uploading service:', error);
@@ -413,7 +413,7 @@ const AddServicesPage = () => {
   };
 
   const handleDiscard = () => {
-    navigate('/ProductPage'); // Navigate back to products page
+    navigate('/ProductPage?tab=services'); // Navigate back to products page
   };
 
   return (

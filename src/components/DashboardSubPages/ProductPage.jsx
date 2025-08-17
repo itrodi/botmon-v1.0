@@ -54,6 +54,20 @@ const ProductPage = () => {
 
   const productsPerPage = 8;
 
+  // Helper function to normalize status values
+  const normalizeStatus = (status) => {
+    // Convert various status formats to 'true' or 'false' string
+    if (status === true || 
+        status === 'true' || 
+        status === 'active' || 
+        status === 'published' || 
+        status === 1 || 
+        status === '1') {
+      return 'true';
+    }
+    return 'false';
+  };
+
   // Get search query from URL params
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
@@ -94,12 +108,12 @@ const ProductPage = () => {
       let products = response.data || [];
       
       // Ensure all products have required fields with defaults
+      // Normalize status to string 'true' or 'false'
       products = products.map(product => ({
         ...product,
         id: product.id || product._id,
-        status: typeof product.status === 'boolean' 
-          ? (product.status ? 'true' : 'false')
-          : (product.status || 'true'),
+        // Normalize status to 'true' or 'false' string
+        status: normalizeStatus(product.status),
         quantity: product.quantity || 0,
         price: product.price || 0,
         name: product.name || 'Untitled Product',
@@ -147,10 +161,12 @@ const ProductPage = () => {
       let services = response.data || [];
       
       // Ensure all services have required fields with defaults
+      // Normalize status to string 'true' or 'false'
       services = services.map(service => ({
         ...service,
         id: service.id || service._id,
-        status: service.status || 'true',
+        // Normalize status to 'true' or 'false' string
+        status: normalizeStatus(service.status),
         price: service.price || 0,
         name: service.name || 'Untitled Service',
         image: service.image || '',
@@ -190,19 +206,28 @@ const ProductPage = () => {
       );
     }
     
-    // Apply active filter
+    // Apply active filter - handle both boolean and string status values
     if (filterActive) {
-      filteredData = filteredData.filter(item => 
-        isProducts 
-          ? item.status === 'true' 
-          : (item.status === 'published' || item.status === 'true')
-      );
+      filteredData = filteredData.filter(item => {
+        // Normalize status to boolean for comparison
+        const itemIsActive = item.status === 'true' || 
+                            item.status === true || 
+                            item.status === 'active' || 
+                            item.status === 'published';
+        return itemIsActive;
+      });
     }
     
     // Calculate pagination
     const totalItems = filteredData.length;
     const totalPages = Math.ceil(totalItems / productsPerPage);
     setTotalPages(totalPages);
+    
+    // Ensure current page is valid
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+      return; // Will re-run with new currentPage
+    }
     
     // Paginate the results
     const startIndex = (currentPage - 1) * productsPerPage;
@@ -242,11 +267,16 @@ const ProductPage = () => {
         return;
       }
 
+      // Determine the correct endpoint based on the active tab
+      const endpoint = activeTab === 'services' 
+        ? 'https://api.automation365.io/service-status'  // You may need to verify this endpoint
+        : 'https://api.automation365.io/product-status';
+
       const response = await axios.post(
-        'https://api.automation365.io/product-status',
+        endpoint,
         {
           id,
-          status: newStatus
+          status: newStatus  // This will be 'true' or 'false' as string
         },
         {
           headers: {
@@ -256,10 +286,10 @@ const ProductPage = () => {
         }
       );
 
-      if (response.data.message === "Status updated") {
+      if (response.data.message === "Status updated" || response.data === "done") {
         toast.success('Status updated successfully');
         
-        // Update the local state
+        // Update the local state with the new status
         if (activeTab === 'products') {
           setAllProducts(prevProducts => 
             prevProducts.map(product => 
@@ -276,6 +306,22 @@ const ProductPage = () => {
       }
     } catch (error) {
       console.error('Error updating status:', error);
+      
+      // Revert the status in the UI if the API call failed
+      if (activeTab === 'products') {
+        const product = allProducts.find(p => p.id === id);
+        if (product) {
+          // Force re-render with original status
+          setAllProducts([...allProducts]);
+        }
+      } else {
+        const service = allServices.find(s => s.id === id);
+        if (service) {
+          // Force re-render with original status
+          setAllServices([...allServices]);
+        }
+      }
+      
       if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
         localStorage.removeItem('token');

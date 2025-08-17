@@ -28,8 +28,8 @@ const ServiceCard = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
-  // Handle different status formats
-  const isActive = status === 'published' || status === 'active';
+  // Handle different status formats - normalize to boolean
+  const isActive = status === 'true' || status === true || status === 'published' || status === 'active';
   const hasVariants = vname && vname.length > 0;
 
   const handleDeleteClick = () => {
@@ -51,7 +51,8 @@ const ServiceCard = ({
   const handleToggle = async (checked) => {
     setIsToggling(true);
     try {
-      const newStatus = checked ? 'published' : 'draft';
+      // Send as 'true' or 'false' string to match backend expectation
+      const newStatus = checked ? 'true' : 'false';
       await onToggle(id, newStatus);
     } finally {
       setIsToggling(false);
@@ -69,17 +70,16 @@ const ServiceCard = ({
 
   // Get status color
   const getStatusColor = () => {
-    switch (status) {
-      case 'published':
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'draft':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'archived':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    if (isActive) {
+      return 'bg-green-100 text-green-800';
+    } else {
+      return 'bg-red-100 text-red-800';
     }
+  };
+
+  // Get display status text
+  const getStatusText = () => {
+    return isActive ? 'active' : 'inactive';
   };
 
   return (
@@ -106,7 +106,7 @@ const ServiceCard = ({
         {/* Status Badge */}
         <div className="absolute top-2 left-2">
           <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor()}`}>
-            {status === 'published' ? 'active' : status}
+            {getStatusText()}
           </span>
         </div>
 

@@ -56,7 +56,7 @@ const EditServicePage = () => {
     link: '',
     category: '',
     sub: '',
-    status: 'published',
+    status: 'true',
     payment: true // Backend field
   });
   
@@ -106,7 +106,7 @@ const EditServicePage = () => {
       fetchCategories();
     } else {
       toast.error("No service ID provided");
-      navigate('/products');
+      navigate('/ProductPage?tab=services');
     }
   }, [serviceId]);
 
@@ -137,7 +137,7 @@ const EditServicePage = () => {
 
       if (!service || Object.keys(service).length === 0) {
         toast.error('Service not found');
-        navigate('/products');
+        navigate('/ProductPage?tab=services');
         return;
       }
 
@@ -149,7 +149,7 @@ const EditServicePage = () => {
         link: service.link || '',
         category: service.category || '',
         sub: service.sub || '',
-        status: service.status || 'published',
+        status: service.status || 'true',
         payment: service.payment !== undefined ? service.payment : true
       });
 
@@ -498,7 +498,7 @@ const EditServicePage = () => {
 
       if (response.data.message === "service updated successfully") {
         toast.success('Service updated successfully');
-        navigate('/products');
+        navigate('/ProductPage?tab=services');
       }
     } catch (error) {
       console.error('Error updating service:', error);
@@ -514,7 +514,7 @@ const EditServicePage = () => {
   };
 
   const handleDiscard = () => {
-    navigate('/products'); // Navigate back to products page
+    navigate('/ProductPage?tab=services'); // Navigate back to products page
   };
 
   if (isFetching) {
@@ -827,9 +827,9 @@ const EditServicePage = () => {
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="published">Active</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="archived">Archived</SelectItem>
+                            <SelectItem value="true">Active</SelectItem>
+                            <SelectItem value="false">Inactive</SelectItem>
+
                           </SelectContent>
                         </Select>
                       </div>

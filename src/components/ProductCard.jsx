@@ -28,9 +28,8 @@ const ProductCard = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
-  // Handle different status formats (string or boolean)
-  const isActive = status === 'active' || status === true;
-  const currentStatus = typeof status === 'string' ? status : (status ? 'active' : 'inactive');
+  // Handle different status formats - normalize to boolean
+  const isActive = status === 'true' || status === true || status === 'active';
   const hasVariants = vname && vname.length > 0;
 
   const handleDeleteClick = () => {
@@ -50,7 +49,8 @@ const ProductCard = ({
   const handleToggle = async (checked) => {
     setIsToggling(true);
     try {
-      const newStatus = checked ? 'active' : 'inactive';
+      // Send as 'true' or 'false' string to match backend expectation
+      const newStatus = checked ? 'true' : 'false';
       await onToggle(id, newStatus);
     } finally {
       setIsToggling(false);
@@ -68,16 +68,16 @@ const ProductCard = ({
 
   // Get status color
   const getStatusColor = () => {
-    switch (currentStatus) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-red-100 text-red-800';
-      case 'draft':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    if (isActive) {
+      return 'bg-green-100 text-green-800';
+    } else {
+      return 'bg-red-100 text-red-800';
     }
+  };
+
+  // Get display status text
+  const getStatusText = () => {
+    return isActive ? 'active' : 'inactive';
   };
 
   return (
@@ -104,7 +104,7 @@ const ProductCard = ({
         {/* Status Badge */}
         <div className="absolute top-2 left-2">
           <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor()}`}>
-            {currentStatus}
+            {getStatusText()}
           </span>
         </div>
 
