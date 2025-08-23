@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, X } from 'lucide-react';
+import { Upload, Plus, X, Edit2, Settings } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,11 +19,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 const AddProductPage = () => {
   // State for modals
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showManageCategoriesModal, setShowManageCategoriesModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingSubcategory, setEditingSubcategory] = useState(null);
+  
+  // Edit category form state
+  const [editCategoryForm, setEditCategoryForm] = useState({
+    cat_id: '',
+    category: '',
+    sub_id: '',
+    sub: ''
+  });
   
   // Main product state - matching backend exactly with boolean status
   const [productData, setProductData] = useState({
@@ -71,7 +88,7 @@ const AddProductPage = () => {
     sub: ''
   });
   
-  // Available categories and subcategories
+  // Available categories and subcategories - store full objects with IDs
   const [categories, setCategories] = useState([]);
   const [subs, setSubs] = useState([]);
   
@@ -79,6 +96,7 @@ const AddProductPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isEditingCategory, setIsEditingCategory] = useState(false);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -111,29 +129,186 @@ const AddProductPage = () => {
       const data = await response.json();
       console.log('Categories response:', data);
 
-      // Convert object to array since backend returns {0: "cat1", 1: "cat2", ...}
-      if (data.categories) {
-        const categoriesObj = data.categories;
-        const categoriesArray = Object.keys(categoriesObj)
-          .sort((a, b) => Number(a) - Number(b)) // Sort by numeric key
-          .map(key => categoriesObj[key])
-          .filter(cat => cat); // Filter out empty values
-        setCategories(categoriesArray);
+      // Store full objects with IDs for editing
+      if (data.categories && Array.isArray(data.categories)) {
+        // Filter out duplicates based on name
+        const uniqueCategories = data.categories.reduce((acc, cat) => {
+          if (cat && cat.name && !acc.find(c => c.name === cat.name)) {
+            acc.push(cat);
+          }
+          return acc;
+        }, []);
+        setCategories(uniqueCategories);
       }
       
-      if (data.subs) {
-        const subsObj = data.subs;
-        const subsArray = Object.keys(subsObj)
-          .sort((a, b) => Number(a) - Number(b)) // Sort by numeric key
-          .map(key => subsObj[key])
-          .filter(sub => sub); // Filter out empty values
-        setSubs(subsArray);
+      if (data.subs && Array.isArray(data.subs)) {
+        // Filter out empty subcategories and duplicates
+        const uniqueSubs = data.subs.reduce((acc, sub) => {
+          if (sub && sub.name && !acc.find(s => s.name === sub.name)) {
+            acc.push(sub);
+          }
+          return acc;
+        }, []);
+        setSubs(uniqueSubs);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast.error('Failed to load categories');
+      // Set empty arrays to prevent crashes
+      setCategories([]);
+      setSubs([]);
     } finally {
       setIsLoadingCategories(false);
+    }
+  };
+
+  // Handle edit category
+  const handleEditCategory = async () => {
+    if (!editCategoryForm.cat_id || !editCategoryForm.category) {
+      toast.error('Please provide a new category name');
+      return;
+    }
+
+    setIsEditingCategory(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        return;
+      }
+
+      const response = await fetch(
+        'https://api.automation365.io/product/edit-category',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            cat_id: editCategoryForm.cat_id,
+            category: editCategoryForm.category
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to edit category');
+      }
+
+      const result = await response.json();
+
+      if (result.message === "Category updated successfully") {
+        // Update local state
+        setCategories(prev => prev.map(cat => 
+          cat.id === editCategoryForm.cat_id 
+            ? { ...cat, name: editCategoryForm.category }
+            : cat
+        ));
+        
+        // Update product data if it uses this category
+        const oldCategory = categories.find(c => c.id === editCategoryForm.cat_id);
+        if (oldCategory && productData.category === oldCategory.name) {
+          setProductData(prev => ({
+            ...prev,
+            category: editCategoryForm.category
+          }));
+        }
+
+        toast.success('Category updated successfully');
+        setEditingCategory(null);
+        setEditCategoryForm({
+          cat_id: '',
+          category: '',
+          sub_id: '',
+          sub: ''
+        });
+        
+        // Refresh categories to ensure consistency
+        fetchCategories();
+      }
+    } catch (error) {
+      console.error('Error editing category:', error);
+      toast.error(error.message || 'Failed to edit category');
+    } finally {
+      setIsEditingCategory(false);
+    }
+  };
+
+  // Handle edit subcategory
+  const handleEditSubcategory = async () => {
+    if (!editCategoryForm.sub_id || !editCategoryForm.sub) {
+      toast.error('Please provide a new subcategory name');
+      return;
+    }
+
+    setIsEditingCategory(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        return;
+      }
+
+      const response = await fetch(
+        'https://api.automation365.io/product/edit-sub',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sub_id: editCategoryForm.sub_id,
+            sub: editCategoryForm.sub
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to edit subcategory');
+      }
+
+      const result = await response.json();
+
+      if (result.message === "Sub updated successfully") {
+        // Update local state
+        setSubs(prev => prev.map(sub => 
+          sub.id === editCategoryForm.sub_id 
+            ? { ...sub, name: editCategoryForm.sub }
+            : sub
+        ));
+        
+        // Update product data if it uses this subcategory
+        const oldSub = subs.find(s => s.id === editCategoryForm.sub_id);
+        if (oldSub && productData.sub === oldSub.name) {
+          setProductData(prev => ({
+            ...prev,
+            sub: editCategoryForm.sub
+          }));
+        }
+
+        toast.success('Subcategory updated successfully');
+        setEditingSubcategory(null);
+        setEditCategoryForm({
+          cat_id: '',
+          category: '',
+          sub_id: '',
+          sub: ''
+        });
+        
+        // Refresh categories to ensure consistency
+        fetchCategories();
+      }
+    } catch (error) {
+      console.error('Error editing subcategory:', error);
+      toast.error(error.message || 'Failed to edit subcategory');
+    } finally {
+      setIsEditingCategory(false);
     }
   };
 
@@ -283,6 +458,18 @@ const AddProductPage = () => {
       return;
     }
 
+    // Check for duplicate category
+    if (categories.some(cat => cat.name === newCategory.category)) {
+      toast.error('This category already exists');
+      return;
+    }
+
+    // Check for duplicate subcategory if provided
+    if (newCategory.sub && subs.some(sub => sub.name === newCategory.sub)) {
+      toast.error('This subcategory already exists');
+      return;
+    }
+
     setIsAddingCategory(true);
 
     try {
@@ -310,15 +497,7 @@ const AddProductPage = () => {
 
       const result = await response.json();
 
-      if (result === "done") {
-        // Update local categories and subs lists
-        if (newCategory.category && !categories.includes(newCategory.category)) {
-          setCategories(prev => [...prev, newCategory.category]);
-        }
-        if (newCategory.sub && !subs.includes(newCategory.sub)) {
-          setSubs(prev => [...prev, newCategory.sub]);
-        }
-
+      if (result.message === "Category and subcategory added") {
         // Reset the form
         setNewCategory({
           category: '',
@@ -625,14 +804,24 @@ const AddProductPage = () => {
               <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
                 <div className="flex justify-between items-center border-b pb-2">
                   <h3 className="text-lg font-medium">Product Category</h3>
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    onClick={() => setShowCategoryModal(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> Add Category
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      onClick={() => setShowManageCategoriesModal(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" /> Manage Categories
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      onClick={() => setShowCategoryModal(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" /> Add Category
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -653,9 +842,9 @@ const AddProductPage = () => {
                         ) : categories.length === 0 ? (
                           <SelectItem value="_empty" disabled>No categories available</SelectItem>
                         ) : (
-                          categories.map((cat, idx) => (
-                            <SelectItem key={idx} value={cat}>
-                              {cat}
+                          categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.name}>
+                              {cat.name}
                             </SelectItem>
                           ))
                         )}
@@ -679,9 +868,9 @@ const AddProductPage = () => {
                         ) : subs.length === 0 ? (
                           <SelectItem value="_empty" disabled>No subcategories available</SelectItem>
                         ) : (
-                          subs.map((sub, idx) => (
-                            <SelectItem key={idx} value={sub}>
-                              {sub}
+                          subs.map((sub) => (
+                            <SelectItem key={sub.id} value={sub.name}>
+                              {sub.name}
                             </SelectItem>
                           ))
                         )}
@@ -776,6 +965,155 @@ const AddProductPage = () => {
           </div>
         </main>
       </div>
+
+      {/* Manage Categories Modal */}
+      <Dialog open={showManageCategoriesModal} onOpenChange={setShowManageCategoriesModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Manage Categories</DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue="categories" className="flex-1 overflow-hidden flex flex-col">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="categories">Categories</TabsTrigger>
+              <TabsTrigger value="subcategories">Subcategories</TabsTrigger>
+            </TabsList>
+            <TabsContent value="categories" className="flex-1 overflow-y-auto">
+              <div className="space-y-2">
+                {categories.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No categories available</p>
+                ) : (
+                  categories.map((category) => (
+                    <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                      {editingCategory === category.id ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            value={editCategoryForm.category}
+                            onChange={(e) => setEditCategoryForm(prev => ({
+                              ...prev,
+                              category: e.target.value
+                            }))}
+                            placeholder="New category name"
+                            className="flex-1"
+                          />
+                          <Button
+                            size="sm"
+                            className="bg-green-600 text-white"
+                            onClick={handleEditCategory}
+                            disabled={isEditingCategory}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingCategory(null);
+                              setEditCategoryForm({
+                                cat_id: '',
+                                category: '',
+                                sub_id: '',
+                                sub: ''
+                              });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium">{category.name}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingCategory(category.id);
+                              setEditCategoryForm({
+                                cat_id: category.id,
+                                category: category.name,
+                                sub_id: '',
+                                sub: ''
+                              });
+                            }}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="subcategories" className="flex-1 overflow-y-auto">
+              <div className="space-y-2">
+                {subs.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No subcategories available</p>
+                ) : (
+                  subs.map((sub) => (
+                    <div key={sub.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                      {editingSubcategory === sub.id ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            value={editCategoryForm.sub}
+                            onChange={(e) => setEditCategoryForm(prev => ({
+                              ...prev,
+                              sub: e.target.value
+                            }))}
+                            placeholder="New subcategory name"
+                            className="flex-1"
+                          />
+                          <Button
+                            size="sm"
+                            className="bg-green-600 text-white"
+                            onClick={handleEditSubcategory}
+                            disabled={isEditingCategory}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingSubcategory(null);
+                              setEditCategoryForm({
+                                cat_id: '',
+                                category: '',
+                                sub_id: '',
+                                sub: ''
+                              });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium">{sub.name}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingSubcategory(sub.id);
+                              setEditCategoryForm({
+                                cat_id: '',
+                                category: '',
+                                sub_id: sub.id,
+                                sub: sub.name
+                              });
+                            }}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
 
       {/* Variant Modal */}
       <Dialog open={showVariantModal} onOpenChange={setShowVariantModal}>

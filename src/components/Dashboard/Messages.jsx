@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw, CheckCheck, Check } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from 'react-hot-toast';
@@ -19,6 +19,7 @@ const Messages = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [chatPaused, setChatPaused] = useState(false);
   const [pausingChat, setPausingChat] = useState(false);
+  const [markingAsRead, setMarkingAsRead] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Auto-scroll to bottom when messages change
@@ -71,6 +72,9 @@ const Messages = () => {
 
       if (response.status === 401) {
         toast.error('Session expired. Please login again.');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/login';
         return;
       }
 
@@ -90,7 +94,9 @@ const Messages = () => {
           if (updatedMessages) {
             setSelectedChat(prev => ({
               ...prev,
-              messages: updatedMessages
+              messages: updatedMessages,
+              // Extract Instagram user ID from messages metadata if available
+              instagramUserId: updatedMessages[0]?.metadata?.instagram_user_id || prev.instagramUserId
             }));
           }
         }
@@ -106,6 +112,76 @@ const Messages = () => {
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  // Mark messages as read
+  const markMessagesAsRead = async (username, messageIds) => {
+    if (markingAsRead) return;
+    
+    setMarkingAsRead(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        toast.error('Please login first');
+        return;
+      }
+
+      const response = await fetch('https://api.automation365.io/mark-messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: username,
+          messages: messageIds
+        })
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to mark messages as read (${response.status})`);
+      }
+
+      const result = await response.json();
+      console.log('Mark messages as read response:', result);
+      
+      // Update local state to reflect read status
+      if (selectedChat) {
+        setSelectedChat(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg => {
+            if (messageIds.includes(msg.id || msg._id)) {
+              return {
+                ...msg,
+                metadata: {
+                  ...msg.metadata,
+                  read: true
+                }
+              };
+            }
+            return msg;
+          })
+        }));
+      }
+      
+      // Refresh chat history to sync
+      await fetchChatHistory(true);
+      
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+    } finally {
+      setMarkingAsRead(false);
     }
   };
 
@@ -125,15 +201,26 @@ const Messages = () => {
         msg.metadata?.read !== true
       ).length;
       
+      // Get unread message IDs
+      const unreadMessageIds = messages
+        .filter(msg => msg.direction === 'incoming' && msg.metadata?.read !== true)
+        .map(msg => msg.id || msg._id)
+        .filter(Boolean);
+      
+      // Extract Instagram user ID from metadata if available
+      const instagramUserId = messages.find(msg => msg.metadata?.instagram_user_id)?.metadata?.instagram_user_id;
+      
       chatList.push({
         id: key,
         name: username,
         platform: platform,
+        instagramUserId: instagramUserId, // Store Instagram user ID
         lastMessage: lastMessage?.message || '',
         lastMessageType: lastMessage?.message_type || 'text',
         timestamp: lastMessage?.timestamp,
         messages: messages,
         unreadCount: unreadCount,
+        unreadMessageIds: unreadMessageIds,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=${getPlatformColor(platform)}&color=fff`
       });
     });
@@ -200,10 +287,15 @@ const Messages = () => {
   };
 
   // Handle chat selection
-  const handleChatSelect = (chat) => {
+  const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
     setShowChatList(false);
     setShowChat(true);
+    
+    // Mark unread messages as read when opening chat
+    if (chat.unreadMessageIds && chat.unreadMessageIds.length > 0) {
+      await markMessagesAsRead(chat.name, chat.unreadMessageIds);
+    }
   };
 
   // Handle back to list
@@ -212,7 +304,7 @@ const Messages = () => {
     setShowChat(false);
   };
 
-  // Handle message send
+  // Handle message send - FIXED to include Instagram user ID
   const handleSendMessage = async () => {
     if (!messageInput.trim() || sendingMessage || !selectedChat) return;
     
@@ -222,7 +314,10 @@ const Messages = () => {
       message_type: 'text',
       direction: 'outgoing',
       timestamp: new Date().toISOString(),
-      metadata: {},
+      metadata: {
+        direction: 'outgoing',
+        read: true
+      },
       temp: true
     };
     
@@ -243,22 +338,36 @@ const Messages = () => {
         return;
       }
 
+      // Prepare request body with Instagram user ID if available
+      const requestBody = {
+        username: selectedChat.name,
+        message: currentInput,
+        platform: selectedChat.platform
+      };
+      
+      // Add Instagram user ID if available
+      if (selectedChat.instagramUserId) {
+        requestBody.instagram_user_id = selectedChat.instagramUserId;
+        requestBody.user_id = selectedChat.instagramUserId; // Some endpoints might expect user_id
+      }
+
+      console.log('Sending message with data:', requestBody);
+
       const response = await fetch('https://instagram.automation365.io/send-chat', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          username: selectedChat.name,
-          message: currentInput,
-          platform: selectedChat.platform
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
         if (response.status === 401) {
           toast.error('Session expired. Please login again.');
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.href = '/login';
           return;
         }
         throw new Error(`Failed to send message (${response.status})`);
@@ -293,7 +402,7 @@ const Messages = () => {
     }
   };
 
-  // Handle chat pause/play
+  // Handle chat pause/play - FIXED to include Instagram user ID
   const handleChatPause = async () => {
     if (!selectedChat || pausingChat) return;
     
@@ -311,21 +420,35 @@ const Messages = () => {
         ? 'https://instagram.automation365.io/play-chat'
         : 'https://instagram.automation365.io/pause-chat';
 
+      // Prepare request body with Instagram user ID
+      const requestBody = {
+        username: selectedChat.name,
+        platform: selectedChat.platform
+      };
+      
+      // Add Instagram user ID if available
+      if (selectedChat.instagramUserId) {
+        requestBody.instagram_user_id = selectedChat.instagramUserId;
+        requestBody.user_id = selectedChat.instagramUserId; // Some endpoints might expect user_id
+      }
+
+      console.log(`${chatPaused ? 'Resuming' : 'Pausing'} chat with data:`, requestBody);
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          username: selectedChat.name,
-          platform: selectedChat.platform
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
         if (response.status === 401) {
           toast.error('Session expired. Please login again.');
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.href = '/login';
           return;
         }
         throw new Error(`Failed to ${chatPaused ? 'resume' : 'pause'} chat (${response.status})`);
@@ -554,12 +677,23 @@ const Messages = () => {
                           ) : (
                             <p className={msg.direction === 'outgoing' ? 'text-white' : ''}>{msg.message}</p>
                           )}
-                          <p className={`text-xs mt-1 ${
+                          <div className={`flex items-center justify-between mt-1 ${
                             msg.direction === 'outgoing' ? 'text-purple-200' : 'text-gray-500'
                           }`}>
-                            {formatTime(msg.timestamp)}
-                            {msg.temp && <span className="ml-1">(Sending...)</span>}
-                          </p>
+                            <p className="text-xs">
+                              {formatTime(msg.timestamp)}
+                              {msg.temp && <span className="ml-1">(Sending...)</span>}
+                            </p>
+                            {msg.direction === 'outgoing' && !msg.temp && (
+                              <span className="ml-2">
+                                {msg.metadata?.read ? (
+                                  <CheckCheck className="w-4 h-4" />
+                                ) : (
+                                  <Check className="w-4 h-4" />
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
@@ -645,10 +779,12 @@ const ChatItem = ({ name, message, time, avatar, platform, active, unreadCount, 
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="font-medium">{name}</h3>
+          <h3 className={`font-medium ${unreadCount > 0 ? 'font-semibold' : ''}`}>{name}</h3>
           <span className="text-xs text-gray-400">{time}</span>
         </div>
-        <p className="text-sm text-gray-500 truncate">{message}</p>
+        <p className={`text-sm truncate ${unreadCount > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
+          {message}
+        </p>
       </div>
       {unreadCount > 0 && (
         <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">

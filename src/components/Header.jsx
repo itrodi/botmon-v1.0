@@ -159,7 +159,9 @@ const Header = ({
       console.error('Error searching:', error);
       if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
-        localStorage.removeItem('token');
+        // Clear all localStorage on session expiry
+        localStorage.clear();
+        sessionStorage.clear();
         navigate('/login');
       } else {
         console.error('Search failed silently');
@@ -232,13 +234,43 @@ const Header = ({
     }
   };
 
+  // UPDATED LOGOUT FUNCTION - Clears ALL localStorage data
   const handleLogout = () => {
-    // Clear local storage
-    localStorage.removeItem('token');
-    
-    // Redirect to login page
-    navigate('/login');
-    toast.success('Logged out successfully');
+    try {
+      // Clear ALL local storage data
+      localStorage.clear();
+      
+      // Clear session storage as well
+      sessionStorage.clear();
+      
+      // Optional: Clear any cookies if you're using them
+      // document.cookie.split(";").forEach((c) => {
+      //   document.cookie = c
+      //     .replace(/^ +/, "")
+      //     .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      // });
+      
+      // Cancel any pending API requests if using axios cancel tokens
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      
+      // Show success message
+      toast.success('Logged out successfully');
+      
+      // Redirect to login page
+      navigate('/login');
+      
+      // Optional: Force page reload to ensure clean state
+      // window.location.href = '/login';
+      
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Even if there's an error, still try to clear storage and redirect
+      localStorage.clear();
+      sessionStorage.clear();
+      navigate('/login');
+    }
   };
 
   const ProfileDropdown = () => (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, X, Loader, ChevronLeft, MoreHorizontal } from 'lucide-react';
+import { Upload, Plus, X, Loader, ChevronLeft, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +38,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 const EditServicePage = () => {
   const navigate = useNavigate();
@@ -47,6 +53,9 @@ const EditServicePage = () => {
   // State for modals
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showManageCategoriesModal, setShowManageCategoriesModal] = useState(false);
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
+  const [showEditSubModal, setShowEditSubModal] = useState(false);
   
   // Main service state - matching backend exactly
   const [serviceData, setServiceData] = useState({
@@ -89,7 +98,18 @@ const EditServicePage = () => {
     sub: ''
   });
   
-  // Available categories and subcategories
+  // Edit category/sub state
+  const [editingCategory, setEditingCategory] = useState({
+    id: '',
+    name: ''
+  });
+  
+  const [editingSub, setEditingSub] = useState({
+    id: '',
+    name: ''
+  });
+  
+  // Available categories and subcategories with IDs
   const [categories, setCategories] = useState([]);
   const [subs, setSubs] = useState([]);
   
@@ -98,6 +118,8 @@ const EditServicePage = () => {
   const [isFetching, setIsFetching] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isEditingCategory, setIsEditingCategory] = useState(false);
+  const [isEditingSub, setIsEditingSub] = useState(false);
 
   // Fetch service data and categories on mount
   useEffect(() => {
@@ -149,7 +171,7 @@ const EditServicePage = () => {
         link: service.link || '',
         category: service.category || '',
         sub: service.sub || '',
-        status: service.status || 'true',
+        status: service.status?.toString() || 'true',
         payment: service.payment !== undefined ? service.payment : true
       });
 
@@ -186,7 +208,7 @@ const EditServicePage = () => {
     }
   };
 
-  // Fetch categories and subcategories
+  // FIXED: Fetch categories and subcategories
   const fetchCategories = async () => {
     setIsLoadingCategories(true);
     try {
@@ -205,23 +227,62 @@ const EditServicePage = () => {
 
       console.log('Categories response:', response.data);
 
-      // Convert object to array since backend returns {"0": "cat1", "1": "cat2", ...}
+      // Parse categories properly
       if (response.data.categories) {
-        const categoriesObj = response.data.categories;
-        const categoriesArray = Object.keys(categoriesObj)
-          .sort((a, b) => Number(a) - Number(b))
-          .map(key => categoriesObj[key])
-          .filter(cat => cat);
-        setCategories(categoriesArray);
+        const categoriesData = response.data.categories;
+        let parsedCategories = [];
+        
+        if (Array.isArray(categoriesData)) {
+          // If it's already an array of objects with id and name
+          parsedCategories = categoriesData.filter(cat => 
+            cat && (typeof cat === 'object' ? cat.name : cat)
+          );
+        } else if (typeof categoriesData === 'object') {
+          // Convert object to array
+          parsedCategories = Object.keys(categoriesData)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(key => {
+              const cat = categoriesData[key];
+              // Check if it's an object with id and name
+              if (cat && typeof cat === 'object' && cat.id && cat.name) {
+                return cat;
+              }
+              // Otherwise treat it as a simple string value
+              return typeof cat === 'string' ? { id: key, name: cat } : null;
+            })
+            .filter(cat => cat && cat.name);
+        }
+        
+        setCategories(parsedCategories);
       }
       
+      // Parse subcategories properly
       if (response.data.subs) {
-        const subsObj = response.data.subs;
-        const subsArray = Object.keys(subsObj)
-          .sort((a, b) => Number(a) - Number(b))
-          .map(key => subsObj[key])
-          .filter(sub => sub);
-        setSubs(subsArray);
+        const subsData = response.data.subs;
+        let parsedSubs = [];
+        
+        if (Array.isArray(subsData)) {
+          // If it's already an array of objects with id and name
+          parsedSubs = subsData.filter(sub => 
+            sub && (typeof sub === 'object' ? sub.name : sub)
+          );
+        } else if (typeof subsData === 'object') {
+          // Convert object to array
+          parsedSubs = Object.keys(subsData)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(key => {
+              const sub = subsData[key];
+              // Check if it's an object with id and name
+              if (sub && typeof sub === 'object' && sub.id && sub.name) {
+                return sub;
+              }
+              // Otherwise treat it as a simple string value
+              return typeof sub === 'string' ? { id: key, name: sub } : null;
+            })
+            .filter(sub => sub && sub.name);
+        }
+        
+        setSubs(parsedSubs);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -387,15 +448,7 @@ const EditServicePage = () => {
         }
       );
 
-      if (response.data === "done") {
-        // Update local categories and subs lists
-        if (newCategory.category && !categories.includes(newCategory.category)) {
-          setCategories(prev => [...prev, newCategory.category]);
-        }
-        if (newCategory.sub && !subs.includes(newCategory.sub)) {
-          setSubs(prev => [...prev, newCategory.sub]);
-        }
-
+      if (response.data.message === "Category and subcategory added") {
         // Reset the form
         setNewCategory({
           category: '',
@@ -407,7 +460,7 @@ const EditServicePage = () => {
         toast.success('Category added successfully');
         
         // Refresh categories to ensure consistency
-        fetchCategories();
+        await fetchCategories();
       }
     } catch (error) {
       console.error('Error adding category:', error);
@@ -420,6 +473,146 @@ const EditServicePage = () => {
     } finally {
       setIsAddingCategory(false);
     }
+  };
+
+  // Edit category
+  const handleEditCategory = async () => {
+    if (!editingCategory.name) {
+      toast.error('Please provide a category name');
+      return;
+    }
+
+    setIsEditingCategory(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      const response = await axios.post(
+        'https://api.automation365.io/service/edit-category',
+        {
+          cat_id: editingCategory.id,
+          category: editingCategory.name
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.message === "Category updated successfully") {
+        toast.success('Category updated successfully');
+        setShowEditCategoryModal(false);
+        setEditingCategory({ id: '', name: '' });
+        
+        // Update local state
+        setCategories(prev => prev.map(cat => 
+          cat.id === editingCategory.id 
+            ? { ...cat, name: editingCategory.name }
+            : cat
+        ));
+        
+        // Refresh categories
+        await fetchCategories();
+      }
+    } catch (error) {
+      console.error('Error editing category:', error);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        navigate('/login');
+      } else if (error.response?.status === 404) {
+        toast.error('Category not found');
+      } else {
+        toast.error('Failed to update category');
+      }
+    } finally {
+      setIsEditingCategory(false);
+    }
+  };
+
+  // Edit subcategory
+  const handleEditSub = async () => {
+    if (!editingSub.name) {
+      toast.error('Please provide a subcategory name');
+      return;
+    }
+
+    setIsEditingSub(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      const response = await axios.post(
+        'https://api.automation365.io/service/edit-sub',
+        {
+          sub_id: editingSub.id,
+          sub: editingSub.name
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.message === "Sub updated successfully") {
+        toast.success('Subcategory updated successfully');
+        setShowEditSubModal(false);
+        setEditingSub({ id: '', name: '' });
+        
+        // Update local state
+        setSubs(prev => prev.map(sub => 
+          sub.id === editingSub.id 
+            ? { ...sub, name: editingSub.name }
+            : sub
+        ));
+        
+        // Refresh categories
+        await fetchCategories();
+      }
+    } catch (error) {
+      console.error('Error editing subcategory:', error);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        navigate('/login');
+      } else if (error.response?.status === 404) {
+        toast.error('Subcategory not found');
+      } else {
+        toast.error('Failed to update subcategory');
+      }
+    } finally {
+      setIsEditingSub(false);
+    }
+  };
+
+  // Open edit category modal
+  const openEditCategoryModal = (category) => {
+    setEditingCategory({
+      id: category.id,
+      name: category.name
+    });
+    setShowEditCategoryModal(true);
+  };
+
+  // Open edit sub modal
+  const openEditSubModal = (sub) => {
+    setEditingSub({
+      id: sub.id,
+      name: sub.name
+    });
+    setShowEditSubModal(true);
   };
 
   // Submit form to update the service
@@ -732,7 +925,7 @@ const EditServicePage = () => {
                     </CardFooter>
                   </Card>
 
-                  {/* Category Section */}
+                  {/* FIXED: Category Section */}
                   <Card>
                     <CardHeader>
                       <CardTitle>Service Category</CardTitle>
@@ -753,15 +946,23 @@ const EditServicePage = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {isLoadingCategories ? (
-                                <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                                <SelectItem value="_loading" disabled>Loading categories...</SelectItem>
                               ) : categories.length === 0 ? (
-                                <SelectItem value="no_categories" disabled>No categories available</SelectItem>
+                                <SelectItem value="_no_categories" disabled>No categories available</SelectItem>
                               ) : (
-                                categories.map((cat, idx) => (
-                                  <SelectItem key={idx} value={cat}>
-                                    {cat}
-                                  </SelectItem>
-                                ))
+                                categories.map((cat) => {
+                                  // Get the name properly whether it's an object or string
+                                  const categoryName = typeof cat === 'object' ? cat.name : cat;
+                                  const categoryId = typeof cat === 'object' ? cat.id : categoryName;
+                                  
+                                  if (!categoryName) return null;
+                                  
+                                  return (
+                                    <SelectItem key={categoryId} value={categoryName}>
+                                      {categoryName}
+                                    </SelectItem>
+                                  );
+                                }).filter(Boolean)
                               )}
                             </SelectContent>
                           </Select>
@@ -777,21 +978,29 @@ const EditServicePage = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {isLoadingCategories ? (
-                                <SelectItem value="loading_subs" disabled>Loading subcategories...</SelectItem>
+                                <SelectItem value="_loading_subs" disabled>Loading subcategories...</SelectItem>
                               ) : subs.length === 0 ? (
-                                <SelectItem value="no_subcategories" disabled>No subcategories available</SelectItem>
+                                <SelectItem value="_no_subcategories" disabled>No subcategories available</SelectItem>
                               ) : (
-                                subs.map((sub, idx) => (
-                                  <SelectItem key={idx} value={sub}>
-                                    {sub}
-                                  </SelectItem>
-                                ))
+                                subs.map((sub) => {
+                                  // Get the name properly whether it's an object or string
+                                  const subName = typeof sub === 'object' ? sub.name : sub;
+                                  const subId = typeof sub === 'object' ? sub.id : subName;
+                                  
+                                  if (!subName) return null;
+                                  
+                                  return (
+                                    <SelectItem key={subId} value={subName}>
+                                      {subName}
+                                    </SelectItem>
+                                  );
+                                }).filter(Boolean)
                               )}
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
-                      <div className="mt-4">
+                      <div className="mt-4 flex gap-2">
                         <Button
                           type="button"
                           variant="outline"
@@ -801,6 +1010,16 @@ const EditServicePage = () => {
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Add New Category
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => setShowManageCategoriesModal(true)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                          Manage Categories
                         </Button>
                       </div>
                     </CardContent>
@@ -829,7 +1048,6 @@ const EditServicePage = () => {
                           <SelectContent>
                             <SelectItem value="true">Active</SelectItem>
                             <SelectItem value="false">Inactive</SelectItem>
-
                           </SelectContent>
                         </Select>
                       </div>
@@ -925,6 +1143,7 @@ const EditServicePage = () => {
         </main>
       </div>
 
+      {/* All modals remain the same... */}
       {/* Variant Modal */}
       <Dialog open={showVariantModal} onOpenChange={setShowVariantModal}>
         <DialogContent className="max-w-md">
@@ -1073,6 +1292,213 @@ const EditServicePage = () => {
                 </>
               ) : (
                 'Add Category'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Categories Modal */}
+      <Dialog open={showManageCategoriesModal} onOpenChange={setShowManageCategoriesModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Manage Categories</DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue="categories" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="categories">Categories</TabsTrigger>
+              <TabsTrigger value="subcategories">Subcategories</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="categories" className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category Name</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan="2" className="text-center text-gray-500">
+                        No categories available
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    categories.map((category) => {
+                      const categoryName = typeof category === 'object' ? category.name : category;
+                      const categoryId = typeof category === 'object' ? category.id : categoryName;
+                      
+                      return (
+                        <TableRow key={categoryId}>
+                          <TableCell>{categoryName}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditCategoryModal(
+                                typeof category === 'object' ? category : { id: categoryName, name: categoryName }
+                              )}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            
+            <TabsContent value="subcategories" className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subcategory Name</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {subs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan="2" className="text-center text-gray-500">
+                        No subcategories available
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    subs.map((sub) => {
+                      const subName = typeof sub === 'object' ? sub.name : sub;
+                      const subId = typeof sub === 'object' ? sub.id : subName;
+                      
+                      return (
+                        <TableRow key={subId}>
+                          <TableCell>{subName}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditSubModal(
+                                typeof sub === 'object' ? sub : { id: subName, name: subName }
+                              )}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </TabsContent>
+          </Tabs>
+          
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowManageCategoriesModal(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Modal */}
+      <Dialog open={showEditCategoryModal} onOpenChange={setShowEditCategoryModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Category</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-category">Category Name *</Label>
+              <Input
+                id="edit-category"
+                value={editingCategory.name}
+                onChange={(e) => setEditingCategory(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter category name"
+                className="mt-1"
+                required
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowEditCategoryModal(false);
+                setEditingCategory({ id: '', name: '' });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleEditCategory}
+              disabled={isEditingCategory}
+              className="bg-purple-600 text-white"
+            >
+              {isEditingCategory ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Category'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Subcategory Modal */}
+      <Dialog open={showEditSubModal} onOpenChange={setShowEditSubModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Subcategory</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-sub">Subcategory Name *</Label>
+              <Input
+                id="edit-sub"
+                value={editingSub.name}
+                onChange={(e) => setEditingSub(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter subcategory name"
+                className="mt-1"
+                required
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowEditSubModal(false);
+                setEditingSub({ id: '', name: '' });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleEditSub}
+              disabled={isEditingSub}
+              className="bg-purple-600 text-white"
+            >
+              {isEditingSub ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Subcategory'
               )}
             </Button>
           </div>
