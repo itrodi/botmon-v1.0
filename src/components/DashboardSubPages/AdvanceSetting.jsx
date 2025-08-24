@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
-import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter } from "lucide-react"
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter, AlertTriangle, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -48,11 +49,90 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
 import { Switch } from "@/components/ui/switch"
+import { useToast } from "@/components/ui/use-toast"
 import DiscountsVariation from '../DiscountsVariation';
 
 
 const AdvanceSetting = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  // Function to handle account deletion
+  const handleDeleteAccount = async () => {
+    // Clear any previous errors
+    setDeleteError('');
+    
+    // Check if user has typed the confirmation text
+    if (confirmText !== 'DELETE MY ACCOUNT') {
+      setDeleteError('Please type the confirmation text exactly as shown');
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      // Get the auth token from localStorage (adjust based on where you store it)
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+
+      const response = await fetch('https://api.automation365.io/auth/delete-account', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete account');
+      }
+
+      // Success - show success message
+      toast({
+        title: "Account Deleted",
+        description: "Your account and all related data have been permanently deleted.",
+        variant: "default",
+      });
+
+      // Clear local storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Redirect to login or home page after a short delay
+      setTimeout(() => {
+        navigate('/login'); // Adjust the route as needed
+      }, 2000);
+
+    } catch (error) {
+      console.error('Delete account error:', error);
+      setDeleteError(error.message || 'An error occurred while deleting your account. Please try again.');
+      setIsDeleting(false);
+    }
+  };
+
+  // Function to close dialog and reset state
+  const handleCloseDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setConfirmText('');
+    setDeleteError('');
+    setIsDeleting(false);
+  };
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
@@ -241,11 +321,108 @@ const AdvanceSetting = () => {
                 <Button>Save Changes</Button>
               </CardFooter>
             </Card>
+
+            {/* Delete Account Section */}
+            <Card className="border-destructive">
+              <CardHeader>
+                <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                <CardDescription>
+                  Irreversible and destructive actions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Warning</AlertTitle>
+                  <AlertDescription>
+                    Deleting your account is permanent and cannot be undone. All your data, including business information, 
+                    products, services, orders, and settings will be permanently deleted.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+              <CardFooter className="px-6 py-4">
+                <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="destructive" className="gap-2">
+                      <Trash2 className="h-4 w-4" />
+                      Delete Account
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle className="text-destructive">Delete Account</DialogTitle>
+                      <DialogDescription>
+                        This action cannot be undone. This will permanently delete your account
+                        and remove all your data from our servers.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Final Warning</AlertTitle>
+                        <AlertDescription className="text-sm">
+                          You are about to permanently delete:
+                          <ul className="mt-2 ml-4 list-disc text-xs">
+                            <li>Your business profile and settings</li>
+                            <li>All products and services</li>
+                            <li>Customer orders and history</li>
+                            <li>Payment information</li>
+                            <li>Social media connections</li>
+                            <li>All other account data</li>
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                      <div className="grid gap-2">
+                        <Label htmlFor="confirm-delete">
+                          Type <span className="font-mono font-semibold">DELETE MY ACCOUNT</span> to confirm
+                        </Label>
+                        <Input
+                          id="confirm-delete"
+                          placeholder="Type confirmation text here"
+                          value={confirmText}
+                          onChange={(e) => setConfirmText(e.target.value)}
+                          disabled={isDeleting}
+                        />
+                        {deleteError && (
+                          <p className="text-sm text-destructive">{deleteError}</p>
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={handleCloseDialog}
+                        disabled={isDeleting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteAccount}
+                        disabled={isDeleting || confirmText !== 'DELETE MY ACCOUNT'}
+                        className="gap-2"
+                      >
+                        {isDeleting ? (
+                          <>
+                            <span className="animate-spin">⏳</span>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4" />
+                            Delete My Account
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardFooter>
+            </Card>
           </div>
         </div>
       </main>
     </div>
-
   )
 }
 
