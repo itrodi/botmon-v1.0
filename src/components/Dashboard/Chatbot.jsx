@@ -373,11 +373,11 @@ const Chatbot = () => {
           };
         }
         
-        // Create bot message
+        // Create bot message - UPDATED to handle Text field
         const botMessage = {
           id: `bot-${Date.now()}`,
-          content: botResponse.message || botResponse.Type || 'I received your message',
-          message: botResponse.message || botResponse.Type || 'I received your message',
+          content: botResponse.Text || botResponse.message || botResponse.Type || 'I received your message',
+          message: botResponse.Text || botResponse.message || botResponse.Type || 'I received your message',
           message_type: botResponse.message_type || 'text',
           metadata: botResponse.metadata || {},
           Type: botResponse.Type,
