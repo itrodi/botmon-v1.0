@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw, CheckCheck, Check } from 'lucide-react';
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from 'react-hot-toast';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
 
@@ -58,7 +55,8 @@ const Messages = () => {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        toast.error('Please login first');
+        console.error('No token found');
+        window.location.href = '/login';
         return;
       }
 
@@ -71,7 +69,7 @@ const Messages = () => {
       });
 
       if (response.status === 401) {
-        toast.error('Session expired. Please login again.');
+        console.error('Session expired');
         localStorage.clear();
         sessionStorage.clear();
         window.location.href = '/login';
@@ -95,8 +93,8 @@ const Messages = () => {
             setSelectedChat(prev => ({
               ...prev,
               messages: updatedMessages,
-              // Extract Instagram user ID from messages metadata if available
-              instagramUserId: updatedMessages[0]?.metadata?.instagram_user_id || prev.instagramUserId
+              // Use sender_id from the messages
+              instagramUserId: updatedMessages[0]?.sender_id || prev.instagramUserId
             }));
           }
         }
@@ -106,9 +104,8 @@ const Messages = () => {
     } catch (err) {
       if (!silent) {
         setError(err.message);
-        toast.error('Failed to load messages');
+        console.error('Error fetching chat history:', err);
       }
-      console.error('Error fetching chat history:', err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -117,7 +114,7 @@ const Messages = () => {
 
   // Mark messages as read
   const markMessagesAsRead = async (username, messageIds) => {
-    if (markingAsRead) return;
+    if (markingAsRead || !messageIds || messageIds.length === 0) return;
     
     setMarkingAsRead(true);
     
@@ -125,9 +122,11 @@ const Messages = () => {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        toast.error('Please login first');
+        console.error('No token found');
         return;
       }
+
+      console.log('Marking messages as read:', { username, messageIds });
 
       const response = await fetch('https://api.automation365.io/mark-messages', {
         method: 'POST',
@@ -137,12 +136,12 @@ const Messages = () => {
         },
         body: JSON.stringify({
           username: username,
-          messages: messageIds
+          messages: messageIds // Send array of sender_ids
         })
       });
 
       if (response.status === 401) {
-        toast.error('Session expired. Please login again.');
+        console.error('Session expired');
         localStorage.clear();
         sessionStorage.clear();
         window.location.href = '/login';
@@ -156,12 +155,12 @@ const Messages = () => {
       const result = await response.json();
       console.log('Mark messages as read response:', result);
       
-      // Update local state to reflect read status
+      // Update local state to reflect read status immediately
       if (selectedChat) {
         setSelectedChat(prev => ({
           ...prev,
           messages: prev.messages.map(msg => {
-            if (messageIds.includes(msg.id || msg._id)) {
+            if (messageIds.includes(msg.sender_id)) {
               return {
                 ...msg,
                 metadata: {
@@ -175,8 +174,34 @@ const Messages = () => {
         }));
       }
       
-      // Refresh chat history to sync
-      await fetchChatHistory(true);
+      // Update chat data to reflect read status
+      if (chatData && chatData.messages) {
+        const updatedMessages = { ...chatData.messages };
+        const key = `instagram:${username}`;
+        
+        if (updatedMessages[key]) {
+          updatedMessages[key] = updatedMessages[key].map(msg => {
+            if (messageIds.includes(msg.sender_id)) {
+              return {
+                ...msg,
+                metadata: {
+                  ...msg.metadata,
+                  read: true
+                }
+              };
+            }
+            return msg;
+          });
+        }
+        
+        setChatData(prev => ({
+          ...prev,
+          messages: updatedMessages
+        }));
+      }
+      
+      // Optionally refresh to sync with backend
+      setTimeout(() => fetchChatHistory(true), 1000);
       
     } catch (err) {
       console.error('Error marking messages as read:', err);
@@ -201,20 +226,20 @@ const Messages = () => {
         msg.metadata?.read !== true
       ).length;
       
-      // Get unread message IDs
+      // Get unread message sender_ids
       const unreadMessageIds = messages
         .filter(msg => msg.direction === 'incoming' && msg.metadata?.read !== true)
-        .map(msg => msg.id || msg._id)
+        .map(msg => msg.sender_id)
         .filter(Boolean);
       
-      // Extract Instagram user ID from metadata if available
-      const instagramUserId = messages.find(msg => msg.metadata?.instagram_user_id)?.metadata?.instagram_user_id;
+      // Extract Instagram user ID from sender_id
+      const instagramUserId = messages.find(msg => msg.sender_id)?.sender_id;
       
       chatList.push({
         id: key,
         name: username,
         platform: platform,
-        instagramUserId: instagramUserId, // Store Instagram user ID
+        instagramUserId: instagramUserId,
         lastMessage: lastMessage?.message || '',
         lastMessageType: lastMessage?.message_type || 'text',
         timestamp: lastMessage?.timestamp,
@@ -304,12 +329,13 @@ const Messages = () => {
     setShowChat(false);
   };
 
-  // Handle message send - FIXED to include Instagram user ID
+  // Handle message send
   const handleSendMessage = async () => {
     if (!messageInput.trim() || sendingMessage || !selectedChat) return;
     
     setSendingMessage(true);
     const tempMessage = {
+      sender_id: `temp_${Date.now()}`,
       message: messageInput,
       message_type: 'text',
       direction: 'outgoing',
@@ -334,7 +360,7 @@ const Messages = () => {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        toast.error('Please login first');
+        console.error('No token found');
         return;
       }
 
@@ -345,10 +371,10 @@ const Messages = () => {
         platform: selectedChat.platform
       };
       
-      // Add Instagram user ID if available
+      // Add Instagram user ID if available (using sender_id)
       if (selectedChat.instagramUserId) {
         requestBody.instagram_user_id = selectedChat.instagramUserId;
-        requestBody.user_id = selectedChat.instagramUserId; // Some endpoints might expect user_id
+        requestBody.user_id = selectedChat.instagramUserId;
       }
 
       console.log('Sending message with data:', requestBody);
@@ -364,7 +390,7 @@ const Messages = () => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
+          console.error('Session expired');
           localStorage.clear();
           sessionStorage.clear();
           window.location.href = '/login';
@@ -384,11 +410,9 @@ const Messages = () => {
       
       // Refresh chat history to get the real message
       await fetchChatHistory(true);
-      toast.success('Message sent successfully');
       
     } catch (err) {
       console.error('Error sending message:', err);
-      toast.error('Failed to send message');
       
       // Remove temp message on error
       setSelectedChat(prev => ({
@@ -402,7 +426,7 @@ const Messages = () => {
     }
   };
 
-  // Handle chat pause/play - FIXED to include Instagram user ID
+  // Handle chat pause/play
   const handleChatPause = async () => {
     if (!selectedChat || pausingChat) return;
     
@@ -412,7 +436,7 @@ const Messages = () => {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        toast.error('Please login first');
+        console.error('No token found');
         return;
       }
 
@@ -420,16 +444,16 @@ const Messages = () => {
         ? 'https://instagram.automation365.io/play-chat'
         : 'https://instagram.automation365.io/pause-chat';
 
-      // Prepare request body with Instagram user ID
+      // Prepare request body with Instagram user ID if available
       const requestBody = {
         username: selectedChat.name,
         platform: selectedChat.platform
       };
       
-      // Add Instagram user ID if available
+      // Add Instagram user ID if available (using sender_id)
       if (selectedChat.instagramUserId) {
         requestBody.instagram_user_id = selectedChat.instagramUserId;
-        requestBody.user_id = selectedChat.instagramUserId; // Some endpoints might expect user_id
+        requestBody.user_id = selectedChat.instagramUserId;
       }
 
       console.log(`${chatPaused ? 'Resuming' : 'Pausing'} chat with data:`, requestBody);
@@ -445,7 +469,7 @@ const Messages = () => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
+          console.error('Session expired');
           localStorage.clear();
           sessionStorage.clear();
           window.location.href = '/login';
@@ -458,11 +482,9 @@ const Messages = () => {
       console.log('Chat pause/play response:', result);
       
       setChatPaused(!chatPaused);
-      toast.success(`Chat automation ${chatPaused ? 'resumed' : 'paused'} successfully`);
       
     } catch (err) {
       console.error('Error pausing/resuming chat:', err);
-      toast.error(`Failed to ${chatPaused ? 'resume' : 'pause'} chat automation`);
     } finally {
       setPausingChat(false);
     }
@@ -499,9 +521,12 @@ const Messages = () => {
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <p className="text-gray-700 mb-2">Error loading messages</p>
               <p className="text-gray-500 text-sm mb-4">{error}</p>
-              <Button onClick={() => fetchChatHistory()} variant="outline">
+              <button 
+                onClick={() => fetchChatHistory()} 
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
                 Try Again
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -540,9 +565,9 @@ const Messages = () => {
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input 
+                <input 
                   placeholder="Search conversations" 
-                  className="pl-9 bg-gray-50"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-50 rounded-lg outline-none focus:ring-2 focus:ring-purple-500"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -611,9 +636,8 @@ const Messages = () => {
                         </div>
                       </div>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      className="flex items-center gap-2"
+                    <button 
+                      className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
                       onClick={handleChatPause}
                       disabled={pausingChat}
                     >
@@ -627,7 +651,7 @@ const Messages = () => {
                       <span className="hidden lg:inline">
                         {pausingChat ? 'Loading...' : chatPaused ? 'Resume Automation' : 'Pause Automation'}
                       </span>
-                    </Button>
+                    </button>
                   </div>
                   {chatPaused && (
                     <div className="mt-2 px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-lg">
@@ -642,7 +666,7 @@ const Messages = () => {
                   {selectedChat.messages && selectedChat.messages.length > 0 ? (
                     selectedChat.messages.slice().reverse().map((msg, index) => (
                       <div 
-                        key={index} 
+                        key={msg.sender_id || index} 
                         className={`flex gap-3 ${msg.direction === 'outgoing' ? 'justify-end' : ''} 
                           ${msg.temp ? 'opacity-70' : ''}`}
                       >
@@ -711,9 +735,9 @@ const Messages = () => {
                   <div className="flex items-center gap-2">
                     <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
                       <Mic className="w-5 h-5 text-gray-400 hidden sm:block cursor-pointer hover:text-gray-600" />
-                      <Input 
+                      <input 
                         placeholder="Type a message..." 
-                        className="border-0 bg-transparent focus-visible:ring-0"
+                        className="flex-1 bg-transparent outline-none"
                         value={messageInput}
                         onChange={(e) => setMessageInput(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
@@ -734,8 +758,8 @@ const Messages = () => {
                         </button>
                       </div>
                     </div>
-                    <Button 
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-6"
+                    <button 
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
                       onClick={handleSendMessage}
                       disabled={sendingMessage || !messageInput.trim()}
                     >
@@ -744,7 +768,7 @@ const Messages = () => {
                       ) : (
                         <Send className="w-4 h-4" />
                       )}
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </>
