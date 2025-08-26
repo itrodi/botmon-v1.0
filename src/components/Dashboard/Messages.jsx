@@ -364,18 +364,13 @@ const Messages = () => {
         return;
       }
 
-      // Prepare request body with Instagram user ID if available
+      // Prepare request body with sender_id as expected by backend
       const requestBody = {
         username: selectedChat.name,
         message: currentInput,
-        platform: selectedChat.platform
+        platform: selectedChat.platform,
+        sender_id: selectedChat.instagramUserId // Backend expects sender_id
       };
-      
-      // Add Instagram user ID if available (using sender_id)
-      if (selectedChat.instagramUserId) {
-        requestBody.instagram_user_id = selectedChat.instagramUserId;
-        requestBody.user_id = selectedChat.instagramUserId;
-      }
 
       console.log('Sending message with data:', requestBody);
 
@@ -444,17 +439,12 @@ const Messages = () => {
         ? 'https://instagram.automation365.io/play-chat'
         : 'https://instagram.automation365.io/pause-chat';
 
-      // Prepare request body with Instagram user ID if available
+      // Prepare request body with sender_id as expected by backend
       const requestBody = {
         username: selectedChat.name,
-        platform: selectedChat.platform
+        platform: selectedChat.platform,
+        sender_id: selectedChat.instagramUserId // Backend expects sender_id
       };
-      
-      // Add Instagram user ID if available (using sender_id)
-      if (selectedChat.instagramUserId) {
-        requestBody.instagram_user_id = selectedChat.instagramUserId;
-        requestBody.user_id = selectedChat.instagramUserId;
-      }
 
       console.log(`${chatPaused ? 'Resuming' : 'Pausing'} chat with data:`, requestBody);
 
@@ -666,7 +656,7 @@ const Messages = () => {
                   {selectedChat.messages && selectedChat.messages.length > 0 ? (
                     selectedChat.messages.slice().reverse().map((msg, index) => (
                       <div 
-                        key={msg.sender_id || index} 
+                        key={`${msg.timestamp}_${index}_${msg.sender_id || 'no-id'}`} 
                         className={`flex gap-3 ${msg.direction === 'outgoing' ? 'justify-end' : ''} 
                           ${msg.temp ? 'opacity-70' : ''}`}
                       >
