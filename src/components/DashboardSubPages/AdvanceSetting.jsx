@@ -67,6 +67,36 @@ const AdvanceSetting = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  // Helper function to get auth token from various possible storage keys
+  const getAuthToken = () => {
+    // Try multiple possible token storage keys
+    const possibleKeys = ['authToken', 'token', 'auth_token', 'access_token', 'jwt', 'userToken'];
+    
+    for (const key of possibleKeys) {
+      const token = localStorage.getItem(key) || sessionStorage.getItem(key);
+      if (token) {
+        console.log(`Found token with key: ${key}`);
+        return token;
+      }
+    }
+    
+    // Check if token might be stored as part of a user object
+    try {
+      const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user.token) {
+          console.log('Found token in user object');
+          return user.token;
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing user data:', e);
+    }
+    
+    return null;
+  };
+
   // Function to handle account deletion
   const handleDeleteAccount = async () => {
     // Clear any previous errors
@@ -81,12 +111,14 @@ const AdvanceSetting = () => {
     setIsDeleting(true);
 
     try {
-      // Get the auth token from localStorage (adjust based on where you store it)
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      // Get the auth token using the helper function
+      const token = getAuthToken();
       
       if (!token) {
         throw new Error('No authentication token found. Please log in again.');
       }
+
+      console.log('Making delete request with token:', token.substring(0, 20) + '...'); // Log partial token for debugging
 
       const response = await fetch('https://api.automation365.io/auth/delete-account', {
         method: 'POST',
@@ -94,12 +126,34 @@ const AdvanceSetting = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        // Add body if your backend expects any additional data
+        body: JSON.stringify({}),
       });
 
-      const data = await response.json();
+      // First check if the response is JSON
+      const contentType = response.headers.get("content-type");
+      let data;
+      
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        data = await response.json();
+      } else {
+        // If not JSON, read as text
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error('Server returned an invalid response format');
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete account');
+        // Handle specific error codes
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log in again.');
+        } else if (response.status === 404) {
+          throw new Error('User account not found.');
+        } else if (response.status === 500) {
+          throw new Error('Server error. Please try again later.');
+        } else {
+          throw new Error(data.error || `Failed to delete account (Error ${response.status})`);
+        }
       }
 
       // Success - show success message
@@ -109,7 +163,7 @@ const AdvanceSetting = () => {
         variant: "default",
       });
 
-      // Clear local storage
+      // Clear all storage
       localStorage.clear();
       sessionStorage.clear();
 
@@ -120,8 +174,30 @@ const AdvanceSetting = () => {
 
     } catch (error) {
       console.error('Delete account error:', error);
-      setDeleteError(error.message || 'An error occurred while deleting your account. Please try again.');
+      
+      // Provide more specific error messages
+      let errorMessage = 'An error occurred while deleting your account.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Check for network errors
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setDeleteError(errorMessage);
       setIsDeleting(false);
+      
+      // Show error toast as well
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -132,6 +208,23 @@ const AdvanceSetting = () => {
     setDeleteError('');
     setIsDeleting(false);
   };
+
+  // Debug function to check stored tokens (can be removed in production)
+  const debugCheckTokens = () => {
+    console.log('=== Checking for stored tokens ===');
+    console.log('localStorage keys:', Object.keys(localStorage));
+    console.log('sessionStorage keys:', Object.keys(sessionStorage));
+    const token = getAuthToken();
+    console.log('Found token:', token ? 'Yes' : 'No');
+    if (token) {
+      console.log('Token preview:', token.substring(0, 30) + '...');
+    }
+  };
+
+  // Call debug function when component mounts (remove in production)
+  useState(() => {
+    debugCheckTokens();
+  }, []);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
