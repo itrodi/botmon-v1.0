@@ -451,16 +451,20 @@ const Onboarding2 = () => {
       <div className="hidden md:flex md:w-1/2 bg-gray-50 flex-col">
         {/* Logo */}
         <div className="p-6">
-          <div className="font-bold text-xl">BOTMON</div>
+          <div className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
         </div>
 
         {/* Content */}
         <div className="flex-1 p-6">
           <div className="max-w-xl mx-auto space-y-8">
             <div className="w-full max-w-md h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-              <span className="text-4xl">🤖💬</span>
+              <span className="text-4xl"> <img 
+              src="/Images/onboarding.png"
+              alt="Business Setup"
+              className="w-full max-w-md"
+            /></span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <h1 className="text-2xl font-bold">Link Your Accounts</h1>
               <p className="text-gray-600">
                 Connect your social media platforms to start automating customer interactions and manage bookings seamlessly.

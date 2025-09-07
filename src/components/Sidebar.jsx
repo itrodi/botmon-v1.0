@@ -92,7 +92,7 @@ const Sidebar = () => {
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex w-64 flex-col border-r border-gray-200 bg-white">
         <div className="p-4 border-b border-gray-200">
-          <span className="font-bold text-xl">BOTMON</span>
+          <span className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo"  /></span>
         </div>
         <div className="flex-1 overflow-y-auto py-4">
           {/* Main Menu */}

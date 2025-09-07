@@ -190,13 +190,13 @@ const Onboarding1 = () => {
       {/* Left Section with gray background */}
       <div className="hidden md:flex md:w-1/2 bg-gray-50 flex-col">
         <div className="p-6">
-          <div className="font-bold text-xl">BOTMON</div>
+          <div className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-xl mx-auto space-y-8">
             <img 
-              src="/api/placeholder/500/500"
+              src="/Images/onboarding.png"
               alt="Business Setup"
               className="w-full max-w-md"
             />
@@ -214,7 +214,7 @@ const Onboarding1 = () => {
       {/* Right Section with white background */}
       <div className="w-full md:w-1/2 bg-white flex flex-col">
         <div className="p-6 flex justify-between items-center md:justify-end">
-          <div className="font-bold text-xl md:hidden">BOTMON</div>
+          <div className="font-bold text-xl md:hidden"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
           <div className="flex items-center gap-2">
             <Globe className="w-5 h-5" />
             <span>English</span>

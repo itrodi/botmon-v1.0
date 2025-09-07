@@ -49,19 +49,19 @@ const AuthenticationPage = () => {
       {/* Left Section with Logo, Images and Text */}
       <div className="hidden md:flex md:w-1/2 bg-gray-50 flex-col">
         <header className="p-6">
-          <div className="font-bold text-xl">BOTMON</div>
+          <div className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
         </header>
 
         <div className="flex-1 p-6">
           <div className="max-w-xl mx-auto w-full space-y-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <img 
-                src="/api/placeholder/400/300" 
+                src="/Images/Rectangle1.png" 
                 alt="AI Communication"
                 className="w-full rounded-lg"
               />
               <img 
-                src="/api/placeholder/400/300" 
+                src="/Images/Rectangle2.png" 
                 alt="Bot Interface"
                 className="w-full rounded-lg"
               />
@@ -151,7 +151,7 @@ const AuthenticationPage = () => {
                   className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2"
                 >
                   <img 
-                    src="/api/placeholder/24/24" 
+                    src="/Images/google.png" 
                     alt="Google"
                     className="w-6 h-6"
                   />
@@ -164,7 +164,7 @@ const AuthenticationPage = () => {
                   className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2"
                 >
                   <img 
-                    src="/api/placeholder/24/24" 
+                    src="/Images/apple.png" 
                     alt="Apple"
                     className="w-6 h-6"
                   />

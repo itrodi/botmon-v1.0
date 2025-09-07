@@ -68,6 +68,9 @@ import { Switch } from "@/components/ui/switch"
 import FaqVariation from '../FaqVariation';
 import EditFaqVariation from '../EditFaqVariation';
 
+// Define the order of days
+const DAYS_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 const ManageStore = () => {
   const [workingHours, setWorkingHours] = useState({
     Monday: { open: '09:00', close: '18:00', isActive: false },
@@ -712,42 +715,47 @@ const ManageStore = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {Object.entries(workingHours).map(([day, hours]) => (
-              <div key={day} className="grid gap-3 mt-4">
-                <Label htmlFor={day}>{day}</Label>
-                <div className="flex items-center gap-4">
-                  <Label htmlFor={`${day}-open`} className="text-right">
-                    Open
-                  </Label>
-                  <Input
-                    id={`${day}-open`}
-                    type="time"
-                    value={hours.open}
-                    onChange={(e) => handleTimeChange(day, 'open', e.target.value)}
-                    className="col-span-4"
-                    disabled={!hours.isActive}
-                  />
-                  <Label htmlFor={`${day}-close`} className="text-right">
-                    Close
-                  </Label>
-                  <Input
-                    id={`${day}-close`}
-                    type="time"
-                    value={hours.close}
-                    onChange={(e) => handleTimeChange(day, 'close', e.target.value)}
-                    className="col-span-4"
-                    disabled={!hours.isActive}
-                  />
-                  <div className="ml-5">
-                    <Switch
-                      id={`${day}-switch`}
-                      checked={hours.isActive}
-                      onCheckedChange={() => handleSwitchChange(day)}
+            {DAYS_ORDER.map((day) => {
+              const hours = workingHours[day];
+              if (!hours) return null; // Safety check in case day doesn't exist
+              
+              return (
+                <div key={day} className="grid gap-3 mt-4">
+                  <Label htmlFor={day}>{day}</Label>
+                  <div className="flex items-center gap-4">
+                    <Label htmlFor={`${day}-open`} className="text-right">
+                      Open
+                    </Label>
+                    <Input
+                      id={`${day}-open`}
+                      type="time"
+                      value={hours.open}
+                      onChange={(e) => handleTimeChange(day, 'open', e.target.value)}
+                      className="col-span-4"
+                      disabled={!hours.isActive}
                     />
+                    <Label htmlFor={`${day}-close`} className="text-right">
+                      Close
+                    </Label>
+                    <Input
+                      id={`${day}-close`}
+                      type="time"
+                      value={hours.close}
+                      onChange={(e) => handleTimeChange(day, 'close', e.target.value)}
+                      className="col-span-4"
+                      disabled={!hours.isActive}
+                    />
+                    <div className="ml-5">
+                      <Switch
+                        id={`${day}-switch`}
+                        checked={hours.isActive}
+                        onCheckedChange={() => handleSwitchChange(day)}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
           <CardFooter className="border-t px-6 py-4">
             <Button 
