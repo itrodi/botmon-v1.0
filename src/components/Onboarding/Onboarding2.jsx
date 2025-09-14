@@ -385,7 +385,7 @@ const Onboarding2 = () => {
       description: linkedAccounts.facebook 
         ? 'Facebook Page connected for Messenger' 
         : 'Connect your Facebook Page for Messenger integration',
-      icon: '📘',
+      icon: '/Images/facebook.png',
       bgColor: 'bg-blue-100',
       textColor: 'text-blue-700',
       onClick: loginWithFacebook,
@@ -399,11 +399,14 @@ const Onboarding2 = () => {
       description: linkedAccounts.instagram 
         ? 'Instagram Business account connected' 
         : 'Connect your Instagram Business account',
-      icon: '📷',
+      icon: linkedAccounts.instagram && instagramProfile.profilePicture 
+        ? instagramProfile.profilePicture 
+        : '/Images/instagram.png',
       bgColor: 'bg-pink-100',
       textColor: 'text-pink-700',
       onClick: loginWithInstagram,
-      available: true
+      available: true,
+      isProfilePic: linkedAccounts.instagram && instagramProfile.profilePicture
     },
     {
       id: 'whatsapp',
@@ -411,7 +414,7 @@ const Onboarding2 = () => {
       description: linkedAccounts.whatsapp 
         ? 'WhatsApp Business API connected' 
         : 'Connect your WhatsApp Business API',
-      icon: '💬',
+      icon: '/Images/whatsapp.png',
       bgColor: 'bg-green-100',
       textColor: 'text-green-700',
       onClick: loginWithWhatsApp,
@@ -421,7 +424,7 @@ const Onboarding2 = () => {
       id: 'twitter',
       name: 'Link Twitter/X Account',
       description: 'Twitter integration (Coming soon)',
-      icon: '🐦',
+      icon: '/Images/twitter.png',
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-600',
       onClick: loginWithTwitter,
@@ -457,14 +460,14 @@ const Onboarding2 = () => {
         {/* Content */}
         <div className="flex-1 p-6">
           <div className="max-w-xl mx-auto space-y-8">
-            <div className="w-full max-w-md h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+            <div className="w-full max-w-md h-64 bg-gray-200 rounded-lg flex items-center justify-center mb-20">
               <span className="text-4xl"> <img 
               src="/Images/onboarding.png"
               alt="Business Setup"
               className="w-full max-w-md"
             /></span>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 mt-10">
               <h1 className="text-2xl font-bold">Link Your Accounts</h1>
               <p className="text-gray-600">
                 Connect your social media platforms to start automating customer interactions and manage bookings seamlessly.
@@ -518,8 +521,16 @@ const Onboarding2 = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 flex items-center justify-center ${platform.bgColor} rounded-lg`}>
-                      <span className="text-2xl">{platform.icon}</span>
+                    <div className={`w-12 h-12 flex items-center justify-center ${platform.isProfilePic ? '' : platform.bgColor} rounded-lg overflow-hidden`}>
+                      {platform.icon.includes('.png') || platform.icon.includes('.jpg') || platform.icon.includes('.svg') || platform.icon.startsWith('/') || platform.icon.startsWith('http') ? (
+                        <img 
+                          src={platform.icon} 
+                          alt={platform.name}
+                          className={platform.isProfilePic ? 'w-full h-full object-cover' : 'w-6 h-6 object-contain'}
+                        />
+                      ) : (
+                        <span className="text-2xl">{platform.icon}</span>
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -538,6 +549,12 @@ const Onboarding2 = () => {
                       <p className="text-xs text-gray-500 mt-1">
                         {platform.description}
                       </p>
+                      {/* Display Instagram username when linked */}
+                      {platform.id === 'instagram' && linkedAccounts.instagram && instagramProfile.username && (
+                        <p className="text-xs text-purple-600 mt-1 font-medium">
+                          Profile: @{instagramProfile.username}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
