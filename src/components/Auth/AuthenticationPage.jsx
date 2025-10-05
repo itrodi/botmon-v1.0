@@ -44,6 +44,14 @@ const AuthenticationPage = () => {
     }
   };
 
+  const handleGoogleSignUp = () => {
+    window.location.href = 'https://api.automation365.io/auth/google-register';
+  };
+
+  const handleAppleSignUp = () => {
+    toast.info('Apple Sign In coming soon!');
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left Section with Logo, Images and Text */}
@@ -148,27 +156,29 @@ const AuthenticationPage = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2"
+                  onClick={handleGoogleSignUp}
+                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50"
                 >
                   <img 
                     src="/Images/google.png" 
                     alt="Google"
                     className="w-6 h-6"
                   />
-                  Sign In with Google
+                  Sign Up with Google
                 </Button>
 
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2"
+                  onClick={handleAppleSignUp}
+                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50"
                 >
                   <img 
                     src="/Images/apple.png" 
                     alt="Apple"
                     className="w-6 h-6"
                   />
-                  Sign In with Apple
+                  Sign Up with Apple
                 </Button>
               </div>
             </form>

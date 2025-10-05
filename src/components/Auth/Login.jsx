@@ -37,11 +37,19 @@ const Login = () => {
         navigate('/Overview');
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Registration failed';
+      const errorMessage = error.response?.data?.error || 'Login failed';
       toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = 'https://api.automation365.io/auth/google-login';
+  };
+
+  const handleAppleLogin = () => {
+    toast.info('Apple Sign In coming soon!');
   };
 
   return (
@@ -148,7 +156,8 @@ const Login = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2"
+                  onClick={handleGoogleLogin}
+                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50"
                 >
                   <img 
                     src="/Images/google.png" 
@@ -161,7 +170,8 @@ const Login = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2"
+                  onClick={handleAppleLogin}
+                  className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50"
                 >
                   <img 
                     src="/Images/apple.png" 
