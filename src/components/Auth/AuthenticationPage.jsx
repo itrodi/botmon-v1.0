@@ -1,17 +1,63 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { initializeUserSession, clearUserData } from '@/utils/authUtils';
 
 const AuthenticationPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+
+  useEffect(() => {
+    // Clear any previous user's data when signup page loads
+    clearUserData();
+    
+    // Handle OAuth callback - check for tokens in query params
+    const success = searchParams.get('success');
+    const token = searchParams.get('token');
+    const refreshToken = searchParams.get('refresh_token');
+    const error = searchParams.get('error');
+    
+    if (success === 'true' && token) {
+      handleOAuthSuccess(token, refreshToken);
+    } else if (error) {
+      toast.error(decodeURIComponent(error));
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams, navigate]);
+
+  const handleOAuthSuccess = async (token, refreshToken) => {
+    try {
+      // Clear any previous user data first
+      clearUserData();
+      
+      // Initialize user session with proper isolation
+      const userId = await initializeUserSession(token, {
+        refreshToken: refreshToken,
+        email: searchParams.get('email') || null,
+        isNewUser: true
+      });
+      
+      console.log('OAuth registration successful for user:', userId);
+      toast.success('Registration successful!');
+      
+      // Clear URL params and redirect
+      window.history.replaceState({}, document.title, window.location.pathname);
+      navigate('/Onboarding1');
+    } catch (error) {
+      console.error('OAuth session initialization failed:', error);
+      toast.error('Registration failed. Please try again.');
+      clearUserData();
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -26,25 +72,64 @@ const AuthenticationPage = () => {
     setLoading(true);
     
     try {
+      // Clear any previous user's data before registration
+      clearUserData();
+      
       const response = await axios.post('https://api.automation365.io/auth/register', {
         email: formData.email,
         password: formData.password
       });
       
       if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+        // Initialize new user session with proper isolation
+        const userId = await initializeUserSession(response.data.token, {
+          userId: response.data.userId || response.data.user_id,
+          email: response.data.email || formData.email,
+          name: response.data.name || response.data.userName,
+          refreshToken: response.data.refresh_token || response.data.refreshToken,
+          isNewUser: true
+        });
+        
+        console.log('New user registered:', userId);
+        
+        // For new users, ensure no linked accounts exist
+        localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
+          facebook: false,
+          twitter: false,
+          instagram: false,
+          whatsapp: false
+        }));
+        
         toast.success('Registration successful!');
         navigate('/Onboarding1');
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Registration failed';
-      toast.error(errorMessage);
+      
+      // Handle specific error cases
+      if (error.response?.status === 409) {
+        toast.error('Email already exists. Please login instead.');
+        navigate('/Login');
+      } else {
+        toast.error(errorMessage);
+      }
+      
+      // Clear any partial data on registration failure
+      clearUserData();
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignUp = () => {
+    // Clear any existing user data before OAuth
+    clearUserData();
+    
+    // Store that this is a signup flow
+    sessionStorage.setItem('authFlow', 'signup');
+    sessionStorage.setItem('authRedirect', '/Onboarding1');
+    
+    // Redirect to backend Google OAuth endpoint
     window.location.href = 'https://api.automation365.io/auth/google-register';
   };
 
@@ -57,7 +142,9 @@ const AuthenticationPage = () => {
       {/* Left Section with Logo, Images and Text */}
       <div className="hidden md:flex md:w-1/2 bg-gray-50 flex-col">
         <header className="p-6">
-          <div className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
+          <div className="font-bold text-xl">
+            <img src="/Images/botmon-logo.png" alt="Logo" />
+          </div>
         </header>
 
         <div className="flex-1 p-6">

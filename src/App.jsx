@@ -1,3 +1,5 @@
+// App.jsx
+import './utils/axiosConfig'; 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Overview from './components/Dashboard/Overview';
 import ProductPage from './components/DashboardSubPages/ProductPage';
@@ -37,7 +39,6 @@ import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
 import IndividualProductPage from './components/IndividualProductPage';
 import IndividualServicePage from './components/IndividualServicePage';
 
-// ... other imports remain the same
 
 function App() {
   return (
@@ -175,7 +176,7 @@ function App() {
               <Store/>
             </ProtectedRoute>
           }/>
-           <Route exact path="/StoreSetting" element={
+          <Route exact path="/StoreSetting" element={
             <ProtectedRoute>
               <StoreSettings/>
             </ProtectedRoute>
@@ -190,25 +191,23 @@ function App() {
               <LinkAccount/>
             </ProtectedRoute>
           }/>
-           <Route exact path="/Advance" element={
+          <Route exact path="/Advance" element={
             <ProtectedRoute>
               <AdvanceSetting/>
             </ProtectedRoute>
           }/>
-            <Route exact path="/product/:id" element={
+          <Route exact path="/product/:id" element={
             <ProtectedRoute>
               <IndividualProductPage/>
             </ProtectedRoute>
           }/>
-             <Route exact path="/service/:id" element={
+          <Route exact path="/service/:id" element={
             <ProtectedRoute>
               <IndividualServicePage/>
             </ProtectedRoute>
           }/>
           
-          
-          
-          {/* Onboarding routes - these should probably be protected too */}
+          {/* Onboarding routes - protected */}
           <Route exact path="/Onboarding1" element={
             <ProtectedRoute>
               <Onboarding1/>

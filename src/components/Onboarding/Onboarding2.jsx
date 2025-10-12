@@ -19,7 +19,53 @@ const Onboarding2 = () => {
   });
 
   const [userToken, setUserToken] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const fbInitialized = useRef(false);
+
+  // Helper function to get user-specific storage key
+  const getUserStorageKey = (key) => {
+    const userId = currentUserId || localStorage.getItem('userId');
+    return userId ? `${key}_${userId}` : key;
+  };
+
+  // Helper function to clear all linked accounts data for the current user
+  const clearUserLinkedAccountsData = () => {
+    const userId = currentUserId || localStorage.getItem('userId');
+    if (userId) {
+      localStorage.removeItem(`linkedAccounts_${userId}`);
+      localStorage.removeItem(`instagram_profile_${userId}`);
+      localStorage.removeItem(`whatsapp_config_${userId}`);
+    }
+    // Also clear non-user-specific keys if they exist (for backward compatibility)
+    localStorage.removeItem('linkedAccounts');
+    localStorage.removeItem('instagram_profile');
+    localStorage.removeItem('whatsapp_config');
+  };
+
+  // Helper function to migrate old data to user-specific keys
+  const migrateOldDataIfNeeded = () => {
+    const userId = currentUserId || localStorage.getItem('userId');
+    if (!userId) return;
+
+    // Check if there's old data without user ID
+    const oldLinkedAccounts = localStorage.getItem('linkedAccounts');
+    const oldInstagramProfile = localStorage.getItem('instagram_profile');
+    const oldWhatsappConfig = localStorage.getItem('whatsapp_config');
+
+    // If old data exists and no user-specific data exists, migrate it
+    if (oldLinkedAccounts && !localStorage.getItem(`linkedAccounts_${userId}`)) {
+      localStorage.setItem(`linkedAccounts_${userId}`, oldLinkedAccounts);
+      localStorage.removeItem('linkedAccounts');
+    }
+    if (oldInstagramProfile && !localStorage.getItem(`instagram_profile_${userId}`)) {
+      localStorage.setItem(`instagram_profile_${userId}`, oldInstagramProfile);
+      localStorage.removeItem('instagram_profile');
+    }
+    if (oldWhatsappConfig && !localStorage.getItem(`whatsapp_config_${userId}`)) {
+      localStorage.setItem(`whatsapp_config_${userId}`, oldWhatsappConfig);
+      localStorage.removeItem('whatsapp_config');
+    }
+  };
 
   // Initialize Facebook SDK
   useEffect(() => {
@@ -64,17 +110,17 @@ const Onboarding2 = () => {
             const { phone_number_id, waba_id } = data.data;
             console.log("WhatsApp signup completed:", { phone_number_id, waba_id });
             
-            // Mark WhatsApp as linked and save to localStorage
+            // Mark WhatsApp as linked and save to localStorage with user-specific key
             setLinkedAccounts(prev => {
               const updated = { ...prev, whatsapp: true };
-              localStorage.setItem('linkedAccounts', JSON.stringify(updated));
+              localStorage.setItem(getUserStorageKey('linkedAccounts'), JSON.stringify(updated));
               return updated;
             });
             setLoading(prev => ({ ...prev, whatsapp: false }));
             toast.success('Successfully linked WhatsApp Business account');
             
-            // Optionally save the phone_number_id and waba_id
-            localStorage.setItem('whatsapp_config', JSON.stringify({ phone_number_id, waba_id }));
+            // Save the phone_number_id and waba_id with user-specific key
+            localStorage.setItem(getUserStorageKey('whatsapp_config'), JSON.stringify({ phone_number_id, waba_id }));
             
           } else if (data.event === 'CANCEL') {
             const { current_step } = data.data;
@@ -95,16 +141,42 @@ const Onboarding2 = () => {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [currentUserId]);
 
   // Helper function to get Instagram profile info
   const getInstagramProfileInfo = () => {
     try {
-      const profileData = JSON.parse(localStorage.getItem('instagram_profile') || '{}');
+      const profileData = JSON.parse(localStorage.getItem(getUserStorageKey('instagram_profile')) || '{}');
       return profileData;
     } catch {
       return {};
     }
+  };
+
+  // Function to extract user ID from token (you may need to adjust based on your token structure)
+  const getUserIdFromToken = async (token) => {
+    try {
+      // If your token is a JWT, you can decode it
+      const tokenParts = token.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        return payload.user_id || payload.userId || payload.sub || null;
+      }
+      
+      // Otherwise, make an API call to get user info
+      const response = await fetch('https://api.automation365.io/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.userId || data.id || null;
+      }
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+    }
+    
+    // Fallback: use token hash as user identifier
+    return btoa(token).substring(0, 16);
   };
 
   // Separate function to handle Instagram OAuth callback
@@ -113,20 +185,20 @@ const Onboarding2 = () => {
     const username = urlParams.get('username');
     const profilePicture = urlParams.get('profile_picture');
     
-    // Case-insensitive check for success (handles both 'true' and 'True')
+    // Case-insensitive check for success
     if (success && success.toLowerCase() === 'true') {
       setLinkedAccounts(prev => {
         const updated = { ...prev, instagram: true };
-        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
+        localStorage.setItem(getUserStorageKey('linkedAccounts'), JSON.stringify(updated));
         
-        // Store Instagram profile info
+        // Store Instagram profile info with user-specific key
         if (username || profilePicture) {
           const profileData = {
             username,
             profilePicture: profilePicture ? decodeURIComponent(profilePicture) : null,
             linkedAt: new Date().toISOString()
           };
-          localStorage.setItem('instagram_profile', JSON.stringify(profileData));
+          localStorage.setItem(getUserStorageKey('instagram_profile'), JSON.stringify(profileData));
         }
         
         return updated;
@@ -146,39 +218,54 @@ const Onboarding2 = () => {
     }
   };
 
-  // Get user token on component mount and handle OAuth callbacks
+  // Get user token and initialize user-specific data
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast.error('Please login first');
-      // Redirect to login page
-      window.location.href = '/login';
-      return;
-    }
-    setUserToken(token);
-
-    // Load previously linked accounts from localStorage
-    const savedLinkedAccounts = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
-    setLinkedAccounts(savedLinkedAccounts);
-
-    // Check for OAuth callback parameters (for Instagram)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('success')) {
-      handleInstagramCallback(urlParams);
-    }
-
-    // Check existing linked accounts
-    checkLinkedAccounts();
+    const initializeUser = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        window.location.href = '/login';
+        return;
+      }
+      
+      setUserToken(token);
+      
+      // Get user ID from token
+      const userId = await getUserIdFromToken(token);
+      setCurrentUserId(userId);
+      localStorage.setItem('userId', userId);
+      
+      // Migrate old data if needed
+      migrateOldDataIfNeeded();
+      
+      // Load user-specific linked accounts
+      const userLinkedAccounts = JSON.parse(
+        localStorage.getItem(`linkedAccounts_${userId}`) || '{}'
+      );
+      setLinkedAccounts(userLinkedAccounts);
+      
+      // Check for OAuth callback parameters (for Instagram)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('success')) {
+        handleInstagramCallback(urlParams);
+      }
+      
+      // Check existing linked accounts from backend
+      checkLinkedAccounts();
+    };
+    
+    initializeUser();
   }, []);
 
   // Check which accounts are already linked
   const checkLinkedAccounts = async () => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    const userId = currentUserId || localStorage.getItem('userId');
+    if (!token || !userId) return;
 
     try {
-      // First, check localStorage for immediate update
-      const linked = JSON.parse(localStorage.getItem('linkedAccounts') || '{}');
+      // First, check localStorage for immediate update with user-specific key
+      const linked = JSON.parse(localStorage.getItem(`linkedAccounts_${userId}`) || '{}');
       setLinkedAccounts(linked);
       
       // Also check for any OAuth redirect parameters that might not have been processed
@@ -190,12 +277,22 @@ const Onboarding2 = () => {
         handleInstagramCallback(urlParams);
       }
       
-      // TODO: Add backend endpoint to fetch actual linked account status
-      // const response = await fetch('https://api.automation365.io/linked-accounts', {
-      //   headers: { 'Authorization': `Bearer ${token}` }
-      // });
-      // const data = await response.json();
-      // setLinkedAccounts(data.linkedAccounts);
+      // Fetch actual linked account status from backend
+      try {
+        const response = await fetch('https://api.automation365.io/user/linked-accounts', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.linkedAccounts) {
+            // Update local storage with backend data
+            localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify(data.linkedAccounts));
+            setLinkedAccounts(data.linkedAccounts);
+          }
+        }
+      } catch (error) {
+        console.log('Backend endpoint not available, using local storage');
+      }
     } catch (error) {
       console.error('Error checking linked accounts:', error);
     }
@@ -203,12 +300,14 @@ const Onboarding2 = () => {
 
   // Add periodic check for linked accounts (useful after OAuth redirects)
   useEffect(() => {
+    if (!currentUserId) return;
+    
     const interval = setInterval(() => {
       checkLinkedAccounts();
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentUserId]);
 
   // Handle manual refresh
   const handleRefreshStatus = () => {
@@ -231,17 +330,18 @@ const Onboarding2 = () => {
     // Encode token and platform in state parameter
     const stateData = {
       platform: 'messenger',
-      token: token
+      token: token,
+      userId: currentUserId // Include user ID
     };
-    const encodedState = btoa(JSON.stringify(stateData)); // Base64 encode the state
+    const encodedState = btoa(JSON.stringify(stateData));
     
-    // Facebook OAuth URL for Messenger permissions - redirect to backend with encoded state
+    // Facebook OAuth URL for Messenger permissions
     const facebookAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     facebookAuthUrl.searchParams.set('client_id', '639118129084539');
     facebookAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/messenger');
     facebookAuthUrl.searchParams.set('response_type', 'code');
     facebookAuthUrl.searchParams.set('scope', 'pages_manage_metadata,pages_messaging,business_management');
-    facebookAuthUrl.searchParams.set('state', encodedState); // Encoded user token + platform
+    facebookAuthUrl.searchParams.set('state', encodedState);
     
     // Redirect to Facebook OAuth
     window.location.href = facebookAuthUrl.toString();
@@ -274,11 +374,12 @@ const Onboarding2 = () => {
     // Encode token and platform in state parameter
     const stateData = {
       platform: 'instagram',
-      token: token
+      token: token,
+      userId: currentUserId // Include user ID
     };
-    const encodedState = btoa(JSON.stringify(stateData)); // Base64 encode the state
+    const encodedState = btoa(JSON.stringify(stateData));
     
-    // Instagram OAuth URL - redirect to backend with encoded state
+    // Instagram OAuth URL
     const instagramAuthUrl = new URL('https://www.instagram.com/oauth/authorize');
     instagramAuthUrl.searchParams.set('force_reauth', 'true');
     instagramAuthUrl.searchParams.set('client_id', '9440795702651023');
@@ -313,7 +414,7 @@ const Onboarding2 = () => {
         const code = response.authResponse.code;
         console.log('WhatsApp Embedded Signup code received:', code);
         
-        // Send code to backend - note that the Flask backend expects Authorization header
+        // Send code to backend with user context
         try {
           const backendResponse = await fetch('https://api.automation365.io/auth/whatsapp?code=' + code, {
             method: 'GET',
@@ -327,7 +428,6 @@ const Onboarding2 = () => {
             console.log('WhatsApp backend response:', data);
             
             // The Embedded Signup flow will continue and send messages via postMessage
-            // The actual linking confirmation will come from the WA_EMBEDDED_SIGNUP messages
           } else {
             const error = await backendResponse.json();
             console.error('Backend error:', error);
@@ -350,9 +450,9 @@ const Onboarding2 = () => {
 
     // Launch WhatsApp Embedded Signup
     window.FB.login(fbLoginCallback, {
-      config_id: '4214295362161201', // Configuration ID for WhatsApp Embedded Signup
-      response_type: 'code', // must be set to 'code' for System User access token
-      override_default_response_type: true, // when true, any response types passed in the "response_type" will take precedence over the default types
+      config_id: '4214295362161201',
+      response_type: 'code',
+      override_default_response_type: true,
       extras: { "version": "v3" }
     });
   };
@@ -374,6 +474,26 @@ const Onboarding2 = () => {
     setTimeout(() => {
       window.location.href = '/Overview';
     }, 1500);
+  };
+
+  // Handle user logout (call this from your logout function)
+  const handleLogout = () => {
+    // Clear user-specific data
+    const userId = currentUserId || localStorage.getItem('userId');
+    if (userId) {
+      localStorage.removeItem(`linkedAccounts_${userId}`);
+      localStorage.removeItem(`instagram_profile_${userId}`);
+      localStorage.removeItem(`whatsapp_config_${userId}`);
+    }
+    
+    // Clear user ID
+    localStorage.removeItem('userId');
+    
+    // Clear token
+    localStorage.removeItem('token');
+    
+    // Redirect to login
+    window.location.href = '/login';
   };
 
   // Platform configurations with dynamic Instagram info

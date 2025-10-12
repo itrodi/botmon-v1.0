@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
+import { logout, getUserData, getAuthHeaders } from '@/utils/authUtils';
 
 const Header = ({ 
   title = "Botmon Dashboard"
@@ -42,6 +43,7 @@ const Header = ({
   // Fetch business data on component mount
   useEffect(() => {
     fetchBusinessData();
+    loadUserData();
     
     // Add click outside listener to close search results
     const handleClickOutside = (event) => {
@@ -59,29 +61,63 @@ const Header = ({
     };
   }, []);
 
+  const loadUserData = () => {
+    // Load user-specific data from localStorage
+    const storedUserName = localStorage.getItem('userName');
+    const storedUserEmail = localStorage.getItem('userEmail');
+    const userId = localStorage.getItem('userId');
+    
+    if (storedUserName) {
+      setUserName(storedUserName);
+    } else if (storedUserEmail) {
+      setUserName(storedUserEmail.split('@')[0]); // Use email prefix as fallback
+    } else if (userId) {
+      setUserName(`User ${userId.substring(0, 6)}`); // Use partial user ID as fallback
+    }
+    
+    // Load user-specific business data if stored
+    const userBusinessData = getUserData('businessData');
+    if (userBusinessData) {
+      setBusinessData({
+        bname: userBusinessData.bname || 'Your Business',
+        blogo: userBusinessData.blogo || '/api/placeholder/40/40'
+      });
+    }
+  };
+
   const fetchBusinessData = async () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
       const response = await axios.get('https://api.automation365.io/settings', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: getAuthHeaders()
       });
 
       if (response.data) {
-        setBusinessData({
+        const businessInfo = {
           bname: response.data.bname || 'Your Business',
           blogo: response.data.blogo || '/api/placeholder/40/40'
-        });
+        };
         
-        // Set user name from business name or use a default
+        setBusinessData(businessInfo);
+        
+        // Store business data with user-specific key
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          localStorage.setItem(`businessData_${userId}`, JSON.stringify(businessInfo));
+        }
+        
+        // Update user name from business name
         setUserName(response.data.bname || 'User');
+        if (response.data.bname) {
+          localStorage.setItem('userName', response.data.bname);
+        }
       }
     } catch (error) {
       console.error('Error fetching business data:', error);
-      // Silently fail and use defaults
+      // Silently fail and use defaults or cached data
+      loadUserData(); // Try to load cached data
     }
   };
 
@@ -105,10 +141,10 @@ const Header = ({
       // Fetch both products and services
       const [productsResponse, servicesResponse] = await Promise.all([
         axios.get('https://api.automation365.io/products', {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: getAuthHeaders()
         }),
         axios.get('https://api.automation365.io/services', {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: getAuthHeaders()
         })
       ]);
 
@@ -128,9 +164,9 @@ const Header = ({
           ...product,
           type: 'product',
           displayName: product.name || 'Untitled Product',
-          id: product.id || product._id // Ensure we have an ID
+          id: product.id || product._id
         }))
-        .slice(0, 5); // Limit to 5 results
+        .slice(0, 5);
 
       const filteredServices = services
         .filter(service => 
@@ -142,15 +178,15 @@ const Header = ({
           ...service,
           type: 'service',
           displayName: service.name || 'Untitled Service',
-          id: service.id || service._id // Ensure we have an ID
+          id: service.id || service._id
         }))
-        .slice(0, 5); // Limit to 5 results
+        .slice(0, 5);
 
       // Combine and sort results
       const combinedResults = [...filteredProducts, ...filteredServices]
-        .filter(item => item.id) // Only include items with valid IDs
+        .filter(item => item.id)
         .sort((a, b) => a.displayName.localeCompare(b.displayName))
-        .slice(0, 8); // Total limit of 8 results
+        .slice(0, 8);
 
       console.log('Search results:', combinedResults);
       setSearchResults(combinedResults);
@@ -159,10 +195,8 @@ const Header = ({
       console.error('Error searching:', error);
       if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
-        // Clear all localStorage on session expiry
-        localStorage.clear();
-        sessionStorage.clear();
-        navigate('/login');
+        // Use the logout utility to properly clear all user data
+        logout();
       } else {
         console.error('Search failed silently');
       }
@@ -184,7 +218,7 @@ const Header = ({
     // Set new timeout for debounced search
     searchTimeoutRef.current = setTimeout(() => {
       performSearch(query);
-    }, 300); // 300ms delay
+    }, 300);
   };
 
   // Handle search result click
@@ -203,13 +237,11 @@ const Header = ({
         navigate(`/service/${result.id}`);
       } else {
         console.warn('Unknown result type:', result.type);
-        // Fallback: navigate to products page with search
         navigate(`/products?search=${encodeURIComponent(result.displayName)}`);
       }
     } catch (error) {
       console.error('Navigation error:', error);
       toast.error('Failed to navigate to item');
-      // Fallback navigation
       navigate('/products');
     }
   };
@@ -225,51 +257,45 @@ const Header = ({
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchResults.length > 0) {
-      handleSearchResultClick(searchResults[0]); // Navigate to first result
+      handleSearchResultClick(searchResults[0]);
     } else if (searchQuery.trim()) {
-      // Navigate to products page with search query
       navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setShowSearchResults(false);
       setSearchQuery('');
     }
   };
 
-  // UPDATED LOGOUT FUNCTION - Clears ALL localStorage data
-  const handleLogout = () => {
+  // UPDATED LOGOUT FUNCTION - Uses authUtils for proper cleanup
+  const handleLogout = async () => {
     try {
-      // Clear ALL local storage data
-      localStorage.clear();
+      const token = localStorage.getItem('token');
       
-      // Clear session storage as well
-      sessionStorage.clear();
+      // Call backend logout endpoint if it exists
+      if (token) {
+        try {
+          await axios.post('https://api.automation365.io/auth/logout', null, {
+            headers: getAuthHeaders()
+          });
+        } catch (error) {
+          console.log('Backend logout failed, continuing with local logout');
+        }
+      }
       
-      // Optional: Clear any cookies if you're using them
-      // document.cookie.split(";").forEach((c) => {
-      //   document.cookie = c
-      //     .replace(/^ +/, "")
-      //     .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      // });
-      
-      // Cancel any pending API requests if using axios cancel tokens
+      // Cancel any pending API requests
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
       
-      // Show success message
+      // Use the logout utility from authUtils
+      // This will clear all user-specific data and redirect to login
+      logout();
+      
       toast.success('Logged out successfully');
-      
-      // Redirect to login page
-      navigate('/login');
-      
-      // Optional: Force page reload to ensure clean state
-      // window.location.href = '/login';
       
     } catch (error) {
       console.error('Error during logout:', error);
       // Even if there's an error, still try to clear storage and redirect
-      localStorage.clear();
-      sessionStorage.clear();
-      navigate('/login');
+      logout();
     }
   };
 
@@ -292,6 +318,11 @@ const Header = ({
         <div className="px-2 py-1.5">
           <div className="text-sm font-medium">{userName}</div>
           <div className="text-xs text-gray-500">{businessData.bname}</div>
+          {localStorage.getItem('userId') && (
+            <div className="text-xs text-gray-400 mt-1">
+              ID: {localStorage.getItem('userId').substring(0, 8)}...
+            </div>
+          )}
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer">

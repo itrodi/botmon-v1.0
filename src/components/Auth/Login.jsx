@@ -1,17 +1,87 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { initializeUserSession, clearUserData } from '@/utils/authUtils';
 
 const Login = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+
+  useEffect(() => {
+    // Clear any previous user's data when login page loads
+    clearUserData();
+    
+    // Handle OAuth callback - check for tokens in query params
+    const success = searchParams.get('success');
+    const token = searchParams.get('token');
+    const refreshToken = searchParams.get('refresh_token');
+    const error = searchParams.get('error');
+    
+    if (success === 'true' && token) {
+      handleOAuthSuccess(token, refreshToken);
+    } else if (error) {
+      toast.error(decodeURIComponent(error));
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams, navigate]);
+
+  const handleOAuthSuccess = async (token, refreshToken) => {
+    try {
+      // Clear any previous user data first
+      clearUserData();
+      
+      // Initialize user session with proper isolation
+      const userId = await initializeUserSession(token, {
+        refreshToken: refreshToken,
+        email: searchParams.get('email') || null
+      });
+      
+      console.log('OAuth login successful for user:', userId);
+      toast.success('Login successful!');
+      
+      // Clear URL params and redirect
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Check if user needs onboarding by checking linked accounts
+      try {
+        const response = await axios.get('https://api.automation365.io/user/linked-accounts', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const hasLinkedAccounts = response.data?.linkedAccounts && 
+          Object.values(response.data.linkedAccounts).some(val => val === true);
+        
+        if (!hasLinkedAccounts) {
+          navigate('/Onboarding2');
+        } else {
+          navigate('/Overview');
+        }
+      } catch {
+        // If endpoint doesn't exist or fails, check localStorage
+        const linkedAccounts = JSON.parse(localStorage.getItem(`linkedAccounts_${userId}`) || '{}');
+        const hasLinkedAccounts = Object.values(linkedAccounts).some(val => val === true);
+        
+        if (!hasLinkedAccounts) {
+          navigate('/Onboarding2');
+        } else {
+          navigate('/Overview');
+        }
+      }
+    } catch (error) {
+      console.error('OAuth session initialization failed:', error);
+      toast.error('Login failed. Please try again.');
+      clearUserData();
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -26,25 +96,79 @@ const Login = () => {
     setLoading(true);
     
     try {
+      // Clear any previous user's data before login attempt
+      clearUserData();
+      
       const response = await axios.post('https://api.automation365.io/auth/login', {
         email: formData.email,
         password: formData.password
       });
       
       if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+        // Initialize new user session with proper isolation
+        const userId = await initializeUserSession(response.data.token, {
+          userId: response.data.userId || response.data.user_id,
+          email: response.data.email || formData.email,
+          name: response.data.name || response.data.userName,
+          refreshToken: response.data.refresh_token || response.data.refreshToken
+        });
+        
+        console.log('User logged in:', userId);
         toast.success('Login successful!');
-        navigate('/Overview');
+        
+        // Check if user needs onboarding
+        const needsOnboarding = response.data.needsOnboarding || 
+                               response.data.needs_onboarding || 
+                               !response.data.hasLinkedAccounts;
+        
+        if (needsOnboarding) {
+          navigate('/Onboarding2');
+        } else {
+          // Check user-specific linked accounts
+          const linkedAccounts = JSON.parse(
+            localStorage.getItem(`linkedAccounts_${userId}`) || '{}'
+          );
+          const hasLinkedAccounts = Object.values(linkedAccounts).some(val => val === true);
+          
+          if (!hasLinkedAccounts) {
+            navigate('/Onboarding2');
+          } else {
+            navigate('/Overview');
+          }
+        }
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Login failed';
-      toast.error(errorMessage);
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        toast.error('User not found. Please sign up first.');
+        navigate('/');
+      } else if (error.response?.status === 401) {
+        if (errorMessage === 'User used Google login flow') {
+          toast.error('This account uses Google Sign-In. Please use the Google login option.');
+        } else {
+          toast.error('Invalid email or password');
+        }
+      } else {
+        toast.error(errorMessage);
+      }
+      
+      // Clear any partial data on login failure
+      clearUserData();
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
+    // Clear any existing user data before OAuth
+    clearUserData();
+    
+    // Store current location if needed for post-auth redirect
+    sessionStorage.setItem('authRedirect', '/Overview');
+    
+    // Redirect to backend Google OAuth endpoint
     window.location.href = 'https://api.automation365.io/auth/google-login';
   };
 
@@ -57,7 +181,9 @@ const Login = () => {
       {/* Left Section with Logo, Images and Text */}
       <div className="hidden md:flex md:w-1/2 bg-gray-50 flex-col">
         <header className="p-6">
-          <div className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
+          <div className="font-bold text-xl">
+            <img src="/Images/botmon-logo.png" alt="Logo" />
+          </div>
         </header>
 
         <div className="flex-1 p-6">
@@ -76,7 +202,7 @@ const Login = () => {
             </div>
             
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold">Get Started</h2>
+              <h2 className="text-2xl font-bold">Welcome Back</h2>
               <p className="text-gray-600 max-w-md">
                 Streamline Your Communication with BOTMON AI-Powered Vendor Message Replies
               </p>
@@ -91,7 +217,7 @@ const Login = () => {
           <div className="text-sm">
             Don't have an account?{" "}
             <a href="/" className="text-purple-600 font-medium">
-             Signup
+              Sign up
             </a>
           </div>
         </div>
