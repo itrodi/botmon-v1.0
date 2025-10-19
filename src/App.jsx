@@ -38,7 +38,7 @@ import LinkAccount from './components/DashboardSubPages/LinkAccount';
 import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
 import IndividualProductPage from './components/IndividualProductPage';
 import IndividualServicePage from './components/IndividualServicePage';
-
+import AdminAnalytics from './components/Auth/AdminAnalytics';
 
 function App() {
   return (
@@ -49,7 +49,7 @@ function App() {
           {/* Public routes */}
           <Route exact path="/" element={<AuthenticationPage/>}/> 
           <Route exact path="/Login" element={<Login/>}/>   
-
+          <Route exact path="/AdminAnalytics" element={<AdminAnalytics/>}/>
           {/* Protected routes */}
           <Route exact path="/Overview" element={
             <ProtectedRoute>
