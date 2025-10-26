@@ -32,7 +32,7 @@ const AuthenticationPage = () => {
       // Clear URL params
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [searchParams, navigate]);
+  }, [searchParams]);
 
   const handleOAuthSuccess = async (token, refreshToken) => {
     try {
@@ -125,11 +125,7 @@ const AuthenticationPage = () => {
     // Clear any existing user data before OAuth
     clearUserData();
     
-    // Store that this is a signup flow
-    sessionStorage.setItem('authFlow', 'signup');
-    sessionStorage.setItem('authRedirect', '/Onboarding1');
-    
-    // Redirect to backend Google OAuth endpoint
+    // Simply redirect to backend Google OAuth endpoint
     window.location.href = 'https://api.automation365.io/auth/google-register';
   };
 

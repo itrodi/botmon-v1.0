@@ -32,7 +32,7 @@ const Login = () => {
       // Clear URL params
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [searchParams, navigate]);
+  }, [searchParams]);
 
   const handleOAuthSuccess = async (token, refreshToken) => {
     try {
@@ -165,10 +165,7 @@ const Login = () => {
     // Clear any existing user data before OAuth
     clearUserData();
     
-    // Store current location if needed for post-auth redirect
-    sessionStorage.setItem('authRedirect', '/Overview');
-    
-    // Redirect to backend Google OAuth endpoint
+    // Simply redirect to backend Google OAuth endpoint
     window.location.href = 'https://api.automation365.io/auth/google-login';
   };
 
