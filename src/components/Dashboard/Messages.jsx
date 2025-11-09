@@ -836,7 +836,7 @@ const ChatItem = ({ name, message, time, avatar, platform, active, unreadCount, 
         <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
           {unreadCount}
         </span>
-      )}
+      )} 
     </div>
   );
 };
