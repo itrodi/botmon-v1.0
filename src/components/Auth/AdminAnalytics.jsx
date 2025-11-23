@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // You can also import the configured axios instance: import axiosInstance from '../../utils/axiosConfig';
+import axios from 'axios';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis,
@@ -214,28 +214,28 @@ const AdminAnalytics = () => {
             value={formatPercentage(data.signup_completion_rate?.rate)}
             icon={UserCheck}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext={`${data.signup_completion_rate?.completed} of ${data.signup_completion_rate?.total} users`}
+            subtext={`${data.signup_completion_rate?.completed || 0} of ${data.signup_completion_rate?.total || 0} users`}
           />
           <MetricCard
             title="Time to First Value"
             value={formatDuration(data.time_to_first_value?.average_hours * 3600)}
             icon={Clock}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
-            subtext={`${data.time_to_first_value?.users_achieved} users achieved`}
+            subtext={`${data.time_to_first_value?.users_achieved || 0} users achieved`}
           />
           <MetricCard
             title="Activation Rate"
             value={formatPercentage(data.user_activation_rate?.activation_rate)}
             icon={Target}
             colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
-            subtext={`${data.user_activation_rate?.activated_users} activated`}
+            subtext={`${data.user_activation_rate?.activated_users || 0} activated`}
           />
           <MetricCard
             title="Avg Session Duration"
             value={formatDuration(data.session_duration_frequency?.average_duration)}
             icon={Activity}
             colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
-            subtext={`${data.session_duration_frequency?.total_sessions} sessions`}
+            subtext={`${data.session_duration_frequency?.total_sessions || 0} sessions`}
           />
         </div>
 
@@ -279,7 +279,7 @@ const AdminAnalytics = () => {
                   <span className="text-gray-700">{page.page}</span>
                   <span className="text-blue-600 font-semibold">{formatNumber(page.visits)} visits</span>
                 </div>
-              ))}
+              )) || <p className="text-gray-500">No data available</p>}
             </div>
           </div>
 
@@ -300,7 +300,7 @@ const AdminAnalytics = () => {
                   </div>
                   <span className="text-xs text-gray-500 font-medium">{path.count} users</span>
                 </div>
-              ))}
+              )) || <p className="text-gray-500">No data available</p>}
             </div>
           </div>
         </div>
@@ -363,7 +363,7 @@ const AdminAnalytics = () => {
             value={formatPercentage(data.chatbot_deployment_rate?.deployment_rate)}
             icon={MessageSquare}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext={`${data.chatbot_deployment_rate?.deployed_bots} deployed bots`}
+            subtext={`${data.chatbot_deployment_rate?.deployed_bots || 0} deployed bots`}
           />
           <MetricCard
             title="Avg Response Time"
@@ -489,6 +489,161 @@ const AdminAnalytics = () => {
     );
   };
 
+  const renderUserSuccess = () => {
+    const data = analyticsData.userSuccess;
+    if (!data) return <div className="text-center py-12 text-gray-500">No user success data available</div>;
+
+    return (
+      <div className="space-y-8">
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">User Success Indicators</h2>
+          <p className="text-gray-600">Monitor user retention, engagement, and success metrics</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard
+            title="Repeat Customers"
+            value={formatPercentage(data.repeat_customer_interaction?.rate)}
+            icon={Users}
+            colorClass="bg-gradient-to-r from-green-500 to-green-600"
+            subtext={`${data.repeat_customer_interaction?.total || 0} customers`}
+          />
+          <MetricCard
+            title="User Retention"
+            value={formatPercentage(data.user_retention?.current_month_retention)}
+            icon={TrendingUp}
+            colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
+            subtext="30-day retention"
+          />
+          <MetricCard
+            title="Time Saved"
+            value={`${data.time_saved_per_user?.average_hours || 0}h`}
+            icon={Clock}
+            colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
+            subtext="Per user average"
+          />
+          <MetricCard
+            title="Active Segments"
+            value={data.segmented_customers?.total_segments || 0}
+            icon={Activity}
+            colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
+            subtext="User segments"
+          />
+        </div>
+
+        {data.segmented_customers && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">User Segments</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(data.segmented_customers || {}).slice(0, 6).map(([key, value], idx) => {
+                // Skip meta fields
+                if (key === 'total_segments') return null;
+                
+                // Handle if value is an object
+                let displayValue = value;
+                if (typeof value === 'object' && value !== null) {
+                  displayValue = value.count || value._id || value.total || '0';
+                }
+                
+                return (
+                  <div key={idx} className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 mb-2">{key.replace(/_/g, ' ')}</p>
+                    <p className="text-2xl font-bold text-blue-600">{displayValue}</p>
+                  </div>
+                );
+              }).filter(Boolean)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTechnicalPerformance = () => {
+    const data = analyticsData.technicalPerformance;
+    if (!data) return <div className="text-center py-12 text-gray-500">No technical performance data available</div>;
+
+    return (
+      <div className="space-y-8">
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Technical Performance</h2>
+          <p className="text-gray-600">Monitor system performance, errors, and integration success</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard
+            title="Page Load Time"
+            value={`${data.page_load_times?.average || 0}s`}
+            icon={Zap}
+            colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
+            subtext="Average time"
+          />
+          <MetricCard
+            title="Integration Success"
+            value={formatPercentage(data.social_integration_success?.rate)}
+            icon={Activity}
+            colorClass="bg-gradient-to-r from-green-500 to-green-600"
+            subtext="Success rate"
+          />
+          <MetricCard
+            title="Bot Latency"
+            value={`${data.bot_latency?.average || 0}ms`}
+            icon={MessageSquare}
+            colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
+            subtext="Response time"
+          />
+          <MetricCard
+            title="Error Rate"
+            value={formatPercentage(data.error_type_breakdown?.total_rate)}
+            icon={AlertTriangle}
+            colorClass="bg-gradient-to-r from-red-500 to-red-600"
+            subtext="System errors"
+          />
+        </div>
+
+        {data.error_type_breakdown && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Breakdown</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(data.error_type_breakdown || {}).slice(0, 6).map(([type, value], idx) => {
+                // Skip meta fields
+                if (type === 'total_rate' || type === 'total_errors') return null;
+                
+                // Handle if value is an object
+                let displayValue = value;
+                if (typeof value === 'object' && value !== null) {
+                  displayValue = value.count || value._id || value.total || '0';
+                }
+                
+                return (
+                  <div key={idx} className="bg-red-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 mb-2">{type.replace(/_/g, ' ')}</p>
+                    <p className="text-2xl font-bold text-red-600">{displayValue}</p>
+                  </div>
+                );
+              }).filter(Boolean)}
+            </div>
+          </div>
+        )}
+
+        {data.messages_over_time && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Volume Over Time</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={formatMessagesOverTime(data.messages_over_time)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="time" stroke="#6B7280" />
+                <YAxis stroke="#6B7280" />
+                <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="messages" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.6} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderChurnRisk = () => {
     const data = analyticsData.churnRisk;
     if (!data) return <div className="text-center py-12 text-gray-500">No churn risk data available</div>;
@@ -548,7 +703,7 @@ const AdminAnalytics = () => {
                     />
                   </div>
                 </div>
-              ))}
+              )) || <p className="text-gray-500">No data available</p>}
             </div>
           </div>
 
@@ -558,15 +713,21 @@ const AdminAnalytics = () => {
             </h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-700">Users with reduced logins</span>
+                <span className="text-gray-700">Users with drops</span>
                 <span className="text-lg font-bold text-gray-900">
                   {data.login_frequency_drops?.users_with_drops || 0}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-700">Average drop rate</span>
+                <span className="text-gray-700">Avg drop rate</span>
                 <span className="text-lg font-bold text-red-600">
                   {formatPercentage(data.login_frequency_drops?.avg_drop_rate)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <span className="text-gray-700">Silent churned</span>
+                <span className="text-lg font-bold text-orange-600">
+                  {data.silent_churned_users?.count || 0}
                 </span>
               </div>
             </div>
@@ -674,6 +835,28 @@ const AdminAnalytics = () => {
       { risk: 'Medium Risk', users: data?.declining_usage_patterns?.medium_risk || 0 },
       { risk: 'Low Risk', users: data?.declining_usage_patterns?.low_risk || 0 },
     ];
+  };
+
+  const formatMessagesOverTime = (data) => {
+    if (!data) return [];
+    
+    // If data is an array
+    if (Array.isArray(data)) {
+      return data.map(item => ({
+        time: item.time || item.hour || item.date || 'Unknown',
+        messages: typeof item.messages === 'object' ? (item.messages.count || 0) : item.messages
+      }));
+    }
+    
+    // If data is an object with hourly/daily keys
+    if (typeof data === 'object') {
+      return Object.entries(data).map(([key, value]) => ({
+        time: key,
+        messages: typeof value === 'object' ? (value.count || 0) : value
+      }));
+    }
+    
+    return [];
   };
 
   if (loading) {
@@ -791,7 +974,29 @@ const AdminAnalytics = () => {
               onClick={() => setActiveTab('business')}
             >
               <TrendingUp className="w-4 h-4" />
-              Business Metrics
+              Business
+            </button>
+            <button 
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                activeTab === 'success' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              onClick={() => setActiveTab('success')}
+            >
+              <Users className="w-4 h-4" />
+              User Success
+            </button>
+            <button 
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                activeTab === 'technical' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              onClick={() => setActiveTab('technical')}
+            >
+              <Zap className="w-4 h-4" />
+              Technical
             </button>
             <button 
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
@@ -814,6 +1019,8 @@ const AdminAnalytics = () => {
           {activeTab === 'usage' && renderUsagePatterns()}
           {activeTab === 'chatbot' && renderChatbotPerformance()}
           {activeTab === 'business' && renderBusinessMetrics()}
+          {activeTab === 'success' && renderUserSuccess()}
+          {activeTab === 'technical' && renderTechnicalPerformance()}
           {activeTab === 'churn' && renderChurnRisk()}
         </div>
       </div>
