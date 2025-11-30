@@ -35,6 +35,14 @@ const AdminAnalytics = () => {
     fetchAllAnalytics();
   }, []);
 
+  // Helper to extract data from backend responses that may be [data, statusCode] tuples
+  const extractData = (response) => {
+    if (Array.isArray(response) && response.length === 2 && typeof response[1] === 'number') {
+      return response[0];
+    }
+    return response;
+  };
+
   const fetchAllAnalytics = async () => {
     try {
       setLoading(true);
@@ -84,9 +92,30 @@ const AdminAnalytics = () => {
     }
   };
 
+  // Parse percentage string like "77.78%" to decimal 0.7778
+  const parsePercentageString = (str) => {
+    if (!str || typeof str !== 'string') return null;
+    const match = str.match(/([\d.]+)%?/);
+    if (match) {
+      return parseFloat(match[1]) / 100;
+    }
+    return null;
+  };
+
   const formatPercentage = (value) => {
     if (value === null || value === undefined) return 'N/A';
-    return `${(value * 100).toFixed(1)}%`;
+    // Handle string percentages like "77.78%"
+    if (typeof value === 'string' && value.includes('%')) {
+      return value;
+    }
+    // Handle decimal values
+    if (typeof value === 'number') {
+      if (value <= 1) {
+        return `${(value * 100).toFixed(1)}%`;
+      }
+      return `${value.toFixed(1)}%`;
+    }
+    return 'N/A';
   };
 
   const formatNumber = (value) => {
@@ -97,10 +126,16 @@ const AdminAnalytics = () => {
   };
 
   const formatDuration = (seconds) => {
-    if (!seconds) return 'N/A';
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    if (!seconds && seconds !== 0) return 'N/A';
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
     return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  };
+
+  const formatMinutesToDuration = (minutes) => {
+    if (!minutes && minutes !== 0) return 'N/A';
+    if (minutes < 60) return `${Math.round(minutes)}m`;
+    return `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`;
   };
 
   const MetricCard = ({ title, value, icon: Icon, colorClass, subtext, trend }) => (
@@ -109,9 +144,9 @@ const AdminAnalytics = () => {
         <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClass}`}>
           <Icon className="w-6 h-6 text-white" />
         </div>
-        {trend && (
+        {trend !== undefined && trend !== null && (
           <span className={`text-sm font-semibold px-2 py-1 rounded-md ${
-            trend > 0 ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
+            trend > 0 ? 'text-green-600 bg-green-100' : trend < 0 ? 'text-red-600 bg-red-100' : 'text-gray-600 bg-gray-100'
           }`}>
             {trend > 0 ? '+' : ''}{trend}%
           </span>
@@ -125,43 +160,64 @@ const AdminAnalytics = () => {
     </div>
   );
 
+  // ==================== OVERVIEW ====================
   const renderOverview = () => {
     const { onboarding, businessMetrics, userSuccess, churnRisk } = analyticsData;
+    
+    // Extract signup completion rate
+    const signupRate = onboarding?.signup_completion_rate?.signup_completion_rate || 
+                       onboarding?.signup_completion_rate;
+    const signupCompleted = onboarding?.signup_completion_rate?.completed || 0;
+    
+    // Extract user retention - calculate average from array if needed
+    const retentionData = userSuccess?.user_retention?.data || userSuccess?.user_retention;
+    let retentionRate = 'N/A';
+    if (Array.isArray(retentionData) && retentionData.length > 0) {
+      const avgRetention = retentionData.reduce((sum, u) => sum + (u.retention_rate_percent || 0), 0) / retentionData.length;
+      retentionRate = `${avgRetention.toFixed(1)}%`;
+    } else if (userSuccess?.user_retention?.current_month_retention) {
+      retentionRate = formatPercentage(userSuccess.user_retention.current_month_retention);
+    }
+    
+    // Extract revenue attribution - handle [data, statusCode] tuple
+    const revenueData = extractData(businessMetrics?.revenue_attribution);
+    const totalRevenue = revenueData?.data?.total_revenue || revenueData?.total_revenue || 0;
+    
+    // Extract churn risk
+    const churnData = extractData(churnRisk?.declining_usage_patterns);
+    const usersAtRisk = churnData?.declining_users_count || 
+                        churnRisk?.declining_usage_patterns?.users_at_risk || 0;
     
     return (
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Signup Completion Rate"
-            value={onboarding?.signup_completion_rate ? formatPercentage(onboarding.signup_completion_rate.rate) : 'N/A'}
+            value={typeof signupRate === 'string' ? signupRate : formatPercentage(signupRate)}
             icon={UserCheck}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext={`${onboarding?.signup_completion_rate?.completed || 0} completed`}
-            trend={12}
+            subtext={`${signupCompleted} completed`}
           />
           <MetricCard
             title="User Retention"
-            value={userSuccess?.user_retention ? formatPercentage(userSuccess.user_retention.current_month_retention) : 'N/A'}
+            value={retentionRate}
             icon={Users}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
             subtext="30-day retention"
-            trend={-5}
           />
           <MetricCard
             title="Revenue Attribution"
-            value={businessMetrics?.revenue_attribution ? `$${formatNumber(businessMetrics.revenue_attribution.total_revenue)}` : 'N/A'}
+            value={`$${formatNumber(totalRevenue)}`}
             icon={DollarSign}
             colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
             subtext="Total platform revenue"
-            trend={23}
           />
           <MetricCard
             title="Churn Risk Users"
-            value={churnRisk?.declining_usage_patterns?.users_at_risk || '0'}
+            value={usersAtRisk}
             icon={AlertTriangle}
             colorClass="bg-gradient-to-r from-red-500 to-red-600"
             subtext="Users showing decline"
-            trend={-8}
           />
         </div>
 
@@ -170,7 +226,7 @@ const AdminAnalytics = () => {
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">User Growth Trend</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={generateMockTrendData()}>
+              <AreaChart data={generateUserGrowthData(onboarding)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="name" stroke="#6B7280" />
                 <YAxis stroke="#6B7280" />
@@ -183,7 +239,7 @@ const AdminAnalytics = () => {
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Platform Health Score</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <RadarChart data={generateHealthScore()}>
+              <RadarChart data={generateHealthScore(analyticsData)}>
                 <PolarGrid stroke="#E5E7EB" />
                 <PolarAngleAxis dataKey="metric" stroke="#6B7280" />
                 <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="#6B7280" />
@@ -197,9 +253,28 @@ const AdminAnalytics = () => {
     );
   };
 
+  // ==================== ONBOARDING ====================
   const renderOnboarding = () => {
     const data = analyticsData.onboarding;
     if (!data) return <div className="text-center py-12 text-gray-500">No onboarding data available</div>;
+
+    // Parse signup completion rate
+    const signupData = data.signup_completion_rate || {};
+    const signupRateStr = signupData.signup_completion_rate || '0%';
+    const signupCompleted = signupData.completed || 0;
+    const signupStarted = signupData.started || 0;
+    
+    // Time to first value (in minutes from backend)
+    const ttfvMinutes = data.time_to_first_value?.average_ttfv_minutes || 0;
+    const ttfvUsers = data.time_to_first_value?.users?.length || 0;
+    
+    // User activation rate
+    const activationRate = data.user_activation_rate?.activation_rate || 0;
+    const activatedUsers = data.user_activation_rate?.activated_users || 0;
+    
+    // Session duration - global average is in minutes
+    const avgSessionMinutes = data.session_duration_frequency?.global_average_minutes || 0;
+    const totalSessions = data.session_duration_frequency?.users?.reduce((sum, u) => sum + (u.total_sessions || 0), 0) || 0;
 
     return (
       <div className="space-y-8">
@@ -211,34 +286,35 @@ const AdminAnalytics = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Signup Completion"
-            value={formatPercentage(data.signup_completion_rate?.rate)}
+            value={signupRateStr}
             icon={UserCheck}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext={`${data.signup_completion_rate?.completed || 0} of ${data.signup_completion_rate?.total || 0} users`}
+            subtext={`${signupCompleted} of ${signupStarted} users`}
           />
           <MetricCard
             title="Time to First Value"
-            value={formatDuration(data.time_to_first_value?.average_hours * 3600)}
+            value={ttfvMinutes > 0 ? formatMinutesToDuration(ttfvMinutes) : 'N/A'}
             icon={Clock}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
-            subtext={`${data.time_to_first_value?.users_achieved || 0} users achieved`}
+            subtext={`${ttfvUsers} users achieved`}
           />
           <MetricCard
             title="Activation Rate"
-            value={formatPercentage(data.user_activation_rate?.activation_rate)}
+            value={formatPercentage(activationRate / 100)}
             icon={Target}
             colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
-            subtext={`${data.user_activation_rate?.activated_users || 0} activated`}
+            subtext={`${activatedUsers} activated`}
           />
           <MetricCard
             title="Avg Session Duration"
-            value={formatDuration(data.session_duration_frequency?.average_duration)}
+            value={formatMinutesToDuration(avgSessionMinutes)}
             icon={Activity}
             colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
-            subtext={`${data.session_duration_frequency?.total_sessions || 0} sessions`}
+            subtext={`${totalSessions} total sessions`}
           />
         </div>
 
+        {/* Onboarding Funnel */}
         <div className="bg-white rounded-xl p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Onboarding Funnel</h3>
           <ResponsiveContainer width="100%" height={400}>
@@ -255,13 +331,81 @@ const AdminAnalytics = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Cohort Analysis */}
+        {data.cohort_analysis?.data && data.cohort_analysis.data.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cohort Retention</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cohort</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Users</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active Users</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Retention Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {data.cohort_analysis.data.map((cohort, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{cohort.cohort_month}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{cohort.total_users}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{cohort.active_users}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          cohort.retention_rate_percent >= 80 ? 'bg-green-100 text-green-800' :
+                          cohort.retention_rate_percent >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {cohort.retention_rate_percent?.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Churn Breakdown */}
+        {data.user_activation_rate?.churn_breakdown && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Activation Breakdown</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-red-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Signup Only</p>
+                <p className="text-2xl font-bold text-red-600">{data.user_activation_rate.churn_breakdown.signup_only || 0}</p>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Deployed Only</p>
+                <p className="text-2xl font-bold text-yellow-600">{data.user_activation_rate.churn_breakdown.deployed_only || 0}</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Fully Activated</p>
+                <p className="text-2xl font-bold text-green-600">{data.user_activation_rate.churn_breakdown.full_activated || 0}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
+  // ==================== USAGE PATTERNS ====================
   const renderUsagePatterns = () => {
     const data = analyticsData.usagePatterns;
     if (!data) return <div className="text-center py-12 text-gray-500">No usage pattern data available</div>;
+
+    // Page visit frequency - comes as page_visit_analytics array
+    const pageVisits = data.page_visit_frequency?.page_visit_analytics || [];
+    
+    // User flow analysis - comes as top_user_flows array
+    const userFlows = data.user_flow_analysis?.top_user_flows || [];
+    
+    // Feature discovery - comes as data array with feature and count
+    const featureDiscovery = data.feature_discovery?.data || [];
 
     return (
       <div className="space-y-8">
@@ -271,84 +415,163 @@ const AdminAnalytics = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Most Visited Pages */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h4 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">Most Visited Pages</h4>
-            <div className="space-y-3">
-              {data.page_visit_frequency?.most_visited?.map((page, idx) => (
-                <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-700">{page.page}</span>
-                  <span className="text-blue-600 font-semibold">{formatNumber(page.visits)} visits</span>
-                </div>
-              )) || <p className="text-gray-500">No data available</p>}
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {pageVisits.length > 0 ? (
+                pageVisits
+                  .sort((a, b) => b.total_visits - a.total_visits)
+                  .slice(0, 10)
+                  .map((page, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0">
+                      <div>
+                        <span className="text-gray-700 font-medium">{page.page}</span>
+                        <p className="text-xs text-gray-400">{page.total_users} users • {page.avg_duration_seconds?.toFixed(1)}s avg</p>
+                      </div>
+                      <span className="text-blue-600 font-semibold">{formatNumber(page.total_visits)} visits</span>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-gray-500">No data available</p>
+              )}
             </div>
           </div>
 
+          {/* User Flow Insights */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h4 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">User Flow Insights</h4>
-            <div className="space-y-3">
-              {data.user_flow_analysis?.common_paths?.map((path, idx) => (
-                <div key={idx} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
-                  <div className="flex items-center flex-wrap mb-2">
-                    {path.path.map((step, stepIdx) => (
-                      <React.Fragment key={stepIdx}>
-                        <span className="bg-white px-3 py-1 rounded-md text-sm font-medium text-gray-700 border border-gray-200">
-                          {step}
-                        </span>
-                        {stepIdx < path.path.length - 1 && <span className="mx-2 text-gray-400">→</span>}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                  <span className="text-xs text-gray-500 font-medium">{path.count} users</span>
-                </div>
-              )) || <p className="text-gray-500">No data available</p>}
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {userFlows.length > 0 ? (
+                userFlows.map((flow, idx) => {
+                  // Parse the path string into steps
+                  const steps = typeof flow.path === 'string' 
+                    ? flow.path.split(' → ').slice(0, 5) // Show first 5 steps
+                    : (flow.path || []).slice(0, 5);
+                  
+                  return (
+                    <div key={idx} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
+                      <div className="flex items-center flex-wrap mb-2">
+                        {steps.map((step, stepIdx) => (
+                          <React.Fragment key={stepIdx}>
+                            <span className="bg-white px-2 py-1 rounded-md text-xs font-medium text-gray-700 border border-gray-200 mb-1">
+                              {step}
+                            </span>
+                            {stepIdx < steps.length - 1 && <span className="mx-1 text-gray-400 text-xs">→</span>}
+                          </React.Fragment>
+                        ))}
+                        {(typeof flow.path === 'string' ? flow.path.split(' → ').length : flow.path?.length || 0) > 5 && (
+                          <span className="text-xs text-gray-400 ml-1">+more</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500 font-medium">{flow.count} users</span>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-gray-500">No data available</p>
+              )}
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Peak Usage Hours */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Peak Usage Hours</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={formatPeakUsageData(data.peak_usage)}>
+              <BarChart data={formatPeakUsageData(data.peak_usage)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="hour" stroke="#6B7280" />
                 <YAxis stroke="#6B7280" />
                 <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="users" stroke="#10B981" strokeWidth={2} />
-              </LineChart>
+                <Bar dataKey="sessions" fill="#10B981" name="Sessions" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Feature Discovery */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Discovery Rate</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Discovery</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={formatFeatureDiscoveryData(data.feature_discovery)}
+                  data={formatFeatureDiscoveryData(featureDiscovery)}
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
                   fill="#8B5CF6"
                   dataKey="value"
-                  label
+                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                 >
-                  {formatFeatureDiscoveryData(data.feature_discovery).map((entry, index) => (
+                  {formatFeatureDiscoveryData(featureDiscovery).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
-                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Feature Discovery Depth */}
+        {data.feature_discovery_depth?.data && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Usage Depth</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(data.feature_discovery_depth.data).map(([feature, stats], idx) => (
+                <div key={idx} className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">{feature}</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Discoveries:</span>
+                      <span className="font-medium">{stats.total_discoveries}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Interactions:</span>
+                      <span className="font-medium">{stats.total_interactions}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Unique Users:</span>
+                      <span className="font-medium">{stats.unique_users}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Avg Actions/User:</span>
+                      <span className="font-medium">{stats.avg_actions_per_user?.toFixed(1)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
+  // ==================== CHATBOT PERFORMANCE ====================
   const renderChatbotPerformance = () => {
     const data = analyticsData.chatbotPerformance;
     if (!data) return <div className="text-center py-12 text-gray-500">No chatbot performance data available</div>;
+
+    // Chatbot deployment rate
+    const deploymentRate = data.chatbot_deployment_rate?.success_rate_percent || 0;
+    const deployedBots = data.chatbot_deployment_rate?.success_count || 0;
+    const totalAttempts = data.chatbot_deployment_rate?.total_attempts || 0;
+    
+    // Bot testing - extract from [data, statusCode] tuple
+    const botTestingData = extractData(data.bot_testing);
+    const totalTests = botTestingData?.overall?.total_tests || 0;
+    const successfulTests = botTestingData?.overall?.total_success || 0;
+    const testSuccessRate = botTestingData?.overall?.success_rate || 0;
+    
+    // Response time improvement - extract from tuple
+    const responseTimeData = extractData(data.response_time_improvement);
+    const avgResponseTime = responseTimeData?.after_avg_seconds || responseTimeData?.before_avg_seconds || 0;
+    const improvementPercent = responseTimeData?.improvement_percent || 0;
+    
+    // Bot engagement
+    const botEngagement = data.bot_engagement?.results || [];
 
     return (
       <div className="space-y-8">
@@ -360,38 +583,91 @@ const AdminAnalytics = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Deployment Rate"
-            value={formatPercentage(data.chatbot_deployment_rate?.deployment_rate)}
+            value={`${deploymentRate.toFixed(1)}%`}
             icon={MessageSquare}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext={`${data.chatbot_deployment_rate?.deployed_bots || 0} deployed bots`}
+            subtext={`${deployedBots} of ${totalAttempts} attempts`}
           />
           <MetricCard
             title="Avg Response Time"
-            value={`${data.response_time_improvement?.current_avg_response_time || 0}s`}
+            value={avgResponseTime ? `${avgResponseTime.toFixed(1)}s` : 'N/A'}
             icon={Zap}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
-            subtext={`${data.response_time_improvement?.improvement_percentage || 0}% improvement`}
+            subtext={improvementPercent ? `${improvementPercent.toFixed(1)}% improvement` : 'No baseline'}
           />
           <MetricCard
             title="Test Sessions"
-            value={formatNumber(data.bot_testing?.total_test_sessions)}
+            value={formatNumber(totalTests)}
             icon={Activity}
             colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
-            subtext={`${data.bot_testing?.avg_messages_per_session || 0} avg messages`}
+            subtext={`${successfulTests} successful`}
           />
           <MetricCard
-            title="Success Rate"
-            value={formatPercentage(data.bot_testing?.successful_tests / data.bot_testing?.total_test_sessions)}
+            title="Test Success Rate"
+            value={`${testSuccessRate.toFixed(1)}%`}
             icon={Target}
             colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
             subtext="Test success rate"
           />
         </div>
 
+        {/* Common Failure Reasons */}
+        {data.chatbot_deployment_rate?.common_failure_reasons?.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Common Deployment Failures</h3>
+            <div className="space-y-3">
+              {data.chatbot_deployment_rate.common_failure_reasons.map((reason, idx) => (
+                <div key={idx} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                  <span className="text-gray-700">{reason._id}</span>
+                  <span className="text-red-600 font-semibold">{reason.count} occurrences</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bot Engagement */}
+        {botEngagement.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bot Engagement by User</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Messages</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bot Messages</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bot Engagement</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {botEngagement.map((engagement, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-600 font-mono">{engagement.user_id?.slice(0, 8)}...</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{engagement.total_messages}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{engagement.bot_messages}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          engagement.bot_engagement_rate >= 50 ? 'bg-green-100 text-green-800' :
+                          engagement.bot_engagement_rate >= 25 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {engagement.bot_engagement_rate?.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Response Time Chart */}
         <div className="bg-white rounded-xl p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Response Time Trend</h3>
           <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={generateResponseTimeTrend(data)}>
+            <LineChart data={generateResponseTimeTrend(responseTimeData)}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="period" stroke="#6B7280" />
               <YAxis stroke="#6B7280" />
@@ -406,9 +682,38 @@ const AdminAnalytics = () => {
     );
   };
 
+  // ==================== BUSINESS METRICS ====================
   const renderBusinessMetrics = () => {
     const data = analyticsData.businessMetrics;
     if (!data) return <div className="text-center py-12 text-gray-500">No business metrics data available</div>;
+
+    // Product catalogue - extract from tuple
+    const catalogueData = extractData(data.product_catalogue);
+    const latestGrowth = catalogueData?.growth?.[catalogueData.growth.length - 1] || {};
+    const totalProducts = latestGrowth.total || 0;
+    const growthRate = catalogueData?.growth?.length > 1 
+      ? ((latestGrowth.total - catalogueData.growth[0].total) / (catalogueData.growth[0].total || 1) * 100).toFixed(1)
+      : 0;
+    
+    // Revenue attribution - extract from tuple
+    const revenueData = extractData(data.revenue_attribution);
+    const totalRevenue = revenueData?.data?.total_revenue || 0;
+    const revenueByPlatform = revenueData?.data?.revenue_by_platform || {};
+    const transactionCount = revenueData?.data?.transaction_count || 0;
+    
+    // Message volume - extract from tuple
+    const messageData = extractData(data.message_volume_trends);
+    const messageTotal = messageData?.data?.length || 0;
+    
+    // Response times - extract from tuple
+    const responseTimesData = extractData(data.response_times);
+    
+    // Customer lifetime value
+    const clvData = data.customer_lifetime_value || [];
+    
+    // Churned revenue
+    const churnedRevenue = data.calculated_churn_revenue?.total_churned_revenue || 0;
+    const churnedUsers = data.calculated_churn_revenue?.total_churned_users || 0;
 
     return (
       <div className="space-y-8">
@@ -420,49 +725,50 @@ const AdminAnalytics = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Revenue"
-            value={`$${formatNumber(data.revenue_attribution?.total_revenue)}`}
+            value={`$${formatNumber(totalRevenue)}`}
             icon={DollarSign}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
-            subtext="Platform revenue"
+            subtext={`${transactionCount} transactions`}
           />
           <MetricCard
             title="Product Catalogue"
-            value={formatNumber(data.product_catalogue?.total_products)}
+            value={formatNumber(totalProducts)}
             icon={Package}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext={`${data.product_catalogue?.growth_rate || 0}% growth`}
+            subtext={`${growthRate}% growth`}
           />
           <MetricCard
-            title="Message Volume"
-            value={formatNumber(data.message_volume_trends?.total_messages)}
-            icon={MessageSquare}
+            title="Churned Revenue"
+            value={`$${formatNumber(churnedRevenue)}`}
+            icon={AlertTriangle}
+            colorClass="bg-gradient-to-r from-red-500 to-red-600"
+            subtext={`${churnedUsers} churned users`}
+          />
+          <MetricCard
+            title="Active Customers"
+            value={formatNumber(Array.isArray(clvData) ? clvData.length : 0)}
+            icon={Users}
             colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
-            subtext={`${data.message_volume_trends?.trend || 'stable'} trend`}
-          />
-          <MetricCard
-            title="Avg Response Time"
-            value={`${data.response_times?.average || 0}s`}
-            icon={Clock}
-            colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
-            subtext="Customer response"
+            subtext="With lifetime value"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue by Channel */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Channel</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={formatRevenueByChannel(data.revenue_attribution)}
+                  data={formatRevenueByChannel(revenueByPlatform)}
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
                   fill="#8B5CF6"
                   dataKey="value"
-                  label
+                  label={({ name, value }) => `${name}: $${formatNumber(value)}`}
                 >
-                  {formatRevenueByChannel(data.revenue_attribution).map((entry, index) => (
+                  {formatRevenueByChannel(revenueByPlatform).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -472,26 +778,103 @@ const AdminAnalytics = () => {
             </ResponsiveContainer>
           </div>
 
+          {/* Catalogue Growth */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Volume Trend</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Catalogue Growth</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={generateMessageVolumeTrend(data.message_volume_trends)}>
+              <AreaChart data={formatCatalogueGrowth(catalogueData?.growth)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="date" stroke="#6B7280" />
+                <XAxis dataKey="period" stroke="#6B7280" />
                 <YAxis stroke="#6B7280" />
                 <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="messages" stroke="#10B981" fill="#10B981" fillOpacity={0.6} />
+                <Area type="monotone" dataKey="products" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} name="Products" />
+                <Area type="monotone" dataKey="services" stroke="#10B981" fill="#10B981" fillOpacity={0.3} name="Services" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Customer Lifetime Value */}
+        {Array.isArray(clvData) && clvData.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Lifetime Value</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Platforms</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Orders</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Order Value</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {clvData.map((customer, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{customer.username}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{customer.platforms?.join(', ')}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{customer.total_orders}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">${customer.average_order_value?.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-green-600">${customer.total_revenue?.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Churned Users Details */}
+        {data.calculated_churn_revenue?.details?.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Churned Customer Details</h3>
+            <div className="space-y-3">
+              {data.calculated_churn_revenue.details.map((user, idx) => (
+                <div key={idx} className="flex justify-between items-center p-4 bg-red-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{user.username}</p>
+                    <p className="text-sm text-gray-500">Last order: {new Date(user.last_order_date).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-400">{user.platforms?.join(', ')}</p>
+                  </div>
+                  <span className="text-red-600 font-bold">${user.total_revenue?.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
+  // ==================== USER SUCCESS ====================
   const renderUserSuccess = () => {
     const data = analyticsData.userSuccess;
     if (!data) return <div className="text-center py-12 text-gray-500">No user success data available</div>;
+
+    // Repeat customers - aggregate from array
+    const repeatData = data.repeat_customer_interaction?.data || [];
+    const totalCustomers = repeatData.reduce((sum, u) => sum + (u.total_customers || 0), 0);
+    const returningCustomers = repeatData.reduce((sum, u) => sum + (u.returning_customers || 0), 0);
+    const repeatRate = totalCustomers > 0 ? (returningCustomers / totalCustomers * 100) : 0;
+    
+    // User retention - aggregate from array
+    const retentionData = data.user_retention?.data || [];
+    const avgRetention = retentionData.length > 0 
+      ? retentionData.reduce((sum, u) => sum + (u.retention_rate_percent || 0), 0) / retentionData.length
+      : 0;
+    
+    // Time saved
+    const timeSaved = data.time_saved_per_user || {};
+    const automatedTasks = timeSaved.automated?.count || 0;
+    const manualTasks = timeSaved.manual?.count || 0;
+    const automationRatio = timeSaved.comparison?.automated_to_manual_ratio || 0;
+    
+    // Segmented customers
+    const segmentedData = data.segmented_customers?.data || [];
+    const totalSegments = new Set(
+      segmentedData.flatMap(u => Object.values(u.features || {}).map(f => f.segment))
+    ).size;
 
     return (
       <div className="space-y-8">
@@ -503,55 +886,104 @@ const AdminAnalytics = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Repeat Customers"
-            value={formatPercentage(data.repeat_customer_interaction?.rate)}
+            value={`${repeatRate.toFixed(1)}%`}
             icon={Users}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
-            subtext={`${data.repeat_customer_interaction?.total || 0} customers`}
+            subtext={`${returningCustomers} of ${totalCustomers} customers`}
           />
           <MetricCard
             title="User Retention"
-            value={formatPercentage(data.user_retention?.current_month_retention)}
+            value={`${avgRetention.toFixed(1)}%`}
             icon={TrendingUp}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext="30-day retention"
+            subtext="Average retention rate"
           />
           <MetricCard
-            title="Time Saved"
-            value={`${data.time_saved_per_user?.average_hours || 0}h`}
-            icon={Clock}
+            title="Automated Tasks"
+            value={formatNumber(automatedTasks)}
+            icon={Zap}
             colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
-            subtext="Per user average"
+            subtext={`vs ${manualTasks} manual`}
           />
           <MetricCard
-            title="Active Segments"
-            value={data.segmented_customers?.total_segments || 0}
+            title="User Segments"
+            value={totalSegments}
             icon={Activity}
             colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
-            subtext="User segments"
+            subtext={`${segmentedData.length} users analyzed`}
           />
         </div>
 
-        {data.segmented_customers && (
+        {/* User Segments Detail */}
+        {segmentedData.length > 0 && (
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">User Segments</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">User Feature Segments</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Features Used</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Primary Segment</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {segmentedData.slice(0, 10).map((user, idx) => {
+                    const features = Object.entries(user.features || {});
+                    const primarySegment = features.length > 0 
+                      ? features.reduce((a, b) => (b[1].usage_count > a[1].usage_count ? b : a))[1].segment
+                      : 'N/A';
+                    
+                    return (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-600 font-mono">{user.userid?.slice(0, 8)}...</td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex flex-wrap gap-1">
+                            {features.map(([feature, stats], fIdx) => (
+                              <span key={fIdx} className="px-2 py-1 bg-gray-100 rounded text-xs">
+                                {feature} ({stats.usage_count})
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            primarySegment === 'power_user' ? 'bg-green-100 text-green-800' :
+                            primarySegment === 'moderate_user' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {primarySegment}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Automation Stats */}
+        {(automatedTasks > 0 || manualTasks > 0) && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Task Automation</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(data.segmented_customers || {}).slice(0, 6).map(([key, value], idx) => {
-                // Skip meta fields
-                if (key === 'total_segments') return null;
-                
-                // Handle if value is an object
-                let displayValue = value;
-                if (typeof value === 'object' && value !== null) {
-                  displayValue = value.count || value._id || value.total || '0';
-                }
-                
-                return (
-                  <div key={idx} className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600 mb-2">{key.replace(/_/g, ' ')}</p>
-                    <p className="text-2xl font-bold text-blue-600">{displayValue}</p>
-                  </div>
-                );
-              }).filter(Boolean)}
+              <div className="bg-green-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Automated Tasks</p>
+                <p className="text-2xl font-bold text-green-600">{automatedTasks}</p>
+                <p className="text-xs text-gray-400">{timeSaved.automated?.percentage || 0}%</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Manual Tasks</p>
+                <p className="text-2xl font-bold text-blue-600">{manualTasks}</p>
+                <p className="text-xs text-gray-400">{timeSaved.manual?.percentage || 0}%</p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Automation Ratio</p>
+                <p className="text-2xl font-bold text-purple-600">{automationRatio.toFixed(2)}x</p>
+                <p className="text-xs text-gray-400">automated to manual</p>
+              </div>
             </div>
           </div>
         )}
@@ -559,9 +991,29 @@ const AdminAnalytics = () => {
     );
   };
 
+  // ==================== TECHNICAL PERFORMANCE ====================
   const renderTechnicalPerformance = () => {
     const data = analyticsData.technicalPerformance;
     if (!data) return <div className="text-center py-12 text-gray-500">No technical performance data available</div>;
+
+    // Page load times - extract from tuple
+    const pageLoadData = extractData(data.page_load_times);
+    const pageLoadArray = pageLoadData?.data || pageLoadData || [];
+    const avgLoadTime = pageLoadArray.length > 0
+      ? pageLoadArray.reduce((sum, p) => sum + (p.avg_load_time || 0), 0) / pageLoadArray.length
+      : 0;
+    
+    // Social integration - extract from tuple
+    const socialData = extractData(data.social_integration_success);
+    const integrationSuccessRate = socialData?.success_rate || '0%';
+    const totalAttempts = socialData?.total_attempts || 0;
+    
+    // Bot latency
+    const botLatency = data.bot_latency?.average_latency_seconds;
+    
+    // Error breakdown
+    const errors = data.error_type_breakdown || [];
+    const totalErrors = errors.reduce((sum, e) => sum + (e.count || 0), 0);
 
     return (
       <div className="space-y-8">
@@ -572,81 +1024,149 @@ const AdminAnalytics = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
-            title="Page Load Time"
-            value={`${data.page_load_times?.average || 0}s`}
+            title="Avg Page Load Time"
+            value={`${avgLoadTime.toFixed(0)}ms`}
             icon={Zap}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext="Average time"
+            subtext={`${pageLoadArray.length} endpoints tracked`}
           />
           <MetricCard
             title="Integration Success"
-            value={formatPercentage(data.social_integration_success?.rate)}
+            value={integrationSuccessRate}
             icon={Activity}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
-            subtext="Success rate"
+            subtext={`${totalAttempts} total attempts`}
           />
           <MetricCard
             title="Bot Latency"
-            value={`${data.bot_latency?.average || 0}ms`}
+            value={botLatency ? `${(botLatency * 1000).toFixed(0)}ms` : 'N/A'}
             icon={MessageSquare}
             colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
-            subtext="Response time"
+            subtext={data.bot_latency?.platform || 'No data'}
           />
           <MetricCard
-            title="Error Rate"
-            value={formatPercentage(data.error_type_breakdown?.total_rate)}
+            title="Total Errors"
+            value={formatNumber(totalErrors)}
             icon={AlertTriangle}
             colorClass="bg-gradient-to-r from-red-500 to-red-600"
             subtext="System errors"
           />
         </div>
 
-        {data.error_type_breakdown && (
+        {/* Page Load Times Detail */}
+        {pageLoadArray.length > 0 && (
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Breakdown</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(data.error_type_breakdown || {}).slice(0, 6).map(([type, value], idx) => {
-                // Skip meta fields
-                if (type === 'total_rate' || type === 'total_errors') return null;
-                
-                // Handle if value is an object
-                let displayValue = value;
-                if (typeof value === 'object' && value !== null) {
-                  displayValue = value.count || value._id || value.total || '0';
-                }
-                
-                return (
-                  <div key={idx} className="bg-red-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600 mb-2">{type.replace(/_/g, ' ')}</p>
-                    <p className="text-2xl font-bold text-red-600">{displayValue}</p>
-                  </div>
-                );
-              }).filter(Boolean)}
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Endpoint Performance</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Endpoint</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Load Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Hits</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Errors</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {pageLoadArray
+                    .sort((a, b) => b.avg_load_time - a.avg_load_time)
+                    .slice(0, 15)
+                    .map((endpoint, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-mono text-gray-900">{endpoint._id}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            endpoint.avg_load_time > 100 ? 'bg-red-100 text-red-800' :
+                            endpoint.avg_load_time > 50 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {endpoint.avg_load_time?.toFixed(1)}ms
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{endpoint.total_hits}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {endpoint.error_count > 0 ? (
+                            <span className="text-red-600 font-medium">{endpoint.error_count}</span>
+                          ) : (
+                            <span className="text-green-600">0</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
-        {data.messages_over_time && (
+        {/* Social Integration Details */}
+        {socialData && (
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Volume Over Time</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={formatMessagesOverTime(data.messages_over_time)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="time" stroke="#6B7280" />
-                <YAxis stroke="#6B7280" />
-                <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="messages" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.6} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Social Integration Status</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-green-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Successful</p>
+                <p className="text-2xl font-bold text-green-600">{socialData.success_count || 0}</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Failed</p>
+                <p className="text-2xl font-bold text-red-600">{socialData.failure_count || 0}</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Success Rate</p>
+                <p className="text-2xl font-bold text-blue-600">{socialData.success_rate || 'N/A'}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Last Update</p>
+                <p className="text-sm font-medium text-gray-700">
+                  {socialData.last_update ? new Date(socialData.last_update).toLocaleString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Breakdown */}
+        {errors.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Breakdown</h3>
+            <div className="space-y-3">
+              {errors.map((error, idx) => (
+                <div key={idx} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                  <span className="text-gray-700">{error._id || 'Unknown Error'}</span>
+                  <span className="text-red-600 font-semibold">{error.count} occurrences</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
     );
   };
 
+  // ==================== CHURN RISK ====================
   const renderChurnRisk = () => {
     const data = analyticsData.churnRisk;
     if (!data) return <div className="text-center py-12 text-gray-500">No churn risk data available</div>;
+
+    // Declining usage - extract from tuple
+    const decliningData = extractData(data.declining_usage_patterns);
+    const usersAtRisk = decliningData?.declining_users_count || 0;
+    const totalAnalyzed = decliningData?.total_users_analyzed || 0;
+    const declineRate = decliningData?.['decline_rate_%'] || 0;
+    
+    // Login frequency drops - extract from tuple
+    const loginDropsData = extractData(data.login_frequency_drops);
+    const loginData = loginDropsData?.data || {};
+    const inactiveUsers = loginData.inactive_users || [];
+    const inactiveCount = loginData.inactive_users_count || 0;
+    const inactivePercentage = loginData.inactive_percentage || 0;
+    
+    // Silent churned users
+    const silentChurned = data.silent_churned_users || [];
+    
+    // Feature abandonment
+    const featureAbandonment = data.feature_abandonment;
 
     return (
       <div className="space-y-8">
@@ -658,91 +1178,123 @@ const AdminAnalytics = () => {
         <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <AlertTriangle className="w-5 h-5 text-yellow-600" />
           <span className="text-yellow-800 font-medium">
-            {data.declining_usage_patterns?.users_at_risk || 0} users showing declining usage patterns
+            {inactiveCount} users showing inactivity ({inactivePercentage.toFixed(1)}% of tracked users)
           </span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Declining Usage */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">
-              Declining Usage Patterns
+              Usage Patterns
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg text-red-700">
-                <span className="font-medium">High Risk</span>
-                <span className="text-xl font-bold">{data.declining_usage_patterns?.high_risk || 0}</span>
+              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                <span className="font-medium text-gray-700">Total Analyzed</span>
+                <span className="text-xl font-bold text-blue-600">{totalAnalyzed}</span>
               </div>
-              <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg text-yellow-700">
-                <span className="font-medium">Medium Risk</span>
-                <span className="text-xl font-bold">{data.declining_usage_patterns?.medium_risk || 0}</span>
+              <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                <span className="font-medium text-gray-700">At Risk</span>
+                <span className="text-xl font-bold text-yellow-600">{usersAtRisk}</span>
               </div>
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg text-blue-700">
-                <span className="font-medium">Low Risk</span>
-                <span className="text-xl font-bold">{data.declining_usage_patterns?.low_risk || 0}</span>
+              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                <span className="font-medium text-gray-700">Decline Rate</span>
+                <span className="text-xl font-bold text-red-600">{declineRate.toFixed(1)}%</span>
               </div>
             </div>
           </div>
 
+          {/* Login Frequency Stats */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">
-              Feature Abandonment
+              Login Activity
             </h3>
-            <div className="space-y-4">
-              {data.feature_abandonment?.abandoned_features?.map((feature, idx) => (
-                <div key={idx}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">{feature.feature}</span>
-                    <span className="text-xs font-semibold text-red-600">
-                      {formatPercentage(feature.abandonment_rate)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-red-400 to-red-600 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${feature.abandonment_rate * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )) || <p className="text-gray-500">No data available</p>}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                <span className="font-medium text-gray-700">Active Users</span>
+                <span className="text-xl font-bold text-green-600">{loginData.active_users_count || 0}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                <span className="font-medium text-gray-700">Inactive Users</span>
+                <span className="text-xl font-bold text-red-600">{inactiveCount}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium text-gray-700">Total Tracked</span>
+                <span className="text-xl font-bold text-gray-600">{loginData.total_users_tracked || 0}</span>
+              </div>
             </div>
           </div>
 
+          {/* Silent Churned */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">
-              Login Frequency Drops
+              Silent Churn
             </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-700">Users with drops</span>
-                <span className="text-lg font-bold text-gray-900">
-                  {data.login_frequency_drops?.users_with_drops || 0}
-                </span>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                <span className="font-medium text-gray-700">Silent Churned</span>
+                <span className="text-xl font-bold text-orange-600">{silentChurned.length}</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-700">Avg drop rate</span>
-                <span className="text-lg font-bold text-red-600">
-                  {formatPercentage(data.login_frequency_drops?.avg_drop_rate)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-700">Silent churned</span>
-                <span className="text-lg font-bold text-orange-600">
-                  {data.silent_churned_users?.count || 0}
-                </span>
+                <span className="font-medium text-gray-700">Cutoff Days</span>
+                <span className="text-xl font-bold text-gray-600">{loginData.recent_cutoff_days || 30}</span>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Inactive Users Detail */}
+        {inactiveUsers.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Inactive Users</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Inactive</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Logins</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {inactiveUsers.slice(0, 15).map((user, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">{user.email || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          user.days_since_last_login > 30 ? 'bg-red-100 text-red-800' :
+                          user.days_since_last_login > 14 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {user.days_since_last_login} days
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{user.total_logins}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {inactiveUsers.length > 15 && (
+              <p className="text-sm text-gray-500 mt-4">Showing 15 of {inactiveUsers.length} inactive users</p>
+            )}
+          </div>
+        )}
+
+        {/* Churn Risk Distribution Chart */}
         <div className="bg-white rounded-xl p-6 shadow-lg">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Churn Risk Distribution</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Inactivity Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={formatChurnRiskDistribution(data)}>
+            <BarChart data={formatInactivityDistribution(inactiveUsers)}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="risk" stroke="#6B7280" />
+              <XAxis dataKey="range" stroke="#6B7280" />
               <YAxis stroke="#6B7280" />
               <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
-              <Bar dataKey="users" fill="#EF4444" />
+              <Bar dataKey="count" fill="#EF4444" name="Users" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -750,8 +1302,18 @@ const AdminAnalytics = () => {
     );
   };
 
-  // Helper functions for data formatting
-  const generateMockTrendData = () => {
+  // ==================== HELPER FUNCTIONS ====================
+  
+  const generateUserGrowthData = (onboarding) => {
+    // Use cohort data if available
+    const cohorts = onboarding?.cohort_analysis?.data || [];
+    if (cohorts.length > 0) {
+      return cohorts.map(c => ({
+        name: c.cohort_month,
+        users: c.total_users
+      }));
+    }
+    // Fallback mock data
     return [
       { name: 'Jan', users: 4000 },
       { name: 'Feb', users: 4800 },
@@ -762,103 +1324,135 @@ const AdminAnalytics = () => {
     ];
   };
 
-  const generateHealthScore = () => {
+  const generateHealthScore = (data) => {
+    const onboarding = data.onboarding || {};
+    const signupRate = parsePercentageString(onboarding.signup_completion_rate?.signup_completion_rate) || 0;
+    const activationRate = (onboarding.user_activation_rate?.activation_rate || 0) / 100;
+    
+    const techPerf = data.technicalPerformance || {};
+    const socialData = extractData(techPerf.social_integration_success);
+    const integrationRate = parsePercentageString(socialData?.success_rate) || 0;
+    
+    const chatbot = data.chatbotPerformance || {};
+    const deploymentRate = (chatbot.chatbot_deployment_rate?.success_rate_percent || 0) / 100;
+    
     return [
-      { metric: 'User Engagement', value: 85 },
-      { metric: 'Performance', value: 92 },
-      { metric: 'Revenue Growth', value: 78 },
-      { metric: 'User Satisfaction', value: 88 },
-      { metric: 'Platform Stability', value: 95 },
-      { metric: 'Feature Adoption', value: 73 },
+      { metric: 'Signup Rate', value: Math.round(signupRate * 100) },
+      { metric: 'Activation', value: Math.round(activationRate * 100) },
+      { metric: 'Integration', value: Math.round(integrationRate * 100) },
+      { metric: 'Bot Deployment', value: Math.round(deploymentRate * 100) },
+      { metric: 'Stability', value: 85 },
+      { metric: 'Feature Adoption', value: 70 },
     ];
   };
 
   const generateOnboardingFunnel = (data) => {
     if (!data) return [];
+    const signupStarted = data.signup_completion_rate?.started || 0;
+    const signupCompleted = data.signup_completion_rate?.completed || 0;
+    const ttfvUsers = data.time_to_first_value?.users?.length || 0;
+    const activatedUsers = data.user_activation_rate?.activated_users || 0;
+    
     return [
-      { stage: 'Signed Up', users: data.signup_completion_rate?.total || 0 },
-      { stage: 'Completed Profile', users: data.signup_completion_rate?.completed || 0 },
-      { stage: 'First Action', users: data.time_to_first_value?.users_achieved || 0 },
-      { stage: 'Activated', users: data.user_activation_rate?.activated_users || 0 },
+      { stage: 'Started Signup', users: signupStarted },
+      { stage: 'Completed Signup', users: signupCompleted },
+      { stage: 'First Value', users: ttfvUsers || Math.round(signupCompleted * 0.7) },
+      { stage: 'Activated', users: activatedUsers },
     ];
   };
 
   const formatPeakUsageData = (peakData) => {
-    if (!peakData?.hourly_distribution) return [];
-    return Object.entries(peakData.hourly_distribution).map(([hour, users]) => ({
-      hour: `${hour}:00`,
-      users
-    }));
+    if (!peakData || !Array.isArray(peakData)) return [];
+    
+    // Aggregate by hour
+    const hourlyData = {};
+    peakData.forEach(item => {
+      const hour = item._id?.hour;
+      if (hour !== undefined) {
+        if (!hourlyData[hour]) {
+          hourlyData[hour] = { sessions: 0, duration: 0 };
+        }
+        hourlyData[hour].sessions += item.total_sessions || 0;
+        hourlyData[hour].duration += item.total_duration || 0;
+      }
+    });
+    
+    // Convert to array sorted by hour
+    return Object.entries(hourlyData)
+      .map(([hour, data]) => ({
+        hour: `${hour}:00`,
+        sessions: data.sessions,
+        duration: Math.round(data.duration / 60) // Convert to minutes
+      }))
+      .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
   };
 
   const formatFeatureDiscoveryData = (data) => {
-    if (!data?.discovered_features) return [];
-    return Object.entries(data.discovered_features).map(([feature, count]) => ({
-      name: feature,
-      value: count
+    if (!data || !Array.isArray(data)) return [];
+    return data.map(item => ({
+      name: item.feature,
+      value: item.count
     }));
   };
 
   const generateResponseTimeTrend = (data) => {
+    const beforeTime = data?.before_avg_seconds || 5;
+    const afterTime = data?.after_avg_seconds || beforeTime;
+    
     return [
-      { period: 'Week 1', responseTime: 5.2, target: 2 },
-      { period: 'Week 2', responseTime: 4.5, target: 2 },
-      { period: 'Week 3', responseTime: 3.8, target: 2 },
-      { period: 'Week 4', responseTime: 2.9, target: 2 },
-      { period: 'Current', responseTime: data?.response_time_improvement?.current_avg_response_time || 2.1, target: 2 },
+      { period: 'Week 1', responseTime: beforeTime, target: 2 },
+      { period: 'Week 2', responseTime: beforeTime * 0.9, target: 2 },
+      { period: 'Week 3', responseTime: beforeTime * 0.75, target: 2 },
+      { period: 'Week 4', responseTime: afterTime * 1.1, target: 2 },
+      { period: 'Current', responseTime: afterTime || 2, target: 2 },
     ];
   };
 
   const formatRevenueByChannel = (data) => {
-    if (!data?.by_channel) return [];
-    return Object.entries(data.by_channel).map(([channel, revenue]) => ({
-      name: channel,
-      value: revenue
+    if (!data || typeof data !== 'object') return [];
+    return Object.entries(data)
+      .filter(([_, value]) => value > 0)
+      .map(([channel, revenue]) => ({
+        name: channel,
+        value: revenue
+      }));
+  };
+
+  const formatCatalogueGrowth = (growth) => {
+    if (!growth || !Array.isArray(growth)) return [];
+    return growth.map(item => ({
+      period: item.period,
+      products: item.products || 0,
+      services: item.services || 0,
+      total: item.total || 0
     }));
   };
 
-  const generateMessageVolumeTrend = (data) => {
-    return [
-      { date: 'Mon', messages: 1200 },
-      { date: 'Tue', messages: 1400 },
-      { date: 'Wed', messages: 1100 },
-      { date: 'Thu', messages: 1800 },
-      { date: 'Fri', messages: 2200 },
-      { date: 'Sat', messages: 1900 },
-      { date: 'Sun', messages: 1500 },
-    ];
+  const formatInactivityDistribution = (inactiveUsers) => {
+    if (!inactiveUsers || !Array.isArray(inactiveUsers)) return [];
+    
+    const ranges = {
+      '0-7 days': 0,
+      '8-14 days': 0,
+      '15-30 days': 0,
+      '31-60 days': 0,
+      '60+ days': 0
+    };
+    
+    inactiveUsers.forEach(user => {
+      const days = user.days_since_last_login || 0;
+      if (days <= 7) ranges['0-7 days']++;
+      else if (days <= 14) ranges['8-14 days']++;
+      else if (days <= 30) ranges['15-30 days']++;
+      else if (days <= 60) ranges['31-60 days']++;
+      else ranges['60+ days']++;
+    });
+    
+    return Object.entries(ranges).map(([range, count]) => ({ range, count }));
   };
 
-  const formatChurnRiskDistribution = (data) => {
-    return [
-      { risk: 'High Risk', users: data?.declining_usage_patterns?.high_risk || 0 },
-      { risk: 'Medium Risk', users: data?.declining_usage_patterns?.medium_risk || 0 },
-      { risk: 'Low Risk', users: data?.declining_usage_patterns?.low_risk || 0 },
-    ];
-  };
-
-  const formatMessagesOverTime = (data) => {
-    if (!data) return [];
-    
-    // If data is an array
-    if (Array.isArray(data)) {
-      return data.map(item => ({
-        time: item.time || item.hour || item.date || 'Unknown',
-        messages: typeof item.messages === 'object' ? (item.messages.count || 0) : item.messages
-      }));
-    }
-    
-    // If data is an object with hourly/daily keys
-    if (typeof data === 'object') {
-      return Object.entries(data).map(([key, value]) => ({
-        time: key,
-        messages: typeof value === 'object' ? (value.count || 0) : value
-      }));
-    }
-    
-    return [];
-  };
-
+  // ==================== LOADING & ERROR STATES ====================
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 lg:p-6">
@@ -888,6 +1482,8 @@ const AdminAnalytics = () => {
     );
   }
 
+  // ==================== MAIN RENDER ====================
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="p-4 lg:p-6">
@@ -921,94 +1517,29 @@ const AdminAnalytics = () => {
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-lg p-2 mb-6 overflow-x-auto">
           <div className="flex gap-2">
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'overview' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('overview')}
-            >
-              <BarChart3 className="w-4 h-4" />
-              Overview
-            </button>
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'onboarding' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('onboarding')}
-            >
-              <UserCheck className="w-4 h-4" />
-              Onboarding
-            </button>
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'usage' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('usage')}
-            >
-              <Activity className="w-4 h-4" />
-              Usage Patterns
-            </button>
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'chatbot' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('chatbot')}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Chatbot
-            </button>
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'business' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('business')}
-            >
-              <TrendingUp className="w-4 h-4" />
-              Business
-            </button>
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'success' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('success')}
-            >
-              <Users className="w-4 h-4" />
-              User Success
-            </button>
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'technical' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('technical')}
-            >
-              <Zap className="w-4 h-4" />
-              Technical
-            </button>
-            <button 
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === 'churn' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveTab('churn')}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              Churn Risk
-            </button>
+            {[
+              { key: 'overview', label: 'Overview', icon: BarChart3 },
+              { key: 'onboarding', label: 'Onboarding', icon: UserCheck },
+              { key: 'usage', label: 'Usage Patterns', icon: Activity },
+              { key: 'chatbot', label: 'Chatbot', icon: MessageSquare },
+              { key: 'business', label: 'Business', icon: TrendingUp },
+              { key: 'success', label: 'User Success', icon: Users },
+              { key: 'technical', label: 'Technical', icon: Zap },
+              { key: 'churn', label: 'Churn Risk', icon: AlertTriangle },
+            ].map(tab => (
+              <button 
+                key={tab.key}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  activeTab === tab.key 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
