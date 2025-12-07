@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from 'axios';
@@ -249,12 +249,9 @@ const Login = () => {
                     className="w-full p-3 rounded-lg border border-gray-200"
                     required
                   />
-                  <a
-                    href="/forgot-password"
-                    className="absolute right-0 -bottom-6 text-sm text-purple-400"
-                  >
-                    Forgotten Password?
-                  </a>
+                 <Link to="/forgot-password" className="absolute right-0 -bottom-6 text-sm text-purple-400">
+  Forgotten Password?
+</Link>
                 </div>
               </div>
 

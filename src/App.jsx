@@ -39,6 +39,8 @@ import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
 import IndividualProductPage from './components/IndividualProductPage';
 import IndividualServicePage from './components/IndividualServicePage';
 import AdminAnalytics from './components/Auth/AdminAnalytics';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 
 function App() {
   return (
@@ -50,6 +52,8 @@ function App() {
           <Route exact path="/" element={<AuthenticationPage/>}/> 
           <Route exact path="/Login" element={<Login/>}/>   
           <Route exact path="/AdminAnalytics" element={<AdminAnalytics/>}/>
+          <Route exact path="/forgot-password" element={<ForgotPassword/>}/>
+          <Route exact path="/reset-password" element={<ResetPassword/>}/>
           {/* Protected routes */}
           <Route exact path="/Overview" element={
             <ProtectedRoute>
