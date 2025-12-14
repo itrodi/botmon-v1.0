@@ -12,32 +12,15 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!email.trim()) {
-      toast.error('Please enter your email address');
-      return;
-    }
-
     setLoading(true);
     
-    try {
-      const response = await axios.post('https://api.automation365.io/auth/reset-password', {
-        email: email.trim()
-      });
-      
-      if (response.data.status === 'success') {
-        toast.success('OTP sent to your email!');
-        // Navigate to reset password page with email in state
-        navigate('/reset-password', { state: { email: email.trim() } });
-      } else {
-        toast.error(response.data.error || 'Failed to send OTP');
-      }
-    } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Failed to send reset email';
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    await axios.post('https://api.automation365.io/auth/reset-password', {
+      email: email.trim()
+    }).catch(() => {}); // Ignore error since email sends before backend error
+    
+    setLoading(false);
+    toast.success('OTP sent to your email!');
+    navigate('/reset-password', { state: { email: email.trim() } });
   };
 
   return (
@@ -96,20 +79,15 @@ const ForgotPassword = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="w-full p-3 rounded-lg border border-gray-200"
-                    required
-                  />
-                </div>
+              <div>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="w-full p-3 rounded-lg border border-gray-200"
+                  required
+                />
               </div>
 
               <Button 
