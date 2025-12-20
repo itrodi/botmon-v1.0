@@ -35,12 +35,43 @@ const AdminAnalytics = () => {
     fetchAllAnalytics();
   }, []);
 
-  // Helper to extract data from backend responses that may be [data, statusCode] tuples
+  // ==================== HELPER FUNCTIONS ====================
+
+  /**
+   * Extract data from backend responses that may be [data, statusCode] tuples
+   * Backend patterns:
+   * 1. Direct object: { average_latency_seconds: 9.58, samples: 4 }
+   * 2. Tuple format: [{ data: [...], success: true }, 200]
+   * 3. Tuple with direct data: [{ success_rate: "40.91%", ... }, 200]
+   */
   const extractData = (response) => {
-    if (Array.isArray(response) && response.length === 2 && typeof response[1] === 'number') {
-      return response[0];
+    if (response === null || response === undefined) {
+      return null;
     }
+    
+    // Check if it's a tuple [data, statusCode]
+    if (Array.isArray(response) && response.length === 2) {
+      const [data, possibleStatus] = response;
+      if (typeof possibleStatus === 'number') {
+        return data;
+      }
+    }
+    
     return response;
+  };
+
+  /**
+   * Safely get nested data array from extracted response
+   */
+  const getDataArray = (extracted) => {
+    if (!extracted) return [];
+    if (extracted.data && Array.isArray(extracted.data)) {
+      return extracted.data;
+    }
+    if (Array.isArray(extracted)) {
+      return extracted;
+    }
+    return [];
   };
 
   const fetchAllAnalytics = async () => {
@@ -48,7 +79,6 @@ const AdminAnalytics = () => {
       setLoading(true);
       setError(null);
 
-      // Base URL for API
       const API_BASE_URL = 'https://api.automation365.io';
 
       const endpoints = [
@@ -61,7 +91,6 @@ const AdminAnalytics = () => {
         { key: 'churnRisk', url: `${API_BASE_URL}/churn-risk` }
       ];
 
-      // Get auth token from localStorage if needed
       const token = localStorage.getItem('token');
       const config = token ? {
         headers: { 
@@ -104,11 +133,9 @@ const AdminAnalytics = () => {
 
   const formatPercentage = (value) => {
     if (value === null || value === undefined) return 'N/A';
-    // Handle string percentages like "77.78%"
     if (typeof value === 'string' && value.includes('%')) {
       return value;
     }
-    // Handle decimal values
     if (typeof value === 'number') {
       if (value <= 1) {
         return `${(value * 100).toFixed(1)}%`;
@@ -138,6 +165,8 @@ const AdminAnalytics = () => {
     return `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`;
   };
 
+  // ==================== METRIC CARD COMPONENT ====================
+
   const MetricCard = ({ title, value, icon: Icon, colorClass, subtext, trend }) => (
     <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
       <div className="flex justify-between items-start mb-4">
@@ -161,6 +190,7 @@ const AdminAnalytics = () => {
   );
 
   // ==================== OVERVIEW ====================
+
   const renderOverview = () => {
     const { onboarding, businessMetrics, userSuccess, churnRisk } = analyticsData;
     
@@ -169,7 +199,7 @@ const AdminAnalytics = () => {
                        onboarding?.signup_completion_rate;
     const signupCompleted = onboarding?.signup_completion_rate?.completed || 0;
     
-    // Extract user retention - calculate average from array if needed
+    // Extract user retention
     const retentionData = userSuccess?.user_retention?.data || userSuccess?.user_retention;
     let retentionRate = 'N/A';
     if (Array.isArray(retentionData) && retentionData.length > 0) {
@@ -179,7 +209,7 @@ const AdminAnalytics = () => {
       retentionRate = formatPercentage(userSuccess.user_retention.current_month_retention);
     }
     
-    // Extract revenue attribution - handle [data, statusCode] tuple
+    // Extract revenue attribution
     const revenueData = extractData(businessMetrics?.revenue_attribution);
     const totalRevenue = revenueData?.data?.total_revenue || revenueData?.total_revenue || 0;
     
@@ -254,6 +284,7 @@ const AdminAnalytics = () => {
   };
 
   // ==================== ONBOARDING ====================
+
   const renderOnboarding = () => {
     const data = analyticsData.onboarding;
     if (!data) return <div className="text-center py-12 text-gray-500">No onboarding data available</div>;
@@ -272,7 +303,7 @@ const AdminAnalytics = () => {
     const activationRate = data.user_activation_rate?.activation_rate || 0;
     const activatedUsers = data.user_activation_rate?.activated_users || 0;
     
-    // Session duration - global average is in minutes
+    // Session duration
     const avgSessionMinutes = data.session_duration_frequency?.global_average_minutes || 0;
     const totalSessions = data.session_duration_frequency?.users?.reduce((sum, u) => sum + (u.total_sessions || 0), 0) || 0;
 
@@ -369,7 +400,7 @@ const AdminAnalytics = () => {
           </div>
         )}
 
-        {/* Churn Breakdown */}
+        {/* Activation Breakdown */}
         {data.user_activation_rate?.churn_breakdown && (
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Activation Breakdown</h3>
@@ -394,18 +425,25 @@ const AdminAnalytics = () => {
   };
 
   // ==================== USAGE PATTERNS ====================
+
   const renderUsagePatterns = () => {
     const data = analyticsData.usagePatterns;
     if (!data) return <div className="text-center py-12 text-gray-500">No usage pattern data available</div>;
 
-    // Page visit frequency - comes as page_visit_analytics array
+    // Page visit frequency
     const pageVisits = data.page_visit_frequency?.page_visit_analytics || [];
     
-    // User flow analysis - comes as top_user_flows array
+    // User flow analysis
     const userFlows = data.user_flow_analysis?.top_user_flows || [];
     
-    // Feature discovery - comes as data array with feature and count
+    // Feature discovery
     const featureDiscovery = data.feature_discovery?.data || [];
+    
+    // Task completion rate
+    const taskCompletion = data.task_completion_rate || {};
+    
+    // Engagement heatmap
+    const engagementHeatmap = data.engagement_heatmap || {};
 
     return (
       <div className="space-y-8">
@@ -444,9 +482,8 @@ const AdminAnalytics = () => {
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {userFlows.length > 0 ? (
                 userFlows.map((flow, idx) => {
-                  // Parse the path string into steps
                   const steps = typeof flow.path === 'string' 
-                    ? flow.path.split(' → ').slice(0, 5) // Show first 5 steps
+                    ? flow.path.split(' → ').slice(0, 5)
                     : (flow.path || []).slice(0, 5);
                   
                   return (
@@ -545,11 +582,45 @@ const AdminAnalytics = () => {
             </div>
           </div>
         )}
+
+        {/* Engagement Heatmap */}
+        {engagementHeatmap.data && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Engagement Heatmap</h3>
+            <div className="overflow-x-auto">
+              <div className="grid grid-cols-8 gap-1 min-w-max">
+                <div className="text-xs text-gray-500 font-medium">Hour</div>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-xs text-gray-500 font-medium text-center">{day}</div>
+                ))}
+                {Array.from({ length: 24 }, (_, hour) => (
+                  <React.Fragment key={hour}>
+                    <div className="text-xs text-gray-500">{hour}:00</div>
+                    {Array.from({ length: 7 }, (_, day) => {
+                      const value = engagementHeatmap.data?.[day]?.[hour] || 0;
+                      const maxValue = Math.max(...Object.values(engagementHeatmap.data || {}).flatMap(d => Object.values(d || {})));
+                      const intensity = maxValue > 0 ? value / maxValue : 0;
+                      return (
+                        <div
+                          key={day}
+                          className="w-8 h-6 rounded"
+                          style={{ backgroundColor: `rgba(139, 92, 246, ${intensity})` }}
+                          title={`${value} sessions`}
+                        />
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
   // ==================== CHATBOT PERFORMANCE ====================
+
   const renderChatbotPerformance = () => {
     const data = analyticsData.chatbotPerformance;
     if (!data) return <div className="text-center py-12 text-gray-500">No chatbot performance data available</div>;
@@ -559,7 +630,7 @@ const AdminAnalytics = () => {
     const deployedBots = data.chatbot_deployment_rate?.success_count || 0;
     const totalAttempts = data.chatbot_deployment_rate?.total_attempts || 0;
     
-    // Bot testing - extract from [data, statusCode] tuple
+    // Bot testing - extract from tuple
     const botTestingData = extractData(data.bot_testing);
     const totalTests = botTestingData?.overall?.total_tests || 0;
     const successfulTests = botTestingData?.overall?.total_success || 0;
@@ -572,6 +643,9 @@ const AdminAnalytics = () => {
     
     // Bot engagement
     const botEngagement = data.bot_engagement?.results || [];
+    
+    // Conversation dropoff
+    const dropoffRate = data.calculation_dropoff_rate?.average_dropoff_rate || 0;
 
     return (
       <div className="space-y-8">
@@ -603,11 +677,11 @@ const AdminAnalytics = () => {
             subtext={`${successfulTests} successful`}
           />
           <MetricCard
-            title="Test Success Rate"
-            value={`${testSuccessRate.toFixed(1)}%`}
-            icon={Target}
+            title="Conversation Dropoff"
+            value={`${dropoffRate.toFixed(1)}%`}
+            icon={AlertTriangle}
             colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
-            subtext="Test success rate"
+            subtext="Average dropoff rate"
           />
         </div>
 
@@ -641,7 +715,7 @@ const AdminAnalytics = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {botEngagement.map((engagement, idx) => (
+                  {botEngagement.slice(0, 10).map((engagement, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-600 font-mono">{engagement.user_id?.slice(0, 8)}...</td>
                       <td className="px-4 py-3 text-sm text-gray-900">{engagement.total_messages}</td>
@@ -683,6 +757,7 @@ const AdminAnalytics = () => {
   };
 
   // ==================== BUSINESS METRICS ====================
+
   const renderBusinessMetrics = () => {
     const data = analyticsData.businessMetrics;
     if (!data) return <div className="text-center py-12 text-gray-500">No business metrics data available</div>;
@@ -703,10 +778,13 @@ const AdminAnalytics = () => {
     
     // Message volume - extract from tuple
     const messageData = extractData(data.message_volume_trends);
-    const messageTotal = messageData?.data?.length || 0;
+    const messageTrends = messageData?.data || [];
     
-    // Response times - extract from tuple
-    const responseTimesData = extractData(data.response_times);
+    // Average order value
+    const aovData = data.average_order_value || [];
+    const avgOrderValue = aovData.length > 0 
+      ? aovData.reduce((sum, item) => sum + (item.average_order_value || 0), 0) / aovData.length 
+      : 0;
     
     // Customer lifetime value
     const clvData = data.customer_lifetime_value || [];
@@ -731,11 +809,11 @@ const AdminAnalytics = () => {
             subtext={`${transactionCount} transactions`}
           />
           <MetricCard
-            title="Product Catalogue"
-            value={formatNumber(totalProducts)}
-            icon={Package}
+            title="Avg Order Value"
+            value={`$${avgOrderValue.toFixed(2)}`}
+            icon={TrendingUp}
             colorClass="bg-gradient-to-r from-blue-500 to-blue-600"
-            subtext={`${growthRate}% growth`}
+            subtext={`${aovData.length} users analyzed`}
           />
           <MetricCard
             title="Churned Revenue"
@@ -794,6 +872,22 @@ const AdminAnalytics = () => {
           </div>
         </div>
 
+        {/* Message Volume Trends */}
+        {messageTrends.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Volume Trends</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={messageTrends}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" stroke="#6B7280" />
+                <YAxis stroke="#6B7280" />
+                <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
+                <Line type="monotone" dataKey="count" stroke="#8B5CF6" strokeWidth={2} name="Messages" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
         {/* Customer Lifetime Value */}
         {Array.isArray(clvData) && clvData.length > 0 && (
           <div className="bg-white rounded-xl p-6 shadow-lg">
@@ -810,7 +904,7 @@ const AdminAnalytics = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {clvData.map((customer, idx) => (
+                  {clvData.slice(0, 10).map((customer, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{customer.username}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{customer.platforms?.join(', ')}</td>
@@ -830,7 +924,7 @@ const AdminAnalytics = () => {
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Churned Customer Details</h3>
             <div className="space-y-3">
-              {data.calculated_churn_revenue.details.map((user, idx) => (
+              {data.calculated_churn_revenue.details.slice(0, 10).map((user, idx) => (
                 <div key={idx} className="flex justify-between items-center p-4 bg-red-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{user.username}</p>
@@ -848,17 +942,18 @@ const AdminAnalytics = () => {
   };
 
   // ==================== USER SUCCESS ====================
+
   const renderUserSuccess = () => {
     const data = analyticsData.userSuccess;
     if (!data) return <div className="text-center py-12 text-gray-500">No user success data available</div>;
 
-    // Repeat customers - aggregate from array
+    // Repeat customers
     const repeatData = data.repeat_customer_interaction?.data || [];
     const totalCustomers = repeatData.reduce((sum, u) => sum + (u.total_customers || 0), 0);
     const returningCustomers = repeatData.reduce((sum, u) => sum + (u.returning_customers || 0), 0);
     const repeatRate = totalCustomers > 0 ? (returningCustomers / totalCustomers * 100) : 0;
     
-    // User retention - aggregate from array
+    // User retention
     const retentionData = data.user_retention?.data || [];
     const avgRetention = retentionData.length > 0 
       ? retentionData.reduce((sum, u) => sum + (u.retention_rate_percent || 0), 0) / retentionData.length
@@ -872,9 +967,6 @@ const AdminAnalytics = () => {
     
     // Segmented customers
     const segmentedData = data.segmented_customers?.data || [];
-    const totalSegments = new Set(
-      segmentedData.flatMap(u => Object.values(u.features || {}).map(f => f.segment))
-    ).size;
 
     return (
       <div className="space-y-8">
@@ -906,11 +998,11 @@ const AdminAnalytics = () => {
             subtext={`vs ${manualTasks} manual`}
           />
           <MetricCard
-            title="User Segments"
-            value={totalSegments}
+            title="Automation Ratio"
+            value={`${automationRatio.toFixed(2)}x`}
             icon={Activity}
             colorClass="bg-gradient-to-r from-yellow-500 to-orange-500"
-            subtext={`${segmentedData.length} users analyzed`}
+            subtext="Automated to manual"
           />
         </div>
 
@@ -987,33 +1079,80 @@ const AdminAnalytics = () => {
             </div>
           </div>
         )}
+
+        {/* Retention by User */}
+        {retentionData.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">User Retention Details</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Active</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Sessions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Retention Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {retentionData.slice(0, 10).map((user, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-600 font-mono">{user.userid?.slice(0, 8)}...</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{user.days_active || 0}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{user.total_sessions || 0}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          user.retention_rate_percent >= 80 ? 'bg-green-100 text-green-800' :
+                          user.retention_rate_percent >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {user.retention_rate_percent?.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
   // ==================== TECHNICAL PERFORMANCE ====================
+
   const renderTechnicalPerformance = () => {
     const data = analyticsData.technicalPerformance;
     if (!data) return <div className="text-center py-12 text-gray-500">No technical performance data available</div>;
 
-    // Page load times - extract from tuple
-    const pageLoadData = extractData(data.page_load_times);
-    const pageLoadArray = pageLoadData?.data || pageLoadData || [];
+    // Page load times - extract from tuple [{ data: [...], success: true }, 200]
+    const pageLoadResponse = extractData(data.page_load_times);
+    const pageLoadArray = pageLoadResponse?.data || [];
     const avgLoadTime = pageLoadArray.length > 0
       ? pageLoadArray.reduce((sum, p) => sum + (p.avg_load_time || 0), 0) / pageLoadArray.length
       : 0;
+    const totalEndpointErrors = pageLoadArray.reduce((sum, p) => sum + (p.error_count || 0), 0);
     
-    // Social integration - extract from tuple
-    const socialData = extractData(data.social_integration_success);
+    // Social integration - extract from tuple [{ success_rate: "40.91%", ... }, 200]
+    const socialResponse = extractData(data.social_integration_success);
+    const socialData = Array.isArray(socialResponse) ? socialResponse[0] : socialResponse;
     const integrationSuccessRate = socialData?.success_rate || '0%';
+    const integrationFailureRate = socialData?.failure_rate || '0%';
     const totalAttempts = socialData?.total_attempts || 0;
+    const successCount = socialData?.success_count || 0;
+    const failureCount = socialData?.failure_count || 0;
     
-    // Bot latency
-    const botLatency = data.bot_latency?.average_latency_seconds;
+    // Bot latency - direct object { average_latency_seconds, samples }
+    const botLatencySeconds = data.bot_latency?.average_latency_seconds;
+    const botLatencySamples = data.bot_latency?.samples || 0;
     
-    // Error breakdown
+    // Error breakdown - array of { _id, count, last_timestamp }
     const errors = data.error_type_breakdown || [];
-    const totalErrors = errors.reduce((sum, e) => sum + (e.count || 0), 0);
+    const totalErrorTypes = errors.reduce((sum, e) => sum + (e.count || 0), 0);
+    
+    // Messages over time (may be empty)
+    const messagesOverTime = data.messages_over_time || [];
 
     return (
       <div className="space-y-8">
@@ -1035,21 +1174,21 @@ const AdminAnalytics = () => {
             value={integrationSuccessRate}
             icon={Activity}
             colorClass="bg-gradient-to-r from-green-500 to-green-600"
-            subtext={`${totalAttempts} total attempts`}
+            subtext={`${successCount} of ${totalAttempts} attempts`}
           />
           <MetricCard
             title="Bot Latency"
-            value={botLatency ? `${(botLatency * 1000).toFixed(0)}ms` : 'N/A'}
+            value={botLatencySeconds ? `${(botLatencySeconds * 1000).toFixed(0)}ms` : 'N/A'}
             icon={MessageSquare}
             colorClass="bg-gradient-to-r from-purple-500 to-purple-600"
-            subtext={data.bot_latency?.platform || 'No data'}
+            subtext={botLatencySamples > 0 ? `${botLatencySamples} samples` : 'No data'}
           />
           <MetricCard
-            title="Total Errors"
-            value={formatNumber(totalErrors)}
+            title="Endpoint Errors"
+            value={formatNumber(totalEndpointErrors)}
             icon={AlertTriangle}
             colorClass="bg-gradient-to-r from-red-500 to-red-600"
-            subtext="System errors"
+            subtext={`${errors.length} error types`}
           />
         </div>
 
@@ -1065,6 +1204,7 @@ const AdminAnalytics = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Load Time</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Hits</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Errors</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Error Messages</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1091,6 +1231,24 @@ const AdminAnalytics = () => {
                             <span className="text-green-600">0</span>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {endpoint.error_messages && endpoint.error_messages.length > 0 ? (
+                            <div className="max-w-xs">
+                              {[...new Set(endpoint.error_messages)].slice(0, 2).map((msg, i) => (
+                                <span key={i} className="block text-xs text-red-500 truncate">
+                                  {msg}
+                                </span>
+                              ))}
+                              {[...new Set(endpoint.error_messages)].length > 2 && (
+                                <span className="text-xs text-gray-400">
+                                  +{[...new Set(endpoint.error_messages)].length - 2} more
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                 </tbody>
@@ -1103,24 +1261,81 @@ const AdminAnalytics = () => {
         {socialData && (
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Social Integration Status</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600 mb-2">Successful</p>
-                <p className="text-2xl font-bold text-green-600">{socialData.success_count || 0}</p>
+                <p className="text-2xl font-bold text-green-600">{successCount}</p>
               </div>
               <div className="bg-red-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600 mb-2">Failed</p>
-                <p className="text-2xl font-bold text-red-600">{socialData.failure_count || 0}</p>
+                <p className="text-2xl font-bold text-red-600">{failureCount}</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600 mb-2">Success Rate</p>
-                <p className="text-2xl font-bold text-blue-600">{socialData.success_rate || 'N/A'}</p>
+                <p className="text-2xl font-bold text-blue-600">{integrationSuccessRate}</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Failure Rate</p>
+                <p className="text-2xl font-bold text-orange-600">{integrationFailureRate}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600 mb-2">Last Update</p>
                 <p className="text-sm font-medium text-gray-700">
-                  {socialData.last_update ? new Date(socialData.last_update).toLocaleString() : 'N/A'}
+                  {socialData.last_update 
+                    ? new Date(socialData.last_update).toLocaleString() 
+                    : 'N/A'}
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bot Latency Details */}
+        {data.bot_latency && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bot Response Latency</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-purple-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Average Latency</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {botLatencySeconds ? `${botLatencySeconds.toFixed(2)}s` : 'N/A'}
+                </p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">In Milliseconds</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {botLatencySeconds ? `${(botLatencySeconds * 1000).toFixed(0)}ms` : 'N/A'}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-2">Sample Size</p>
+                <p className="text-2xl font-bold text-gray-600">{botLatencySamples}</p>
+              </div>
+            </div>
+            
+            {/* Latency Assessment */}
+            <div className={`mt-4 p-4 rounded-lg ${
+              botLatencySeconds > 10 ? 'bg-red-50 border border-red-200' :
+              botLatencySeconds > 5 ? 'bg-yellow-50 border border-yellow-200' :
+              'bg-green-50 border border-green-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className={`w-5 h-5 ${
+                  botLatencySeconds > 10 ? 'text-red-500' :
+                  botLatencySeconds > 5 ? 'text-yellow-500' :
+                  'text-green-500'
+                }`} />
+                <span className={`font-medium ${
+                  botLatencySeconds > 10 ? 'text-red-700' :
+                  botLatencySeconds > 5 ? 'text-yellow-700' :
+                  'text-green-700'
+                }`}>
+                  {botLatencySeconds > 10 
+                    ? 'High latency detected - consider optimizing bot responses' 
+                    : botLatencySeconds > 5 
+                      ? 'Moderate latency - room for improvement'
+                      : 'Good latency performance'}
+                </span>
               </div>
             </div>
           </div>
@@ -1129,22 +1344,96 @@ const AdminAnalytics = () => {
         {/* Error Breakdown */}
         {errors.length > 0 && (
           <div className="bg-white rounded-xl p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Breakdown</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Error Type Breakdown</h3>
             <div className="space-y-3">
               {errors.map((error, idx) => (
-                <div key={idx} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                  <span className="text-gray-700">{error._id || 'Unknown Error'}</span>
-                  <span className="text-red-600 font-semibold">{error.count} occurrences</span>
+                <div key={idx} className="flex justify-between items-center p-4 bg-red-50 rounded-lg">
+                  <div>
+                    <span className="text-gray-700 font-medium">{error._id || 'Unknown Error'}</span>
+                    {error.last_timestamp && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Last occurred: {new Date(error.last_timestamp).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-red-600 font-semibold bg-red-100 px-3 py-1 rounded-full">
+                    {error.count} occurrences
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        {/* Messages Over Time Chart */}
+        {messagesOverTime.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Volume Over Time</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={messagesOverTime}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" stroke="#6B7280" />
+                <YAxis stroke="#6B7280" />
+                <Tooltip contentStyle={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px' }} />
+                <Line type="monotone" dataKey="count" stroke="#8B5CF6" strokeWidth={2} name="Messages" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Performance Summary */}
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Summary</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Slowest Endpoints */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">🐢 Slowest Endpoints</h4>
+              <div className="space-y-2">
+                {pageLoadArray
+                  .sort((a, b) => b.avg_load_time - a.avg_load_time)
+                  .slice(0, 5)
+                  .map((endpoint, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="text-sm font-mono text-gray-600">{endpoint._id}</span>
+                      <span className={`text-sm font-medium ${
+                        endpoint.avg_load_time > 100 ? 'text-red-600' : 'text-yellow-600'
+                      }`}>
+                        {endpoint.avg_load_time.toFixed(0)}ms
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            
+            {/* Most Error-Prone Endpoints */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">⚠️ Most Error-Prone Endpoints</h4>
+              <div className="space-y-2">
+                {pageLoadArray
+                  .filter(e => e.error_count > 0)
+                  .sort((a, b) => b.error_count - a.error_count)
+                  .slice(0, 5)
+                  .map((endpoint, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="text-sm font-mono text-gray-600">{endpoint._id}</span>
+                      <span className="text-sm font-medium text-red-600">
+                        {endpoint.error_count} errors
+                      </span>
+                    </div>
+                  ))}
+                {pageLoadArray.filter(e => e.error_count > 0).length === 0 && (
+                  <p className="text-sm text-green-600">No endpoint errors detected ✓</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
 
   // ==================== CHURN RISK ====================
+
   const renderChurnRisk = () => {
     const data = analyticsData.churnRisk;
     if (!data) return <div className="text-center py-12 text-gray-500">No churn risk data available</div>;
@@ -1167,6 +1456,9 @@ const AdminAnalytics = () => {
     
     // Feature abandonment
     const featureAbandonment = data.feature_abandonment;
+    
+    // Predict time to churn
+    const churnPredictions = data.predict_time_to_churn || [];
 
     return (
       <div className="space-y-8">
@@ -1175,12 +1467,14 @@ const AdminAnalytics = () => {
           <p className="text-gray-600">Identify users at risk of churning and take preventive actions</p>
         </div>
 
-        <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <AlertTriangle className="w-5 h-5 text-yellow-600" />
-          <span className="text-yellow-800 font-medium">
-            {inactiveCount} users showing inactivity ({inactivePercentage.toFixed(1)}% of tracked users)
-          </span>
-        </div>
+        {inactiveCount > 0 && (
+          <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-yellow-600" />
+            <span className="text-yellow-800 font-medium">
+              {inactiveCount} users showing inactivity ({inactivePercentage.toFixed(1)}% of tracked users)
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Declining Usage */}
@@ -1285,6 +1579,41 @@ const AdminAnalytics = () => {
           </div>
         )}
 
+        {/* Churn Predictions */}
+        {churnPredictions.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Churn Predictions</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Predicted Days to Churn</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk Level</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {churnPredictions.slice(0, 10).map((prediction, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">{prediction.email || prediction.userid?.slice(0, 8) || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{prediction.days_to_churn || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          prediction.risk_level === 'high' ? 'bg-red-100 text-red-800' :
+                          prediction.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {prediction.risk_level || 'Unknown'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Churn Risk Distribution Chart */}
         <div className="bg-white rounded-xl p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Inactivity Distribution</h3>
@@ -1298,14 +1627,35 @@ const AdminAnalytics = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Feature Abandonment */}
+        {featureAbandonment?.data && featureAbandonment.data.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Abandonment</h3>
+            <div className="space-y-3">
+              {featureAbandonment.data.map((feature, idx) => (
+                <div key={idx} className="flex justify-between items-center p-4 bg-orange-50 rounded-lg">
+                  <div>
+                    <span className="text-gray-700 font-medium">{feature.feature}</span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {feature.users_abandoned} users stopped using
+                    </p>
+                  </div>
+                  <span className="text-orange-600 font-semibold bg-orange-100 px-3 py-1 rounded-full">
+                    {feature.abandonment_rate?.toFixed(1)}% abandoned
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
-  // ==================== HELPER FUNCTIONS ====================
+  // ==================== DATA FORMATTING FUNCTIONS ====================
   
   const generateUserGrowthData = (onboarding) => {
-    // Use cohort data if available
     const cohorts = onboarding?.cohort_analysis?.data || [];
     if (cohorts.length > 0) {
       return cohorts.map(c => ({
@@ -1313,7 +1663,6 @@ const AdminAnalytics = () => {
         users: c.total_users
       }));
     }
-    // Fallback mock data
     return [
       { name: 'Jan', users: 4000 },
       { name: 'Feb', users: 4800 },
@@ -1331,7 +1680,8 @@ const AdminAnalytics = () => {
     
     const techPerf = data.technicalPerformance || {};
     const socialData = extractData(techPerf.social_integration_success);
-    const integrationRate = parsePercentageString(socialData?.success_rate) || 0;
+    const socialObj = Array.isArray(socialData) ? socialData[0] : socialData;
+    const integrationRate = parsePercentageString(socialObj?.success_rate) || 0;
     
     const chatbot = data.chatbotPerformance || {};
     const deploymentRate = (chatbot.chatbot_deployment_rate?.success_rate_percent || 0) / 100;
@@ -1364,7 +1714,6 @@ const AdminAnalytics = () => {
   const formatPeakUsageData = (peakData) => {
     if (!peakData || !Array.isArray(peakData)) return [];
     
-    // Aggregate by hour
     const hourlyData = {};
     peakData.forEach(item => {
       const hour = item._id?.hour;
@@ -1377,12 +1726,11 @@ const AdminAnalytics = () => {
       }
     });
     
-    // Convert to array sorted by hour
     return Object.entries(hourlyData)
       .map(([hour, data]) => ({
         hour: `${hour}:00`,
         sessions: data.sessions,
-        duration: Math.round(data.duration / 60) // Convert to minutes
+        duration: Math.round(data.duration / 60)
       }))
       .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
   };
