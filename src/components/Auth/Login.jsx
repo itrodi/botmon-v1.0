@@ -51,30 +51,35 @@ const Login = () => {
       // Clear URL params and redirect
       window.history.replaceState({}, document.title, window.location.pathname);
       
-      // Check if user needs onboarding by checking linked accounts
+      // Check if user has linked accounts using /instagram endpoint
       try {
-        const response = await axios.get('https://api.automation365.io/user/linked-accounts', {
+        const response = await axios.get('https://api.automation365.io/instagram', {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        const hasLinkedAccounts = response.data?.linkedAccounts && 
-          Object.values(response.data.linkedAccounts).some(val => val === true);
-        
-        if (!hasLinkedAccounts) {
-          navigate('/Onboarding2');
-        } else {
+        // If we get an id, Instagram is linked
+        if (response.data && response.data.id) {
+          // Store in localStorage for user
+          if (userId) {
+            localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
+              instagram: true,
+              facebook: false,
+              whatsapp: false,
+              twitter: false
+            }));
+            localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify({
+              id: response.data.id,
+              dp: response.data.dp
+            }));
+          }
           navigate('/Overview');
-        }
-      } catch {
-        // If endpoint doesn't exist or fails, check localStorage
-        const linkedAccounts = JSON.parse(localStorage.getItem(`linkedAccounts_${userId}`) || '{}');
-        const hasLinkedAccounts = Object.values(linkedAccounts).some(val => val === true);
-        
-        if (!hasLinkedAccounts) {
-          navigate('/Onboarding2');
         } else {
-          navigate('/Overview');
+          navigate('/Onboarding2');
         }
+      } catch (err) {
+        // No Instagram linked or error - go to onboarding
+        console.log('No linked accounts found, redirecting to onboarding');
+        navigate('/Onboarding2');
       }
     } catch (error) {
       console.error('OAuth session initialization failed:', error);
@@ -116,24 +121,42 @@ const Login = () => {
         console.log('User logged in:', userId);
         toast.success('Login successful!');
         
-        // Check if user needs onboarding
-        const needsOnboarding = response.data.needsOnboarding || 
-                               response.data.needs_onboarding || 
-                               !response.data.hasLinkedAccounts;
-        
-        if (needsOnboarding) {
-          navigate('/Onboarding2');
-        } else {
-          // Check user-specific linked accounts
+        // Check if user has linked accounts using /instagram endpoint
+        try {
+          const instaResponse = await axios.get('https://api.automation365.io/instagram', {
+            headers: { Authorization: `Bearer ${response.data.token}` }
+          });
+          
+          // If we get an id, Instagram is linked
+          if (instaResponse.data && instaResponse.data.id) {
+            // Store in localStorage
+            if (userId) {
+              localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
+                instagram: true,
+                facebook: false,
+                whatsapp: false,
+                twitter: false
+              }));
+              localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify({
+                id: instaResponse.data.id,
+                dp: instaResponse.data.dp
+              }));
+            }
+            navigate('/Overview');
+          } else {
+            navigate('/Onboarding2');
+          }
+        } catch (err) {
+          // No Instagram linked - check localStorage as fallback
           const linkedAccounts = JSON.parse(
             localStorage.getItem(`linkedAccounts_${userId}`) || '{}'
           );
           const hasLinkedAccounts = Object.values(linkedAccounts).some(val => val === true);
           
-          if (!hasLinkedAccounts) {
-            navigate('/Onboarding2');
-          } else {
+          if (hasLinkedAccounts) {
             navigate('/Overview');
+          } else {
+            navigate('/Onboarding2');
           }
         }
       }
@@ -145,7 +168,7 @@ const Login = () => {
         toast.error('User not found. Please sign up first.');
         navigate('/');
       } else if (error.response?.status === 401) {
-        if (errorMessage === 'User used Google login flow') {
+        if (errorMessage === 'User used Google login flow' || errorMessage === 'Please use Google/Social login') {
           toast.error('This account uses Google Sign-In. Please use the Google login option.');
         } else {
           toast.error('Invalid email or password');

@@ -28,42 +28,78 @@ const Onboarding2 = () => {
     return userId ? `${key}_${userId}` : key;
   };
 
-  // Helper function to clear all linked accounts data for the current user
-  const clearUserLinkedAccountsData = () => {
-    const userId = currentUserId || localStorage.getItem('userId');
-    if (userId) {
-      localStorage.removeItem(`linkedAccounts_${userId}`);
-      localStorage.removeItem(`instagram_profile_${userId}`);
-      localStorage.removeItem(`whatsapp_config_${userId}`);
+  // Helper function to get Instagram profile info
+  const getInstagramProfileInfo = () => {
+    try {
+      const profileData = JSON.parse(localStorage.getItem(getUserStorageKey('instagram_profile')) || '{}');
+      return profileData;
+    } catch {
+      return {};
     }
-    // Also clear non-user-specific keys if they exist (for backward compatibility)
-    localStorage.removeItem('linkedAccounts');
-    localStorage.removeItem('instagram_profile');
-    localStorage.removeItem('whatsapp_config');
   };
 
-  // Helper function to migrate old data to user-specific keys
-  const migrateOldDataIfNeeded = () => {
-    const userId = currentUserId || localStorage.getItem('userId');
-    if (!userId) return;
-
-    // Check if there's old data without user ID
-    const oldLinkedAccounts = localStorage.getItem('linkedAccounts');
-    const oldInstagramProfile = localStorage.getItem('instagram_profile');
-    const oldWhatsappConfig = localStorage.getItem('whatsapp_config');
-
-    // If old data exists and no user-specific data exists, migrate it
-    if (oldLinkedAccounts && !localStorage.getItem(`linkedAccounts_${userId}`)) {
-      localStorage.setItem(`linkedAccounts_${userId}`, oldLinkedAccounts);
-      localStorage.removeItem('linkedAccounts');
+  // Function to extract user ID from token
+  const getUserIdFromToken = async (token) => {
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        return payload.user_id || payload.userId || payload.sub || null;
+      }
+      
+      // Fallback: API call to get user profile
+      const response = await fetch('https://api.automation365.io/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.userId || data.id || null;
+      }
+    } catch (error) {
+      console.error('Error getting user ID:', error);
     }
-    if (oldInstagramProfile && !localStorage.getItem(`instagram_profile_${userId}`)) {
-      localStorage.setItem(`instagram_profile_${userId}`, oldInstagramProfile);
-      localStorage.removeItem('instagram_profile');
-    }
-    if (oldWhatsappConfig && !localStorage.getItem(`whatsapp_config_${userId}`)) {
-      localStorage.setItem(`whatsapp_config_${userId}`, oldWhatsappConfig);
-      localStorage.removeItem('whatsapp_config');
+    
+    // Fallback: use token hash as user identifier
+    return btoa(token).substring(0, 16);
+  };
+
+  // Handle Instagram OAuth callback
+  const handleInstagramCallback = (urlParams) => {
+    const success = urlParams.get('success');
+    const username = urlParams.get('username');
+    const profilePicture = urlParams.get('profile_picture');
+    
+    // Case-insensitive check for success
+    if (success && success.toLowerCase() === 'true') {
+      setLinkedAccounts(prev => {
+        const updated = { ...prev, instagram: true };
+        localStorage.setItem(getUserStorageKey('linkedAccounts'), JSON.stringify(updated));
+        
+        // Store Instagram profile info
+        if (username || profilePicture) {
+          const profileData = {
+            username,
+            profilePicture: profilePicture ? decodeURIComponent(profilePicture) : null,
+            linkedAt: new Date().toISOString()
+          };
+          localStorage.setItem(getUserStorageKey('instagram_profile'), JSON.stringify(profileData));
+        }
+        
+        return updated;
+      });
+      
+      toast.success(`Successfully linked Instagram${username ? ` (@${username})` : ''}`);
+      
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Stop loading state
+      setLoading(prev => ({ ...prev, instagram: false }));
+    } else if (success && success.toLowerCase() === 'false') {
+      const status = urlParams.get('status');
+      toast.error(status || 'Failed to link Instagram. Please try again.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setLoading(prev => ({ ...prev, instagram: false }));
     }
   };
 
@@ -110,7 +146,7 @@ const Onboarding2 = () => {
             const { phone_number_id, waba_id } = data.data;
             console.log("WhatsApp signup completed:", { phone_number_id, waba_id });
             
-            // Mark WhatsApp as linked and save to localStorage with user-specific key
+            // Mark WhatsApp as linked and save to localStorage
             setLinkedAccounts(prev => {
               const updated = { ...prev, whatsapp: true };
               localStorage.setItem(getUserStorageKey('linkedAccounts'), JSON.stringify(updated));
@@ -119,7 +155,7 @@ const Onboarding2 = () => {
             setLoading(prev => ({ ...prev, whatsapp: false }));
             toast.success('Successfully linked WhatsApp Business account');
             
-            // Save the phone_number_id and waba_id with user-specific key
+            // Save the phone_number_id and waba_id
             localStorage.setItem(getUserStorageKey('whatsapp_config'), JSON.stringify({ phone_number_id, waba_id }));
             
           } else if (data.event === 'CANCEL') {
@@ -143,78 +179,44 @@ const Onboarding2 = () => {
     return () => window.removeEventListener('message', handleMessage);
   }, [currentUserId]);
 
-  // Helper function to get Instagram profile info
-  const getInstagramProfileInfo = () => {
-    try {
-      const profileData = JSON.parse(localStorage.getItem(getUserStorageKey('instagram_profile')) || '{}');
-      return profileData;
-    } catch {
-      return {};
-    }
-  };
+  // Check which accounts are already linked using /instagram endpoint
+  const checkLinkedAccounts = async () => {
+    const token = localStorage.getItem('token');
+    const userId = currentUserId || localStorage.getItem('userId');
+    if (!token || !userId) return;
 
-  // Function to extract user ID from token (you may need to adjust based on your token structure)
-  const getUserIdFromToken = async (token) => {
     try {
-      // If your token is a JWT, you can decode it
-      const tokenParts = token.split('.');
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        return payload.user_id || payload.userId || payload.sub || null;
-      }
+      // First, check localStorage for immediate update
+      const linked = JSON.parse(localStorage.getItem(`linkedAccounts_${userId}`) || '{}');
+      setLinkedAccounts(prev => ({ ...prev, ...linked }));
       
-      // Otherwise, make an API call to get user info
-      const response = await fetch('https://api.automation365.io/user/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        return data.userId || data.id || null;
+      // Fetch actual Instagram status from backend using /instagram endpoint
+      try {
+        const response = await fetch('https://api.automation365.io/instagram', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.id) {
+            // Instagram is linked
+            setLinkedAccounts(prev => {
+              const updated = { ...prev, instagram: true };
+              localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify(updated));
+              return updated;
+            });
+            // Store profile info
+            localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify({
+              id: data.id,
+              dp: data.dp,
+              username: data.username || null
+            }));
+          }
+        }
+      } catch (error) {
+        console.log('Error fetching Instagram status:', error);
       }
     } catch (error) {
-      console.error('Error getting user ID:', error);
-    }
-    
-    // Fallback: use token hash as user identifier
-    return btoa(token).substring(0, 16);
-  };
-
-  // Separate function to handle Instagram OAuth callback
-  const handleInstagramCallback = (urlParams) => {
-    const success = urlParams.get('success');
-    const username = urlParams.get('username');
-    const profilePicture = urlParams.get('profile_picture');
-    
-    // Case-insensitive check for success
-    if (success && success.toLowerCase() === 'true') {
-      setLinkedAccounts(prev => {
-        const updated = { ...prev, instagram: true };
-        localStorage.setItem(getUserStorageKey('linkedAccounts'), JSON.stringify(updated));
-        
-        // Store Instagram profile info with user-specific key
-        if (username || profilePicture) {
-          const profileData = {
-            username,
-            profilePicture: profilePicture ? decodeURIComponent(profilePicture) : null,
-            linkedAt: new Date().toISOString()
-          };
-          localStorage.setItem(getUserStorageKey('instagram_profile'), JSON.stringify(profileData));
-        }
-        
-        return updated;
-      });
-      
-      toast.success(`Successfully linked Instagram${username ? ` (@${username})` : ''}`);
-      
-      // Clear URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
-      // Stop loading state
-      setLoading(prev => ({ ...prev, instagram: false }));
-    } else if (success && success.toLowerCase() === 'false') {
-      toast.error('Failed to link Instagram. Please try again.');
-      window.history.replaceState({}, document.title, window.location.pathname);
-      setLoading(prev => ({ ...prev, instagram: false }));
+      console.error('Error checking linked accounts:', error);
     }
   };
 
@@ -235,14 +237,11 @@ const Onboarding2 = () => {
       setCurrentUserId(userId);
       localStorage.setItem('userId', userId);
       
-      // Migrate old data if needed
-      migrateOldDataIfNeeded();
-      
-      // Load user-specific linked accounts
+      // Load user-specific linked accounts from localStorage first
       const userLinkedAccounts = JSON.parse(
         localStorage.getItem(`linkedAccounts_${userId}`) || '{}'
       );
-      setLinkedAccounts(userLinkedAccounts);
+      setLinkedAccounts(prev => ({ ...prev, ...userLinkedAccounts }));
       
       // Check for OAuth callback parameters (for Instagram)
       const urlParams = new URLSearchParams(window.location.search);
@@ -257,58 +256,6 @@ const Onboarding2 = () => {
     initializeUser();
   }, []);
 
-  // Check which accounts are already linked
-  const checkLinkedAccounts = async () => {
-    const token = localStorage.getItem('token');
-    const userId = currentUserId || localStorage.getItem('userId');
-    if (!token || !userId) return;
-
-    try {
-      // First, check localStorage for immediate update with user-specific key
-      const linked = JSON.parse(localStorage.getItem(`linkedAccounts_${userId}`) || '{}');
-      setLinkedAccounts(linked);
-      
-      // Also check for any OAuth redirect parameters that might not have been processed
-      const urlParams = new URLSearchParams(window.location.search);
-      const success = urlParams.get('success');
-      
-      if (success && !linked.instagram) {
-        // Process any pending Instagram OAuth callback
-        handleInstagramCallback(urlParams);
-      }
-      
-      // Fetch actual linked account status from backend
-      try {
-        const response = await fetch('https://api.automation365.io/user/linked-accounts', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.linkedAccounts) {
-            // Update local storage with backend data
-            localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify(data.linkedAccounts));
-            setLinkedAccounts(data.linkedAccounts);
-          }
-        }
-      } catch (error) {
-        console.log('Backend endpoint not available, using local storage');
-      }
-    } catch (error) {
-      console.error('Error checking linked accounts:', error);
-    }
-  };
-
-  // Add periodic check for linked accounts (useful after OAuth redirects)
-  useEffect(() => {
-    if (!currentUserId) return;
-    
-    const interval = setInterval(() => {
-      checkLinkedAccounts();
-    }, 5000); // Check every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [currentUserId]);
-
   // Handle manual refresh
   const handleRefreshStatus = () => {
     checkLinkedAccounts();
@@ -319,7 +266,6 @@ const Onboarding2 = () => {
   const loginWithFacebook = () => {
     setLoading(prev => ({ ...prev, facebook: true }));
     
-    // Get user token for embedding in state
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error('Please login first');
@@ -331,7 +277,7 @@ const Onboarding2 = () => {
     const stateData = {
       platform: 'messenger',
       token: token,
-      userId: currentUserId // Include user ID
+      userId: currentUserId
     };
     const encodedState = btoa(JSON.stringify(stateData));
     
@@ -350,10 +296,7 @@ const Onboarding2 = () => {
   // Twitter Login Handler
   const loginWithTwitter = () => {
     setLoading(prev => ({ ...prev, twitter: true }));
-    
-    // Twitter OAuth 2.0 (if you have Twitter API v2 setup)
     toast.error('Twitter integration requires additional setup. Please contact support.');
-    
     setTimeout(() => {
       setLoading(prev => ({ ...prev, twitter: false }));
     }, 1000);
@@ -363,7 +306,6 @@ const Onboarding2 = () => {
   const loginWithInstagram = () => {
     setLoading(prev => ({ ...prev, instagram: true }));
     
-    // Get user token for embedding in state
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error('Please login first');
@@ -375,7 +317,7 @@ const Onboarding2 = () => {
     const stateData = {
       platform: 'instagram',
       token: token,
-      userId: currentUserId // Include user ID
+      userId: currentUserId
     };
     const encodedState = btoa(JSON.stringify(stateData));
     
@@ -414,7 +356,7 @@ const Onboarding2 = () => {
         const code = response.authResponse.code;
         console.log('WhatsApp Embedded Signup code received:', code);
         
-        // Send code to backend with user context
+        // Send code to backend
         try {
           const backendResponse = await fetch('https://api.automation365.io/auth/whatsapp?code=' + code, {
             method: 'GET',
@@ -426,8 +368,6 @@ const Onboarding2 = () => {
           if (backendResponse.ok) {
             const data = await backendResponse.json();
             console.log('WhatsApp backend response:', data);
-            
-            // The Embedded Signup flow will continue and send messages via postMessage
           } else {
             const error = await backendResponse.json();
             console.error('Backend error:', error);
@@ -440,7 +380,6 @@ const Onboarding2 = () => {
           setLoading(prev => ({ ...prev, whatsapp: false }));
         }
       } else {
-        // User cancelled or error occurred
         setLoading(prev => ({ ...prev, whatsapp: false }));
         if (response.status === 'unknown') {
           toast.error('WhatsApp setup cancelled');
@@ -476,26 +415,6 @@ const Onboarding2 = () => {
     }, 1500);
   };
 
-  // Handle user logout (call this from your logout function)
-  const handleLogout = () => {
-    // Clear user-specific data
-    const userId = currentUserId || localStorage.getItem('userId');
-    if (userId) {
-      localStorage.removeItem(`linkedAccounts_${userId}`);
-      localStorage.removeItem(`instagram_profile_${userId}`);
-      localStorage.removeItem(`whatsapp_config_${userId}`);
-    }
-    
-    // Clear user ID
-    localStorage.removeItem('userId');
-    
-    // Clear token
-    localStorage.removeItem('token');
-    
-    // Redirect to login
-    window.location.href = '/login';
-  };
-
   // Platform configurations with dynamic Instagram info
   const instagramProfile = getInstagramProfileInfo();
   const socialPlatforms = [
@@ -519,14 +438,14 @@ const Onboarding2 = () => {
       description: linkedAccounts.instagram 
         ? 'Instagram Business account connected' 
         : 'Connect your Instagram Business account',
-      icon: linkedAccounts.instagram && instagramProfile.profilePicture 
-        ? instagramProfile.profilePicture 
+      icon: linkedAccounts.instagram && (instagramProfile.profilePicture || instagramProfile.dp)
+        ? (instagramProfile.profilePicture || instagramProfile.dp)
         : '/Images/instagram.png',
       bgColor: 'bg-pink-100',
       textColor: 'text-pink-700',
       onClick: loginWithInstagram,
       available: true,
-      isProfilePic: linkedAccounts.instagram && instagramProfile.profilePicture
+      isProfilePic: linkedAccounts.instagram && (instagramProfile.profilePicture || instagramProfile.dp)
     },
     {
       id: 'whatsapp',
