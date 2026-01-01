@@ -10,29 +10,47 @@ const AuthenticationPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
   useEffect(() => {
-    // Clear any previous user's data when signup page loads
-    clearUserData();
-    
     // Handle OAuth callback - check for tokens in query params
     const success = searchParams.get('success');
     const token = searchParams.get('token');
     const refreshToken = searchParams.get('refresh_token');
     const error = searchParams.get('error');
+    const status = searchParams.get('status');
     
-    if (success === 'true' && token) {
-      handleOAuthSuccess(token, refreshToken);
-    } else if (error) {
-      toast.error(decodeURIComponent(error));
-      // Clear URL params
+    // Clear URL params immediately to prevent token exposure
+    if (token || error || status || success !== null) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [searchParams]);
+    
+    if (success === 'true' && token) {
+      setOauthLoading(true);
+      handleOAuthSuccess(token, refreshToken);
+    } else if (success === 'false' || status === 'false') {
+      const errorMessage = error || status;
+      if (errorMessage) {
+        const decodedError = decodeURIComponent(errorMessage.replace(/\+/g, ' '));
+        
+        if (decodedError.toLowerCase().includes('already') || 
+            decodedError.toLowerCase().includes('exists')) {
+          toast.error('An account with this email already exists. Please login instead.');
+          setTimeout(() => navigate('/Login'), 2000);
+        } else {
+          toast.error(decodedError || 'Registration failed. Please try again.');
+        }
+      }
+      clearUserData();
+    } else if (error) {
+      toast.error(decodeURIComponent(error.replace(/\+/g, ' ')));
+      clearUserData();
+    }
+  }, [searchParams, navigate]);
 
   const handleOAuthSuccess = async (token, refreshToken) => {
     try {
@@ -47,15 +65,25 @@ const AuthenticationPage = () => {
       });
       
       console.log('OAuth registration successful for user:', userId);
+      
+      // For new users, ensure no linked accounts exist
+      localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
+        facebook: false,
+        twitter: false,
+        instagram: false,
+        whatsapp: false
+      }));
+      
       toast.success('Registration successful!');
       
-      // Clear URL params and redirect
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clear URL params and redirect to onboarding
       navigate('/Onboarding1');
     } catch (error) {
       console.error('OAuth session initialization failed:', error);
       toast.error('Registration failed. Please try again.');
       clearUserData();
+    } finally {
+      setOauthLoading(false);
     }
   };
 
@@ -69,6 +97,18 @@ const AuthenticationPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!formData.email || !formData.password) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -109,7 +149,7 @@ const AuthenticationPage = () => {
       // Handle specific error cases
       if (error.response?.status === 409) {
         toast.error('Email already exists. Please login instead.');
-        navigate('/Login');
+        setTimeout(() => navigate('/Login'), 2000);
       } else {
         toast.error(errorMessage);
       }
@@ -124,14 +164,27 @@ const AuthenticationPage = () => {
   const handleGoogleSignUp = () => {
     // Clear any existing user data before OAuth
     clearUserData();
+    setOauthLoading(true);
     
-    // Simply redirect to backend Google OAuth endpoint
+    // Redirect to backend Google OAuth register endpoint
     window.location.href = 'https://api.automation365.io/auth/google-register';
   };
 
   const handleAppleSignUp = () => {
     toast.info('Apple Sign In coming soon!');
   };
+
+  // Show loading screen during OAuth processing
+  if (oauthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Creating your account...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -205,16 +258,11 @@ const AuthenticationPage = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    placeholder="Password"
+                    placeholder="Password (min 6 characters)"
                     className="w-full p-3 rounded-lg border border-gray-200"
+                    minLength={6}
                     required
                   />
-                  <a
-                    href="/forgot-password"
-                    className="absolute right-0 -bottom-6 text-sm text-purple-400"
-                  >
-                    Forgotten Password?
-                  </a>
                 </div>
               </div>
 
@@ -263,6 +311,15 @@ const AuthenticationPage = () => {
                   />
                   Sign Up with Apple
                 </Button>
+              </div>
+              
+              <div className="text-center md:hidden">
+                <p className="text-sm text-gray-600">
+                  Already have an account?{" "}
+                  <a href="/Login" className="text-purple-600 font-medium">
+                    Login
+                  </a>
+                </p>
               </div>
             </form>
           </div>

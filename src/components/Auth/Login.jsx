@@ -10,27 +10,50 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
   useEffect(() => {
-    // Clear any previous user's data when login page loads
-    clearUserData();
-    
     // Handle OAuth callback - check for tokens in query params
     const success = searchParams.get('success');
     const token = searchParams.get('token');
     const refreshToken = searchParams.get('refresh_token');
     const error = searchParams.get('error');
+    const status = searchParams.get('status');
+    
+    // Clear URL params immediately to prevent token exposure in browser history
+    if (token || error || status || success !== null) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     
     if (success === 'true' && token) {
+      setOauthLoading(true);
       handleOAuthSuccess(token, refreshToken);
+    } else if (success === 'false' || status === 'false') {
+      // Handle specific OAuth errors from backend
+      const errorMessage = error || status;
+      if (errorMessage) {
+        const decodedError = decodeURIComponent(errorMessage.replace(/\+/g, ' '));
+        
+        // Check for specific error messages from your backend
+        if (decodedError.toLowerCase().includes('without using') || 
+            decodedError.toLowerCase().includes('oauth flow') ||
+            decodedError.toLowerCase().includes('google oauth')) {
+          toast.error('This email was registered with password. Please use email and password to login, or sign up with a different Google account.');
+        } else if (decodedError.toLowerCase().includes('already logged in') ||
+                   decodedError.toLowerCase().includes('already exists')) {
+          toast.error('This account already exists. Please login instead.');
+        } else {
+          toast.error(decodedError || 'Login failed. Please try again.');
+        }
+      }
+      clearUserData();
     } else if (error) {
-      toast.error(decodeURIComponent(error));
-      // Clear URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
+      toast.error(decodeURIComponent(error.replace(/\+/g, ' ')));
+      clearUserData();
     }
   }, [searchParams]);
 
@@ -48,43 +71,50 @@ const Login = () => {
       console.log('OAuth login successful for user:', userId);
       toast.success('Login successful!');
       
-      // Clear URL params and redirect
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
       // Check if user has linked accounts using /instagram endpoint
-      try {
-        const response = await axios.get('https://api.automation365.io/instagram', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        // If we get an id, Instagram is linked
-        if (response.data && response.data.id) {
-          // Store in localStorage for user
-          if (userId) {
-            localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
-              instagram: true,
-              facebook: false,
-              whatsapp: false,
-              twitter: false
-            }));
-            localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify({
-              id: response.data.id,
-              dp: response.data.dp
-            }));
-          }
-          navigate('/Overview');
-        } else {
-          navigate('/Onboarding2');
-        }
-      } catch (err) {
-        // No Instagram linked or error - go to onboarding
-        console.log('No linked accounts found, redirecting to onboarding');
-        navigate('/Onboarding2');
-      }
+      await checkLinkedAccountsAndRedirect(token, userId);
+      
     } catch (error) {
       console.error('OAuth session initialization failed:', error);
       toast.error('Login failed. Please try again.');
       clearUserData();
+      setOauthLoading(false);
+    }
+  };
+
+  const checkLinkedAccountsAndRedirect = async (token, userId) => {
+    try {
+      const response = await axios.get('https://api.automation365.io/instagram', {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000
+      });
+      
+      // If we get an id, Instagram is linked
+      if (response.data && response.data.id) {
+        // Store in localStorage for user
+        if (userId) {
+          localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
+            instagram: true,
+            facebook: false,
+            whatsapp: false,
+            twitter: false
+          }));
+          localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify({
+            id: response.data.id,
+            dp: response.data.dp,
+            username: response.data.username || null
+          }));
+        }
+        navigate('/Overview');
+      } else {
+        navigate('/Onboarding2');
+      }
+    } catch (err) {
+      // No Instagram linked or error - go to onboarding
+      console.log('No linked accounts found, redirecting to onboarding');
+      navigate('/Onboarding2');
+    } finally {
+      setOauthLoading(false);
     }
   };
 
@@ -121,44 +151,8 @@ const Login = () => {
         console.log('User logged in:', userId);
         toast.success('Login successful!');
         
-        // Check if user has linked accounts using /instagram endpoint
-        try {
-          const instaResponse = await axios.get('https://api.automation365.io/instagram', {
-            headers: { Authorization: `Bearer ${response.data.token}` }
-          });
-          
-          // If we get an id, Instagram is linked
-          if (instaResponse.data && instaResponse.data.id) {
-            // Store in localStorage
-            if (userId) {
-              localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
-                instagram: true,
-                facebook: false,
-                whatsapp: false,
-                twitter: false
-              }));
-              localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify({
-                id: instaResponse.data.id,
-                dp: instaResponse.data.dp
-              }));
-            }
-            navigate('/Overview');
-          } else {
-            navigate('/Onboarding2');
-          }
-        } catch (err) {
-          // No Instagram linked - check localStorage as fallback
-          const linkedAccounts = JSON.parse(
-            localStorage.getItem(`linkedAccounts_${userId}`) || '{}'
-          );
-          const hasLinkedAccounts = Object.values(linkedAccounts).some(val => val === true);
-          
-          if (hasLinkedAccounts) {
-            navigate('/Overview');
-          } else {
-            navigate('/Onboarding2');
-          }
-        }
+        // Check if user has linked accounts
+        await checkLinkedAccountsAndRedirect(response.data.token, userId);
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Login failed';
@@ -166,10 +160,10 @@ const Login = () => {
       // Handle specific error cases
       if (error.response?.status === 404) {
         toast.error('User not found. Please sign up first.');
-        navigate('/');
+        setTimeout(() => navigate('/'), 1500);
       } else if (error.response?.status === 401) {
-        if (errorMessage === 'User used Google login flow' || errorMessage === 'Please use Google/Social login') {
-          toast.error('This account uses Google Sign-In. Please use the Google login option.');
+        if (errorMessage.includes('Google') || errorMessage.includes('Social')) {
+          toast.error('This account uses Google Sign-In. Please click "Sign In with Google" below.');
         } else {
           toast.error('Invalid email or password');
         }
@@ -187,14 +181,27 @@ const Login = () => {
   const handleGoogleLogin = () => {
     // Clear any existing user data before OAuth
     clearUserData();
+    setOauthLoading(true);
     
-    // Simply redirect to backend Google OAuth endpoint
+    // Redirect to backend Google OAuth login endpoint
     window.location.href = 'https://api.automation365.io/auth/google-login';
   };
 
   const handleAppleLogin = () => {
     toast.info('Apple Sign In coming soon!');
   };
+
+  // Show loading screen during OAuth processing
+  if (oauthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Completing login...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -272,9 +279,9 @@ const Login = () => {
                     className="w-full p-3 rounded-lg border border-gray-200"
                     required
                   />
-                 <Link to="/forgot-password" className="absolute right-0 -bottom-6 text-sm text-purple-400">
-  Forgotten Password?
-</Link>
+                  <Link to="/forgot-password" className="absolute right-0 -bottom-6 text-sm text-purple-400">
+                    Forgotten Password?
+                  </Link>
                 </div>
               </div>
 
