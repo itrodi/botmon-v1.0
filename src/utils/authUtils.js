@@ -157,19 +157,27 @@ export const initializeUserSession = async (token, userData = {}) => {
     // Don't throw - let the backend handle it
   }
   
-  // Clear any previous user's data first
-  clearUserData();
-  
   // Extract user ID from token or userData
-  const userId = await getUserIdFromToken(token) || userData.userId || userData.id;
+  const newUserId = await getUserIdFromToken(token) || userData.userId || userData.id;
   
-  if (!userId) {
+  if (!newUserId) {
     throw new Error('Unable to determine user ID');
   }
   
+  // Check if this is the same user as before
+  const oldUserId = localStorage.getItem('userId');
+  const isSameUser = oldUserId && oldUserId === newUserId;
+  
+  if (!isSameUser && oldUserId) {
+    // Different user - clear old user's data
+    console.log('Different user detected, clearing old user data');
+    clearUserData();
+  }
+  // If same user, don't clear - preserve linked accounts and profile data
+  
   // Store new user session data
   localStorage.setItem('token', token);
-  localStorage.setItem('userId', userId);
+  localStorage.setItem('userId', newUserId);
   
   if (userData.email) {
     localStorage.setItem('userEmail', userData.email);
@@ -183,7 +191,7 @@ export const initializeUserSession = async (token, userData = {}) => {
     localStorage.setItem('refreshToken', userData.refreshToken);
   }
   
-  return userId;
+  return newUserId;
 };
 
 /**
