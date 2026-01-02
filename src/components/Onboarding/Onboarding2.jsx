@@ -38,7 +38,6 @@ const Onboarding2 = () => {
         return payload.user_id || payload.userId || payload.sub || null;
       }
       
-      // Fallback: API call to get user profile
       const response = await fetch('https://api.automation365.io/user/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -50,13 +49,27 @@ const Onboarding2 = () => {
       console.error('Error getting user ID:', error);
     }
     
-    // Fallback: use token hash as user identifier
     return btoa(token).substring(0, 16);
   };
 
-  // Fetch Instagram status from backend API - this is the source of truth
-  const fetchInstagramStatus = useCallback(async (token, userId) => {
+  // Fetch Instagram status from backend API
+  // Note: The API only returns {id, dp} - NOT username
+  // Username is only available from OAuth callback URL parameters
+  const fetchInstagramStatus = useCallback(async (token, userId, skipIfAlreadyLinked = false) => {
     if (!token || !userId) return false;
+    
+    // Get existing profile data to preserve username (API doesn't return it)
+    const existingProfile = JSON.parse(localStorage.getItem(`instagram_profile_${userId}`) || '{}');
+    const existingLinked = JSON.parse(localStorage.getItem(`linkedAccounts_${userId}`) || '{}');
+    
+    // If already linked and skipIfAlreadyLinked is true, don't overwrite
+    if (skipIfAlreadyLinked && existingLinked.instagram === true) {
+      console.log('Instagram already linked, skipping API overwrite');
+      // Still update state from localStorage
+      setInstagramProfile(existingProfile);
+      setLinkedAccounts(prev => ({ ...prev, instagram: true }));
+      return true;
+    }
     
     try {
       const response = await fetch('https://api.automation365.io/instagram', {
@@ -66,24 +79,28 @@ const Onboarding2 = () => {
         }
       });
       
+      console.log('Instagram API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('Instagram API response:', data);
+        console.log('Instagram API data:', data);
         
-        // Check if Instagram is linked - the API returns {id, dp} when linked
+        // Check if Instagram is linked - API returns {id, dp} when linked
         if (data && data.id) {
+          // IMPORTANT: Preserve existing username since API doesn't return it
           const profileData = {
             id: data.id,
-            dp: data.dp,
-            username: data.username || null,
-            profilePicture: data.dp,
-            linkedAt: new Date().toISOString()
+            dp: data.dp || existingProfile.dp || null,
+            username: data.username || existingProfile.username || null, // Preserve from callback
+            profilePicture: data.dp || existingProfile.profilePicture || null,
+            linkedAt: existingProfile.linkedAt || new Date().toISOString()
           };
+          
+          console.log('Updating Instagram profile:', profileData);
           
           setInstagramProfile(profileData);
           localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify(profileData));
           
-          // Update linked accounts state
           setLinkedAccounts(prev => {
             const updated = { ...prev, instagram: true };
             localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify(updated));
@@ -91,22 +108,14 @@ const Onboarding2 = () => {
           });
           
           return true;
-        } else {
-          // Not linked - clear any stale data
-          setLinkedAccounts(prev => {
-            const updated = { ...prev, instagram: false };
-            localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify(updated));
-            return updated;
-          });
-          setInstagramProfile({});
-          return false;
         }
-      } else if (response.status === 404 || response.status === 401) {
-        // Not linked or unauthorized
-        setLinkedAccounts(prev => ({ ...prev, instagram: false }));
-        return false;
       }
+      
+      // API returned no data or error - but DON'T clear existing linked status
+      // The API might fail but user could still be linked (data in localStorage)
+      console.log('Instagram API returned no linked account');
       return false;
+      
     } catch (error) {
       console.error('Error fetching Instagram status:', error);
       return false;
@@ -114,54 +123,95 @@ const Onboarding2 = () => {
   }, []);
 
   // Handle Instagram OAuth callback from URL parameters
-  const handleInstagramCallback = useCallback(async (urlParams, token, userId) => {
-    if (callbackProcessed.current) return;
-    callbackProcessed.current = true;
+  // Note: Callback provides username and profile_picture
+  // We need to fetch the id from API separately
+  const handleInstagramCallback = useCallback(async (urlParams, userId, token) => {
+    if (callbackProcessed.current) return false;
     
     const success = urlParams.get('success');
     const username = urlParams.get('username');
     const profilePicture = urlParams.get('profile_picture');
     const status = urlParams.get('status');
     
+    console.log('Processing Instagram callback:', { success, username, profilePicture, status });
+    
     // Clear URL parameters immediately for security
     window.history.replaceState({}, document.title, window.location.pathname);
     
-    console.log('Processing Instagram callback:', { success, username, status });
+    // Mark as processed
+    callbackProcessed.current = true;
     
-    // Case-insensitive check for success
-    if (success && success.toLowerCase() === 'true') {
-      toast.success(`Successfully linked Instagram${username ? ` (@${username})` : ''}!`);
+    // Handle both "true"/"True" (Python sends capitalized True)
+    const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
+    const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
+    
+    if (isSuccess) {
+      // Decode URL-encoded values
+      const decodedUsername = username ? decodeURIComponent(username) : null;
+      const decodedPic = profilePicture ? decodeURIComponent(profilePicture) : null;
       
-      // Store initial profile data from callback
+      // Store Instagram profile info from callback
       const profileData = {
-        username: username || null,
-        profilePicture: profilePicture ? decodeURIComponent(profilePicture) : null,
-        dp: profilePicture ? decodeURIComponent(profilePicture) : null,
+        username: decodedUsername,
+        profilePicture: decodedPic,
+        dp: decodedPic,
         linkedAt: new Date().toISOString()
       };
       
-      setInstagramProfile(prev => ({ ...prev, ...profileData }));
+      console.log('Instagram linked successfully, profile:', profileData);
       
-      // Update linked status immediately for UI
+      // Update state immediately for UI feedback
+      setInstagramProfile(profileData);
+      localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify(profileData));
+      
+      // Update linked accounts state
       setLinkedAccounts(prev => {
         const updated = { ...prev, instagram: true };
         localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify(updated));
         return updated;
       });
       
-      // Fetch complete data from backend to ensure we have everything
-      // Small delay to allow backend to process
-      setTimeout(async () => {
-        await fetchInstagramStatus(token, userId);
-      }, 1000);
+      toast.success(`Successfully linked Instagram${decodedUsername ? ` (@${decodedUsername})` : ''}!`);
+      setLoading(prev => ({ ...prev, instagram: false }));
       
-    } else if (success && success.toLowerCase() === 'false') {
+      // Now fetch from API to get the Instagram ID (callback doesn't include it)
+      // Small delay to let backend process
+      setTimeout(async () => {
+        try {
+          const response = await fetch('https://api.automation365.io/instagram', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.id) {
+              // Update profile with ID from API, but keep username from callback
+              const updatedProfile = {
+                ...profileData,
+                id: data.id,
+                dp: data.dp || profileData.dp
+              };
+              setInstagramProfile(updatedProfile);
+              localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify(updatedProfile));
+              console.log('Updated profile with ID from API:', updatedProfile);
+            }
+          }
+        } catch (e) {
+          console.log('Could not fetch Instagram ID from API:', e);
+          // Not critical - we still have username and dp from callback
+        }
+      }, 1500);
+      
+      return true;
+      
+    } else if (isFailure) {
       const errorMessage = status ? decodeURIComponent(status.replace(/\+/g, ' ')) : 'Failed to link Instagram. Please try again.';
       toast.error(errorMessage);
+      setLoading(prev => ({ ...prev, instagram: false }));
+      return false;
     }
     
-    setLoading(prev => ({ ...prev, instagram: false }));
-  }, [fetchInstagramStatus]);
+    return false;
+  }, []);
 
   // Initialize Facebook SDK for WhatsApp
   useEffect(() => {
@@ -240,6 +290,7 @@ const Onboarding2 = () => {
   useEffect(() => {
     const initializeUser = async () => {
       if (initialLoadDone.current) return;
+      initialLoadDone.current = true;
       
       const token = localStorage.getItem('token');
       if (!token) {
@@ -255,28 +306,37 @@ const Onboarding2 = () => {
       setCurrentUserId(userId);
       localStorage.setItem('userId', userId);
       
-      // Load cached data from localStorage for immediate UI update
+      // Load cached data from localStorage FIRST (immediate UI update)
       const cachedLinkedAccounts = JSON.parse(
         localStorage.getItem(`linkedAccounts_${userId}`) || '{}'
       );
-      setLinkedAccounts(prev => ({ ...prev, ...cachedLinkedAccounts }));
-      
       const cachedProfile = JSON.parse(
         localStorage.getItem(`instagram_profile_${userId}`) || '{}'
       );
+      
+      console.log('Loaded from localStorage:', { cachedLinkedAccounts, cachedProfile });
+      
+      // Set initial state from cache
+      setLinkedAccounts(prev => ({ ...prev, ...cachedLinkedAccounts }));
       setInstagramProfile(cachedProfile);
       
-      // Check for OAuth callback parameters
+      // Check for OAuth callback parameters BEFORE API call
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has('success') && !callbackProcessed.current) {
-        setLoading(prev => ({ ...prev, instagram: true }));
-        await handleInstagramCallback(urlParams, token, userId);
+      let callbackHandled = false;
+      
+      if (urlParams.has('success')) {
+        callbackHandled = await handleInstagramCallback(urlParams, userId, token);
       }
       
-      // Always fetch fresh status from backend API (source of truth)
-      await fetchInstagramStatus(token, userId);
+      // Only fetch from API if callback wasn't successful
+      // This prevents API from overwriting successful callback data
+      if (!callbackHandled && !cachedLinkedAccounts.instagram) {
+        await fetchInstagramStatus(token, userId, false);
+      } else if (cachedLinkedAccounts.instagram) {
+        // If already linked in cache, verify with API but don't overwrite if API fails
+        await fetchInstagramStatus(token, userId, true);
+      }
       
-      initialLoadDone.current = true;
       setLoading(prev => ({ ...prev, initial: false }));
     };
     
@@ -296,8 +356,19 @@ const Onboarding2 = () => {
     setLoading(prev => ({ ...prev, refresh: true }));
     
     try {
-      const isLinked = await fetchInstagramStatus(token, userId);
-      toast.success(isLinked ? 'Instagram is linked!' : 'Status refreshed - No Instagram linked');
+      const isLinked = await fetchInstagramStatus(token, userId, false);
+      
+      if (isLinked) {
+        toast.success('Instagram is linked!');
+      } else {
+        // Check localStorage in case API failed but we have cached data
+        const cached = JSON.parse(localStorage.getItem(`linkedAccounts_${userId}`) || '{}');
+        if (cached.instagram) {
+          toast.success('Instagram linked (from cache)');
+        } else {
+          toast.info('No Instagram account linked');
+        }
+      }
     } catch (error) {
       toast.error('Failed to refresh status');
     } finally {
@@ -378,12 +449,32 @@ const Onboarding2 = () => {
     const userId = currentUserId || localStorage.getItem('userId');
     const instaId = instagramProfile.id;
     
-    if (!token || !instaId) {
-      toast.error('Unable to unlink Instagram');
+    if (!token) {
+      toast.error('Please login first');
       return;
     }
     
-    // Confirm before unlinking
+    // If we don't have instaId from profile, try to get it from API
+    let idToUnlink = instaId;
+    if (!idToUnlink) {
+      try {
+        const response = await fetch('https://api.automation365.io/instagram', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          idToUnlink = data.id;
+        }
+      } catch (e) {
+        console.error('Error getting Instagram ID:', e);
+      }
+    }
+    
+    if (!idToUnlink) {
+      toast.error('Unable to find Instagram account to unlink');
+      return;
+    }
+    
     if (!window.confirm('Are you sure you want to unlink your Instagram account?')) {
       return;
     }
@@ -397,7 +488,7 @@ const Onboarding2 = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ insta_id: instaId })
+        body: JSON.stringify({ insta_id: idToUnlink })
       });
       
       const data = await response.json();
@@ -501,10 +592,18 @@ const Onboarding2 = () => {
     }, 1000);
   };
 
-  // Get display profile picture
+  // Get display picture for Instagram
   const getInstagramDisplayPic = () => {
     return instagramProfile.profilePicture || instagramProfile.dp || null;
   };
+
+  // Get Instagram username
+  const getInstagramUsername = () => {
+    return instagramProfile.username || null;
+  };
+
+  // Check if Instagram is actually linked
+  const isInstagramLinked = linkedAccounts.instagram === true;
 
   // Platform configurations
   const socialPlatforms = [
@@ -522,21 +621,22 @@ const Onboarding2 = () => {
     },
     {
       id: 'instagram',
-      name: linkedAccounts.instagram 
-        ? `Linked: @${instagramProfile.username || 'Instagram Business'}` 
+      name: isInstagramLinked 
+        ? (getInstagramUsername() ? `Linked: @${getInstagramUsername()}` : 'Instagram Linked')
         : 'Link Instagram Business',
-      description: linkedAccounts.instagram 
+      description: isInstagramLinked 
         ? 'Instagram Business account connected' 
         : 'Connect your Instagram Business account',
-      icon: linkedAccounts.instagram && getInstagramDisplayPic()
+      icon: isInstagramLinked && getInstagramDisplayPic()
         ? getInstagramDisplayPic()
         : '/Images/instagram.png',
       bgColor: 'bg-pink-100',
       textColor: 'text-pink-700',
-      onClick: linkedAccounts.instagram ? null : loginWithInstagram,
-      onUnlink: linkedAccounts.instagram ? unlinkInstagram : null,
+      onClick: isInstagramLinked ? null : loginWithInstagram,
+      onUnlink: isInstagramLinked ? unlinkInstagram : null,
       available: true,
-      isProfilePic: linkedAccounts.instagram && getInstagramDisplayPic()
+      isProfilePic: isInstagramLinked && getInstagramDisplayPic(),
+      username: getInstagramUsername()
     },
     {
       id: 'whatsapp',
@@ -579,7 +679,7 @@ const Onboarding2 = () => {
   }
 
   // Initial loading
-  if (loading.initial && !userToken) {
+  if (loading.initial) {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
@@ -589,6 +689,9 @@ const Onboarding2 = () => {
       </div>
     );
   }
+
+  const linkedCount = Object.values(linkedAccounts).filter(Boolean).length;
+  const availableCount = socialPlatforms.filter(p => p.available).length;
 
   return (
     <div className="h-screen flex">
@@ -638,101 +741,108 @@ const Onboarding2 = () => {
 
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-xl mx-auto space-y-4">
-            {socialPlatforms.map((platform) => (
-              <div
-                key={platform.id}
-                className={`p-4 border rounded-lg transition-all ${
-                  linkedAccounts[platform.id]
-                    ? 'border-green-500 bg-green-50'
-                    : loading[platform.id]
-                    ? 'border-gray-200 bg-gray-50'
-                    : platform.available
-                    ? 'border-gray-200 hover:border-purple-300 hover:shadow-sm cursor-pointer'
-                    : 'border-gray-200 bg-gray-50 opacity-60'
-                }`}
-                onClick={
-                  !linkedAccounts[platform.id] && 
-                  !loading[platform.id] && 
-                  platform.available &&
-                  platform.onClick
-                    ? platform.onClick 
-                    : undefined
-                }
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 flex items-center justify-center ${platform.isProfilePic ? '' : platform.bgColor} rounded-lg overflow-hidden`}>
-                      <img 
-                        src={platform.icon} 
-                        alt={platform.name}
-                        className={platform.isProfilePic ? 'w-full h-full object-cover' : 'w-6 h-6 object-contain'}
-                        onError={(e) => {
-                          e.target.src = '/Images/instagram.png';
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">
-                          {platform.name}
-                        </span>
-                        {linkedAccounts[platform.id] && (
-                          <Check className="w-4 h-4 text-green-600" />
-                        )}
-                        {!platform.available && (
-                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
-                            Coming Soon
+            {socialPlatforms.map((platform) => {
+              const isPlatformLinked = linkedAccounts[platform.id] === true;
+              const isPlatformLoading = loading[platform.id];
+              
+              return (
+                <div
+                  key={platform.id}
+                  className={`p-4 border rounded-lg transition-all ${
+                    isPlatformLinked
+                      ? 'border-green-500 bg-green-50'
+                      : isPlatformLoading
+                      ? 'border-gray-200 bg-gray-50'
+                      : platform.available
+                      ? 'border-gray-200 hover:border-purple-300 hover:shadow-sm cursor-pointer'
+                      : 'border-gray-200 bg-gray-50 opacity-60'
+                  }`}
+                  onClick={
+                    !isPlatformLinked && 
+                    !isPlatformLoading && 
+                    platform.available &&
+                    platform.onClick
+                      ? platform.onClick 
+                      : undefined
+                  }
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 flex items-center justify-center ${platform.isProfilePic ? '' : platform.bgColor} rounded-lg overflow-hidden`}>
+                        <img 
+                          src={platform.icon} 
+                          alt={platform.name}
+                          className={platform.isProfilePic ? 'w-full h-full object-cover rounded-lg' : 'w-6 h-6 object-contain'}
+                          onError={(e) => {
+                            console.log('Image load error, using fallback');
+                            e.target.src = '/Images/instagram.png';
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">
+                            {platform.name}
                           </span>
+                          {isPlatformLinked && (
+                            <Check className="w-4 h-4 text-green-600" />
+                          )}
+                          {!platform.available && (
+                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
+                              Coming Soon
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {platform.description}
+                        </p>
+                        {/* Show username for Instagram when linked */}
+                        {platform.id === 'instagram' && isPlatformLinked && platform.username && (
+                          <p className="text-xs text-purple-600 mt-1 font-medium">
+                            @{platform.username}
+                          </p>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {platform.description}
-                      </p>
-                      {platform.id === 'instagram' && linkedAccounts.instagram && instagramProfile.username && (
-                        <p className="text-xs text-purple-600 mt-1 font-medium">
-                          @{instagramProfile.username}
-                        </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {isPlatformLoading ? (
+                        <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                      ) : isPlatformLinked ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-white" />
+                          </div>
+                          {platform.onUnlink && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                platform.onUnlink();
+                              }}
+                              className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1"
+                            >
+                              Unlink
+                            </Button>
+                          )}
+                        </div>
+                      ) : platform.available ? (
+                        <ArrowRight className="w-5 h-5 text-purple-600" />
+                      ) : (
+                        <div className="w-5 h-5" />
                       )}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {loading[platform.id] ? (
-                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
-                    ) : linkedAccounts[platform.id] ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                          <Check className="w-4 h-4 text-white" />
-                        </div>
-                        {platform.onUnlink && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              platform.onUnlink();
-                            }}
-                            className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1"
-                          >
-                            Unlink
-                          </Button>
-                        )}
-                      </div>
-                    ) : platform.available ? (
-                      <ArrowRight className="w-5 h-5 text-purple-600" />
-                    ) : (
-                      <div className="w-5 h-5" />
-                    )}
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Status Summary */}
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600">
-                  {Object.values(linkedAccounts).filter(Boolean).length} of {socialPlatforms.filter(p => p.available).length} available accounts linked
+                  {linkedCount} of {availableCount} available accounts linked
                 </span>
                 <Button 
                   variant="outline" 
@@ -747,8 +857,8 @@ const Onboarding2 = () => {
               </div>
               
               <div className="flex items-center justify-between text-sm">
-                <span className={`font-medium ${Object.values(linkedAccounts).filter(Boolean).length > 0 ? 'text-green-600' : 'text-purple-600'}`}>
-                  {Object.values(linkedAccounts).filter(Boolean).length > 0 
+                <span className={`font-medium ${linkedCount > 0 ? 'text-green-600' : 'text-purple-600'}`}>
+                  {linkedCount > 0 
                     ? '✓ Ready to continue' 
                     : 'Link at least one account to continue'}
                 </span>
@@ -759,7 +869,7 @@ const Onboarding2 = () => {
                 <div 
                   className="bg-purple-600 h-2 rounded-full transition-all duration-500"
                   style={{
-                    width: `${(Object.values(linkedAccounts).filter(Boolean).length / socialPlatforms.filter(p => p.available).length) * 100}%`
+                    width: `${(linkedCount / availableCount) * 100}%`
                   }}
                 />
               </div>
@@ -774,9 +884,9 @@ const Onboarding2 = () => {
               <Button 
                 onClick={handleContinue}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3"
-                disabled={Object.values(linkedAccounts).every(val => !val)}
+                disabled={linkedCount === 0}
               >
-                {Object.values(linkedAccounts).some(val => val) 
+                {linkedCount > 0 
                   ? 'Continue to Dashboard' 
                   : 'Link an account to continue'}
               </Button>
