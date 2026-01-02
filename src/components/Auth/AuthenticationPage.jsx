@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { initializeUserSession, clearUserData } from '@/utils/authUtils';
+import { clearUserData } from '@/utils/authUtils';
 
 const AuthenticationPage = () => {
   const navigate = useNavigate();
@@ -17,22 +17,25 @@ const AuthenticationPage = () => {
   });
 
   useEffect(() => {
-    // Handle OAuth callback - check for tokens in query params
+    // Handle OAuth callback
     const success = searchParams.get('success');
     const token = searchParams.get('token');
     const refreshToken = searchParams.get('refresh_token');
     const error = searchParams.get('error');
     const status = searchParams.get('status');
     
-    // Clear URL params immediately to prevent token exposure
+    // Clear URL params immediately
     if (token || error || status || success !== null) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
     
-    if (success === 'true' && token) {
+    const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
+    const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
+    
+    if (isSuccess && token) {
       setOauthLoading(true);
       handleOAuthSuccess(token, refreshToken);
-    } else if (success === 'false' || status === 'false') {
+    } else if (isFailure || status === 'false') {
       const errorMessage = error || status;
       if (errorMessage) {
         const decodedError = decodeURIComponent(errorMessage.replace(/\+/g, ' '));
@@ -42,32 +45,24 @@ const AuthenticationPage = () => {
           toast.error('An account with this email already exists. Please login instead.');
           setTimeout(() => navigate('/Login'), 2000);
         } else {
-          toast.error(decodedError || 'Registration failed. Please try again.');
+          toast.error(decodedError || 'Registration failed.');
         }
       }
-      clearUserData();
     } else if (error) {
       toast.error(decodeURIComponent(error.replace(/\+/g, ' ')));
-      clearUserData();
     }
   }, [searchParams, navigate]);
 
   const handleOAuthSuccess = async (token, refreshToken) => {
     try {
-      // Clear any previous user data first
-      clearUserData();
+      // Store token
+      localStorage.setItem('token', token);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
       
-      // Initialize user session with proper isolation
-      const userId = await initializeUserSession(token, {
-        refreshToken: refreshToken,
-        email: searchParams.get('email') || null,
-        isNewUser: true
-      });
-      
-      console.log('OAuth registration successful for user:', userId);
-      
-      // For new users, ensure no linked accounts exist
-      localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
+      // Clear linked accounts for new user
+      localStorage.setItem('linkedAccounts', JSON.stringify({
         facebook: false,
         twitter: false,
         instagram: false,
@@ -75,13 +70,11 @@ const AuthenticationPage = () => {
       }));
       
       toast.success('Registration successful!');
-      
-      // Clear URL params and redirect to onboarding
       navigate('/Onboarding1');
+      
     } catch (error) {
-      console.error('OAuth session initialization failed:', error);
+      console.error('OAuth registration failed:', error);
       toast.error('Registration failed. Please try again.');
-      clearUserData();
     } finally {
       setOauthLoading(false);
     }
@@ -89,16 +82,12 @@ const AuthenticationPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Basic validation
     if (!formData.email || !formData.password) {
       toast.error('Please fill in all fields');
       return;
@@ -112,28 +101,20 @@ const AuthenticationPage = () => {
     setLoading(true);
     
     try {
-      // Clear any previous user's data before registration
-      clearUserData();
-      
       const response = await axios.post('https://api.automation365.io/auth/register', {
         email: formData.email,
         password: formData.password
       });
       
       if (response.data.token) {
-        // Initialize new user session with proper isolation
-        const userId = await initializeUserSession(response.data.token, {
-          userId: response.data.userId || response.data.user_id,
-          email: response.data.email || formData.email,
-          name: response.data.name || response.data.userName,
-          refreshToken: response.data.refresh_token || response.data.refreshToken,
-          isNewUser: true
-        });
+        localStorage.setItem('token', response.data.token);
+        if (response.data.refresh_token || response.data.refreshToken) {
+          localStorage.setItem('refreshToken', response.data.refresh_token || response.data.refreshToken);
+        }
+        localStorage.setItem('userEmail', formData.email);
         
-        console.log('New user registered:', userId);
-        
-        // For new users, ensure no linked accounts exist
-        localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
+        // Clear linked accounts for new user
+        localStorage.setItem('linkedAccounts', JSON.stringify({
           facebook: false,
           twitter: false,
           instagram: false,
@@ -146,27 +127,20 @@ const AuthenticationPage = () => {
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Registration failed';
       
-      // Handle specific error cases
       if (error.response?.status === 409) {
         toast.error('Email already exists. Please login instead.');
         setTimeout(() => navigate('/Login'), 2000);
       } else {
         toast.error(errorMessage);
       }
-      
-      // Clear any partial data on registration failure
-      clearUserData();
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignUp = () => {
-    // Clear any existing user data before OAuth
     clearUserData();
     setOauthLoading(true);
-    
-    // Redirect to backend Google OAuth register endpoint
     window.location.href = 'https://api.automation365.io/auth/google-register';
   };
 
@@ -174,7 +148,6 @@ const AuthenticationPage = () => {
     toast.info('Apple Sign In coming soon!');
   };
 
-  // Show loading screen during OAuth processing
   if (oauthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -188,27 +161,17 @@ const AuthenticationPage = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Section with Logo, Images and Text */}
+      {/* Left Section */}
       <div className="hidden md:flex md:w-1/2 bg-gray-50 flex-col">
         <header className="p-6">
-          <div className="font-bold text-xl">
-            <img src="/Images/botmon-logo.png" alt="Logo" />
-          </div>
+          <img src="/Images/botmon-logo.png" alt="Logo" />
         </header>
 
         <div className="flex-1 p-6">
           <div className="max-w-xl mx-auto w-full space-y-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <img 
-                src="/Images/Rectangle1.png" 
-                alt="AI Communication"
-                className="w-full rounded-lg"
-              />
-              <img 
-                src="/Images/Rectangle2.png" 
-                alt="Bot Interface"
-                className="w-full rounded-lg"
-              />
+              <img src="/Images/Rectangle1.png" alt="AI Communication" className="w-full rounded-lg" />
+              <img src="/Images/Rectangle2.png" alt="Bot Interface" className="w-full rounded-lg" />
             </div>
             
             <div className="space-y-4">
@@ -221,14 +184,12 @@ const AuthenticationPage = () => {
         </div>
       </div>
 
-      {/* Right Section with Form */}
+      {/* Right Section */}
       <div className="w-full md:w-1/2 bg-white flex flex-col">
         <div className="hidden md:block p-6 text-right">
           <div className="text-sm">
             Already have an account?{" "}
-            <a href="/Login" className="text-purple-600 font-medium">
-              Login
-            </a>
+            <a href="/Login" className="text-purple-600 font-medium">Login</a>
           </div>
         </div>
 
@@ -252,18 +213,16 @@ const AuthenticationPage = () => {
                   className="w-full p-3 rounded-lg border border-gray-200"
                   required
                 />
-                <div className="relative">
-                  <Input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Password (min 6 characters)"
-                    className="w-full p-3 rounded-lg border border-gray-200"
-                    minLength={6}
-                    required
-                  />
-                </div>
+                <Input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="Password (min 6 characters)"
+                  className="w-full p-3 rounded-lg border border-gray-200"
+                  minLength={6}
+                  required
+                />
               </div>
 
               <Button 
@@ -290,11 +249,7 @@ const AuthenticationPage = () => {
                   onClick={handleGoogleSignUp}
                   className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50"
                 >
-                  <img 
-                    src="/Images/google.png" 
-                    alt="Google"
-                    className="w-6 h-6"
-                  />
+                  <img src="/Images/google.png" alt="Google" className="w-6 h-6" />
                   Sign Up with Google
                 </Button>
 
@@ -304,11 +259,7 @@ const AuthenticationPage = () => {
                   onClick={handleAppleSignUp}
                   className="w-full p-3 border border-gray-200 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50"
                 >
-                  <img 
-                    src="/Images/apple.png" 
-                    alt="Apple"
-                    className="w-6 h-6"
-                  />
+                  <img src="/Images/apple.png" alt="Apple" className="w-6 h-6" />
                   Sign Up with Apple
                 </Button>
               </div>
@@ -316,9 +267,7 @@ const AuthenticationPage = () => {
               <div className="text-center md:hidden">
                 <p className="text-sm text-gray-600">
                   Already have an account?{" "}
-                  <a href="/Login" className="text-purple-600 font-medium">
-                    Login
-                  </a>
+                  <a href="/Login" className="text-purple-600 font-medium">Login</a>
                 </p>
               </div>
             </form>

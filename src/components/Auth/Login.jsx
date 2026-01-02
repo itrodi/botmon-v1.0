@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { initializeUserSession, clearUserData } from '@/utils/authUtils';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -37,16 +36,14 @@ const Login = () => {
       setOauthLoading(true);
       handleOAuthSuccess(token, refreshToken);
     } else if (isFailure || status === 'false') {
-      // Handle specific OAuth errors from backend
       const errorMessage = error || status;
       if (errorMessage) {
         const decodedError = decodeURIComponent(errorMessage.replace(/\+/g, ' '));
         
-        // Check for specific error messages from your backend
         if (decodedError.toLowerCase().includes('without using') || 
             decodedError.toLowerCase().includes('oauth flow') ||
             decodedError.toLowerCase().includes('google oauth')) {
-          toast.error('This email was registered with password. Please use email and password to login, or sign up with a different Google account.');
+          toast.error('This email was registered with password. Please use email and password to login.');
         } else if (decodedError.toLowerCase().includes('already logged in') ||
                    decodedError.toLowerCase().includes('already exists')) {
           toast.error('This account already exists. Please login instead.');
@@ -54,138 +51,29 @@ const Login = () => {
           toast.error(decodedError || 'Login failed. Please try again.');
         }
       }
-      clearUserData();
     } else if (error) {
       toast.error(decodeURIComponent(error.replace(/\+/g, ' ')));
-      clearUserData();
     }
   }, [searchParams]);
 
   const handleOAuthSuccess = async (token, refreshToken) => {
     try {
-      // Get the old userId before clearing (if any)
-      const oldUserId = localStorage.getItem('userId');
-      
-      // Extract new userId from token first (don't clear yet)
-      let newUserId = null;
-      try {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          newUserId = payload.user_id || payload.userId || payload.sub || null;
-        }
-      } catch (e) {
-        console.log('Could not decode token:', e);
+      // Store token
+      localStorage.setItem('token', token);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
       }
       
-      console.log('Old userId:', oldUserId, 'New userId:', newUserId);
-      
-      // Only clear data if it's a different user
-      if (oldUserId && newUserId && oldUserId !== newUserId) {
-        console.log('Different user logging in, clearing old data');
-        clearUserData();
-      } else if (!oldUserId) {
-        // No previous user, safe to clear
-        clearUserData();
-      }
-      // If same user, don't clear - keep their linked accounts data
-      
-      // Initialize user session
-      const userId = await initializeUserSession(token, {
-        refreshToken: refreshToken,
-        email: searchParams.get('email') || null
-      });
-      
-      console.log('OAuth login successful for user:', userId);
       toast.success('Login successful!');
       
-      // Check if user has linked accounts
-      await checkLinkedAccountsAndRedirect(token, userId);
+      // Go directly to Overview - no need to check linked accounts
+      navigate('/Overview');
       
     } catch (error) {
-      console.error('OAuth session initialization failed:', error);
+      console.error('OAuth login failed:', error);
       toast.error('Login failed. Please try again.');
-      clearUserData();
       setOauthLoading(false);
     }
-  };
-
-  const checkLinkedAccountsAndRedirect = async (token, userId) => {
-    let hasLinkedAccounts = false;
-    
-    try {
-      // First, try to get Instagram status from API
-      console.log('Checking Instagram API for user:', userId);
-      
-      const response = await axios.get('https://api.automation365.io/instagram', {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000
-      });
-      
-      console.log('Instagram API response:', response.data);
-      
-      // If we get an id, Instagram is linked
-      if (response.data && response.data.id) {
-        hasLinkedAccounts = true;
-        
-        // Store in localStorage for user
-        if (userId) {
-          // Get existing profile data to preserve username
-          const existingProfile = JSON.parse(
-            localStorage.getItem(`instagram_profile_${userId}`) || '{}'
-          );
-          
-          localStorage.setItem(`linkedAccounts_${userId}`, JSON.stringify({
-            instagram: true,
-            facebook: false,
-            whatsapp: false,
-            twitter: false
-          }));
-          
-          localStorage.setItem(`instagram_profile_${userId}`, JSON.stringify({
-            id: response.data.id,
-            dp: response.data.dp,
-            username: response.data.username || existingProfile.username || null,
-            profilePicture: response.data.dp || existingProfile.profilePicture || null
-          }));
-        }
-        
-        console.log('Instagram is linked, redirecting to Overview');
-        navigate('/Overview');
-        return;
-      }
-    } catch (err) {
-      console.log('Instagram API error:', err.message);
-      // API failed - check localStorage as fallback
-    }
-    
-    // Fallback: Check localStorage for any linked accounts
-    if (!hasLinkedAccounts && userId) {
-      try {
-        const linkedAccounts = JSON.parse(
-          localStorage.getItem(`linkedAccounts_${userId}`) || '{}'
-        );
-        
-        console.log('Checking localStorage for linked accounts:', linkedAccounts);
-        
-        // Check if any account is linked
-        hasLinkedAccounts = Object.values(linkedAccounts).some(val => val === true);
-        
-        if (hasLinkedAccounts) {
-          console.log('Found linked accounts in localStorage, redirecting to Overview');
-          navigate('/Overview');
-          return;
-        }
-      } catch (e) {
-        console.log('Error checking localStorage:', e);
-      }
-    }
-    
-    // No linked accounts found - go to onboarding
-    console.log('No linked accounts found, redirecting to Onboarding2');
-    navigate('/Onboarding2');
-    
-    setOauthLoading(false);
   };
 
   const handleInputChange = (e) => {
@@ -207,53 +95,23 @@ const Login = () => {
       });
       
       if (response.data.token) {
-        // Get the old userId before potentially clearing
-        const oldUserId = localStorage.getItem('userId');
-        
-        // Extract new userId from response or token
-        let newUserId = response.data.userId || response.data.user_id;
-        if (!newUserId) {
-          try {
-            const tokenParts = response.data.token.split('.');
-            if (tokenParts.length === 3) {
-              const payload = JSON.parse(atob(tokenParts[1]));
-              newUserId = payload.user_id || payload.userId || payload.sub || null;
-            }
-          } catch (e) {
-            console.log('Could not decode token:', e);
-          }
+        // Store token
+        localStorage.setItem('token', response.data.token);
+        if (response.data.refresh_token || response.data.refreshToken) {
+          localStorage.setItem('refreshToken', response.data.refresh_token || response.data.refreshToken);
+        }
+        if (response.data.email || formData.email) {
+          localStorage.setItem('userEmail', response.data.email || formData.email);
         }
         
-        console.log('Email login - Old userId:', oldUserId, 'New userId:', newUserId);
-        
-        // Only clear data if it's a different user
-        if (oldUserId && newUserId && oldUserId !== newUserId) {
-          console.log('Different user logging in, clearing old data');
-          clearUserData();
-        } else if (!oldUserId) {
-          // No previous user
-          clearUserData();
-        }
-        // If same user, preserve their linked accounts data
-        
-        // Initialize new user session
-        const userId = await initializeUserSession(response.data.token, {
-          userId: newUserId,
-          email: response.data.email || formData.email,
-          name: response.data.name || response.data.userName,
-          refreshToken: response.data.refresh_token || response.data.refreshToken
-        });
-        
-        console.log('User logged in:', userId);
         toast.success('Login successful!');
         
-        // Check if user has linked accounts
-        await checkLinkedAccountsAndRedirect(response.data.token, userId);
+        // Go directly to Overview - no need to check linked accounts
+        navigate('/Overview');
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Login failed';
       
-      // Handle specific error cases
       if (error.response?.status === 404) {
         toast.error('User not found. Please sign up first.');
         setTimeout(() => navigate('/'), 1500);
@@ -272,11 +130,7 @@ const Login = () => {
   };
 
   const handleGoogleLogin = () => {
-    // Clear any existing user data before OAuth
-    clearUserData();
     setOauthLoading(true);
-    
-    // Redirect to backend Google OAuth login endpoint
     window.location.href = 'https://api.automation365.io/auth/google-login';
   };
 
