@@ -1,4 +1,4 @@
-// authUtils.js - Simple authentication utility functions
+// authUtils.js - Authentication utility functions
 
 /**
  * Clear all user data from localStorage
@@ -29,6 +29,19 @@ export const getToken = () => {
 };
 
 /**
+ * Get user data from localStorage
+ */
+export const getUserData = () => {
+  return {
+    email: localStorage.getItem('userEmail'),
+    name: localStorage.getItem('userName'),
+    token: localStorage.getItem('token'),
+    linkedAccounts: JSON.parse(localStorage.getItem('linkedAccounts') || '{}'),
+    instagramProfile: JSON.parse(localStorage.getItem('instagram_profile') || '{}')
+  };
+};
+
+/**
  * Get authentication headers for API calls
  */
 export const getAuthHeaders = () => {
@@ -41,6 +54,31 @@ export const getAuthHeaders = () => {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
   };
+};
+
+/**
+ * Initialize user session (simplified - just stores token)
+ */
+export const initializeUserSession = async (token, userData = {}) => {
+  if (!token) {
+    throw new Error('Token is required');
+  }
+  
+  localStorage.setItem('token', token);
+  
+  if (userData.email) {
+    localStorage.setItem('userEmail', userData.email);
+  }
+  
+  if (userData.name) {
+    localStorage.setItem('userName', userData.name);
+  }
+  
+  if (userData.refreshToken) {
+    localStorage.setItem('refreshToken', userData.refreshToken);
+  }
+  
+  return true;
 };
 
 /**
@@ -72,6 +110,8 @@ export default {
   clearUserData,
   isAuthenticated,
   getToken,
+  getUserData,
   getAuthHeaders,
+  initializeUserSession,
   logout
 };
