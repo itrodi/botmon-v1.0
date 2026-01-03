@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +10,9 @@ import { toast } from 'react-hot-toast';
 
 const Onboarding1 = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
     'buisness-name': '',
     'buisness-des': '',
@@ -21,14 +23,48 @@ const Onboarding1 = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [dragActive, setDragActive] = useState(false);
 
-  // Check for authentication on component mount
+  // Handle OAuth callback or check existing authentication
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast.error('Please sign up first');
-      navigate('/');
+    // Check for OAuth callback parameters (Google signup redirects here)
+    const success = searchParams.get('success');
+    const token = searchParams.get('token');
+    const refreshToken = searchParams.get('refresh_token');
+    const error = searchParams.get('error');
+
+    // Clear URL params immediately for security
+    if (success !== null || token || error) {
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [navigate]);
+
+    // Handle both "true" and "True" (Python sends capitalized)
+    const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
+    const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
+
+    if (isSuccess && token) {
+      // OAuth successful - store tokens
+      localStorage.setItem('token', token);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      toast.success('Account created! Please set up your business.');
+      setCheckingAuth(false);
+
+    } else if (isFailure || error) {
+      const errorMessage = error ? decodeURIComponent(error.replace(/\+/g, ' ')) : 'Authentication failed';
+      toast.error(errorMessage);
+      navigate('/');
+
+    } else {
+      // No OAuth callback - check for existing token
+      const existingToken = localStorage.getItem('token');
+      if (!existingToken) {
+        toast.error('Please sign up first');
+        navigate('/');
+        return;
+      }
+      setCheckingAuth(false);
+    }
+  }, [navigate, searchParams]);
 
   // Generate initials for preview when business name changes
   const generateInitials = (name) => {
@@ -139,21 +175,9 @@ const Onboarding1 = () => {
       submitData.append('number', formData.bphone);
       submitData.append('category', formData.bcategory);
       
-      // Only append image if one was selected
-      // Backend will generate initials image if no image is provided
       if (image) {
         submitData.append('image', image);
       }
-
-      // Debug log of data being sent
-      console.log('Submitting business data:', {
-        name: formData['buisness-name'],
-        description: formData['buisness-des'],
-        number: formData.bphone,
-        category: formData.bcategory,
-        hasCustomImage: !!image,
-        imageSize: image ? `${(image.size / 1024 / 1024).toFixed(2)}MB` : 'Will generate initials'
-      });
 
       const response = await axios.post('https://api.automation365.io/auth/buisness', submitData, {
         headers: {
@@ -161,8 +185,6 @@ const Onboarding1 = () => {
           'Content-Type': 'multipart/form-data'
         }
       });
-
-      console.log('Backend response:', response.data);
 
       if (response.data === "done") {
         toast.success(image ? 
@@ -172,12 +194,7 @@ const Onboarding1 = () => {
         navigate('/Onboarding2');
       }
     } catch (error) {
-      console.error('Error submitting business details:', {
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText
-      });
-      
+      console.error('Error submitting business details:', error);
       const errorMessage = error.response?.data?.error || 'Failed to save business details';
       toast.error(errorMessage);
     } finally {
@@ -185,12 +202,24 @@ const Onboarding1 = () => {
     }
   };
 
+  // Show loading while checking OAuth callback
+  if (checkingAuth) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Setting up your account...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex">
       {/* Left Section with gray background */}
       <div className="hidden md:flex md:w-1/2 bg-gray-50 flex-col">
         <div className="p-6">
-          <div className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
+          <div className="font-bold text-xl"><img src="/Images/botmon-logo.png" alt="Logo" /></div>
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
@@ -214,7 +243,7 @@ const Onboarding1 = () => {
       {/* Right Section with white background */}
       <div className="w-full md:w-1/2 bg-white flex flex-col">
         <div className="p-6 flex justify-between items-center md:justify-end">
-          <div className="font-bold text-xl md:hidden"><img src="/Images/botmon-logo.png" alt="Logo"  /></div>
+          <div className="font-bold text-xl md:hidden"><img src="/Images/botmon-logo.png" alt="Logo" /></div>
           <div className="flex items-center gap-2">
             <Globe className="w-5 h-5" />
             <span>English</span>
@@ -230,7 +259,6 @@ const Onboarding1 = () => {
                   Business Logo (Optional)
                 </label>
                 
-                {/* Image Preview or Upload Area */}
                 {imagePreview ? (
                   <div className="relative">
                     <div className="flex items-center justify-center p-4 border-2 border-gray-300 rounded-lg bg-gray-50">
@@ -247,16 +275,12 @@ const Onboarding1 = () => {
                     >
                       <X className="w-4 h-4" />
                     </button>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Custom logo will be uploaded
-                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Custom logo will be uploaded</p>
                   </div>
                 ) : (
                   <div 
                     className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
-                      dragActive 
-                        ? 'border-purple-400 bg-purple-50' 
-                        : 'border-gray-300 hover:border-gray-400'
+                      dragActive ? 'border-purple-400 bg-purple-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
@@ -300,9 +324,7 @@ const Onboarding1 = () => {
 
               {/* Business Name */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Business Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Business Name *</label>
                 <Input 
                   name="buisness-name"
                   value={formData['buisness-name']}
@@ -315,9 +337,7 @@ const Onboarding1 = () => {
 
               {/* Business Number */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Business Phone Number *
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Business Phone Number *</label>
                 <Input 
                   name="bphone"
                   value={formData.bphone}
@@ -331,9 +351,7 @@ const Onboarding1 = () => {
 
               {/* Business Description */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Business Description *
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Business Description *</label>
                 <Textarea 
                   name="buisness-des"
                   value={formData['buisness-des']}
@@ -346,9 +364,7 @@ const Onboarding1 = () => {
 
               {/* Category Dropdown */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Category *
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Category *</label>
                 <Select onValueChange={handleCategoryChange} value={formData.bcategory} required>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a category" />

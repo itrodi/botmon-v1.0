@@ -141,6 +141,7 @@ const AuthenticationPage = () => {
   const handleGoogleSignUp = () => {
     clearUserData();
     setOauthLoading(true);
+    // Backend redirects to /Onboarding1 which handles the token
     window.location.href = 'https://api.automation365.io/auth/google-register';
   };
 

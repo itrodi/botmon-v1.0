@@ -4,7 +4,7 @@ import DashboardHeader from '../Header';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Package, Users, Eye, Loader2, ShoppingBag, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -149,12 +149,43 @@ const ActivityItem = ({ notification }) => {
 
 const Overview = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [analyticsData, setAnalyticsData] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartPeriod, setChartPeriod] = useState('week');
+
+  // Handle Google Login OAuth callback
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const token = searchParams.get('token');
+    const refreshToken = searchParams.get('refresh_token');
+    const error = searchParams.get('error');
+
+    // Clear URL params immediately for security
+    if (success !== null || token || error) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Handle both "true" and "True" (Python sends capitalized)
+    const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
+    const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
+
+    if (isSuccess && token) {
+      // OAuth successful - store tokens
+      localStorage.setItem('token', token);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      toast.success('Login successful!');
+    } else if (isFailure || error) {
+      const errorMessage = error ? decodeURIComponent(error.replace(/\+/g, ' ')) : 'Login failed';
+      toast.error(errorMessage);
+      navigate('/login');
+    }
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     fetchAnalytics();
