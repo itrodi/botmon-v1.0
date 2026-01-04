@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Package, Users, Eye, Loader2, ShoppingBag, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { checkAuthStatus } from '@/utils/authUtils';
 import {
   Select,
   SelectContent,
@@ -87,10 +86,10 @@ const ActivityItem = ({ notification }) => {
   };
 
   const getActivityMessage = (notif) => {
-    const customerName = notif.name || 'Customer';
     const productName = notif.pname || 'Product';
     const quantity = notif.quantity || '1';
     const price = notif.price || '0';
+    const customerName = notif.name || 'Customer';
 
     if (notif.Type === 'Product') {
       return `New order for ${productName} (Qty: ${quantity}) - ₦${price}`;
@@ -151,45 +150,32 @@ const Overview = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartPeriod, setChartPeriod] = useState('week');
-  const [authChecked, setAuthChecked] = useState(false);
+  
+  const toastShown = useRef(false);
 
-  // Handle OAuth callback and check authentication - runs once on mount
+  // Show OAuth toast and fetch data on mount
   useEffect(() => {
-    const handleAuth = () => {
-      // Use the utility function to check auth status and process OAuth if needed
-      const authResult = checkAuthStatus();
+    // Show OAuth success/error toast only once
+    if (!toastShown.current) {
+      toastShown.current = true;
       
-      if (authResult.isOAuthCallback) {
-        // This was an OAuth callback
-        if (authResult.success) {
-          toast.success('Login successful!');
-          setAuthChecked(true);
-        } else {
-          toast.error(authResult.error || 'Login failed');
-          navigate('/login');
-        }
-        return;
+      const oauthSuccess = sessionStorage.getItem('oauth_success');
+      if (oauthSuccess) {
+        sessionStorage.removeItem('oauth_success');
+        toast.success('Login successful!');
       }
       
-      // Not an OAuth callback - check if user has a valid token
-      if (authResult.success && authResult.token) {
-        setAuthChecked(true);
-      } else {
-        toast.error('Please login first');
-        navigate('/login');
+      const oauthError = sessionStorage.getItem('oauth_error');
+      if (oauthError) {
+        sessionStorage.removeItem('oauth_error');
+        toast.error(oauthError);
       }
-    };
-
-    handleAuth();
-  }, [navigate]);
-
-  // Fetch data only AFTER auth is checked
-  useEffect(() => {
-    if (authChecked) {
-      fetchAnalytics();
-      fetchNotifications();
     }
-  }, [authChecked]);
+    
+    // Fetch data (ProtectedRoute ensures we have a token)
+    fetchAnalytics();
+    fetchNotifications();
+  }, []);
 
   const fetchAnalytics = async () => {
     try {
@@ -398,18 +384,6 @@ const Overview = () => {
   const quantityTrend = calculateTrendFromChart(quantity, 'quantity');
   const customersTrend = { trend: 'up', value: '+12%' };
   const visitsTrend = { trend: 'up', value: '+8%' };
-
-  // Show loading while checking auth
-  if (!authChecked) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (

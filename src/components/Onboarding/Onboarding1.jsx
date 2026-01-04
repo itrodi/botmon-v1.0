@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Globe, Upload, X } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { checkAuthStatus } from '@/utils/authUtils';
 
 const Onboarding1 = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
     'buisness-name': '',
     'buisness-des': '',
@@ -22,36 +20,28 @@ const Onboarding1 = () => {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  
+  const toastShown = useRef(false);
 
-  // Handle OAuth callback or check existing authentication - runs once on mount
+  // Show OAuth success/error toast on mount
   useEffect(() => {
-    const handleAuth = () => {
-      // Use the utility function to check auth status and process OAuth if needed
-      const authResult = checkAuthStatus();
-      
-      if (authResult.isOAuthCallback) {
-        // This was an OAuth callback
-        if (authResult.success) {
-          toast.success('Account created! Please set up your business.');
-          setCheckingAuth(false);
-        } else {
-          toast.error(authResult.error || 'Authentication failed');
-          navigate('/');
-        }
-        return;
-      }
-      
-      // Not an OAuth callback - check if user has a valid token
-      if (authResult.success && authResult.token) {
-        setCheckingAuth(false);
-      } else {
-        toast.error('Please sign up first');
-        navigate('/');
-      }
-    };
+    if (toastShown.current) return;
+    toastShown.current = true;
 
-    handleAuth();
-  }, [navigate]);
+    // Check if OAuth just succeeded (set by ProtectedRoute)
+    const oauthSuccess = sessionStorage.getItem('oauth_success');
+    if (oauthSuccess) {
+      sessionStorage.removeItem('oauth_success');
+      toast.success('Account created! Please set up your business.');
+    }
+    
+    // Check for OAuth error
+    const oauthError = sessionStorage.getItem('oauth_error');
+    if (oauthError) {
+      sessionStorage.removeItem('oauth_error');
+      toast.error(oauthError);
+    }
+  }, []);
 
   // Generate initials for preview when business name changes
   const generateInitials = (name) => {
@@ -141,7 +131,6 @@ const Onboarding1 = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation check
     if (!formData['buisness-name'] || !formData['buisness-des'] || !formData.bphone || !formData.bcategory) {
       toast.error('Please fill in all required fields');
       return;
@@ -155,7 +144,6 @@ const Onboarding1 = () => {
         throw new Error('No authentication token found');
       }
 
-      // Create FormData for multipart upload
       const submitData = new FormData();
       submitData.append('name', formData['buisness-name']);
       submitData.append('description', formData['buisness-des']);
@@ -188,18 +176,6 @@ const Onboarding1 = () => {
       setLoading(false);
     }
   };
-
-  // Show loading while checking OAuth callback
-  if (checkingAuth) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Setting up your account...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen flex">
