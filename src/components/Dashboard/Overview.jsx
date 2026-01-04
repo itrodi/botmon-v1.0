@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -152,9 +152,17 @@ const Overview = () => {
   const [error, setError] = useState(null);
   const [chartPeriod, setChartPeriod] = useState('week');
   const [authChecked, setAuthChecked] = useState(false);
+  
+  // Use ref to track if OAuth has been processed (prevents re-processing after URL clear)
+  const oauthProcessed = useRef(false);
 
   // FIRST: Handle OAuth callback and check authentication
   useEffect(() => {
+    // Skip if OAuth was already processed in this session
+    if (oauthProcessed.current) {
+      return;
+    }
+
     const handleAuthAndCallback = () => {
       // Check for OAuth callback parameters (Google login redirects here)
       const success = searchParams.get('success');
@@ -162,29 +170,41 @@ const Overview = () => {
       const refreshToken = searchParams.get('refresh_token');
       const errorParam = searchParams.get('error');
 
-      // Clear URL params immediately for security
-      if (success !== null || token || errorParam) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-
       // Handle both "true" and "True" (Python sends capitalized)
       const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
       const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
 
       if (isSuccess && token) {
+        // Mark OAuth as processed BEFORE clearing URL
+        oauthProcessed.current = true;
+        
         // OAuth successful - store tokens
         localStorage.setItem('token', token);
         if (refreshToken) {
           localStorage.setItem('refreshToken', refreshToken);
         }
+        
+        // Clear URL params for security AFTER storing tokens
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
         toast.success('Login successful!');
         setAuthChecked(true);
         return;
+        
       } else if (isFailure || errorParam) {
+        oauthProcessed.current = true;
+        
+        // Clear URL params
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
         const errorMessage = errorParam ? decodeURIComponent(errorParam.replace(/\+/g, ' ')) : 'Login failed';
         toast.error(errorMessage);
         navigate('/login');
         return;
+        
+      } else if (success !== null || token || errorParam) {
+        // Had some OAuth params but they were invalid - clear them
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
 
       // No OAuth callback - check for existing token

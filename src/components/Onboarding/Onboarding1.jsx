@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,39 +22,61 @@ const Onboarding1 = () => {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  
+  // Use ref to track if OAuth has been processed (prevents re-processing after URL clear)
+  const oauthProcessed = useRef(false);
 
   // Handle OAuth callback or check existing authentication
   useEffect(() => {
-    // Check for OAuth callback parameters (Google signup redirects here)
-    const success = searchParams.get('success');
-    const token = searchParams.get('token');
-    const refreshToken = searchParams.get('refresh_token');
-    const error = searchParams.get('error');
-
-    // Clear URL params immediately for security
-    if (success !== null || token || error) {
-      window.history.replaceState({}, document.title, window.location.pathname);
+    // Skip if OAuth was already processed in this session
+    if (oauthProcessed.current) {
+      return;
     }
 
-    // Handle both "true" and "True" (Python sends capitalized)
-    const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
-    const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
+    const handleAuth = () => {
+      // Check for OAuth callback parameters (Google signup redirects here)
+      const success = searchParams.get('success');
+      const token = searchParams.get('token');
+      const refreshToken = searchParams.get('refresh_token');
+      const error = searchParams.get('error');
 
-    if (isSuccess && token) {
-      // OAuth successful - store tokens
-      localStorage.setItem('token', token);
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
+      // Handle both "true" and "True" (Python sends capitalized)
+      const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
+      const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
+
+      if (isSuccess && token) {
+        // Mark OAuth as processed BEFORE clearing URL
+        oauthProcessed.current = true;
+        
+        // OAuth successful - store tokens
+        localStorage.setItem('token', token);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+        
+        // Clear URL params for security AFTER storing tokens
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        toast.success('Account created! Please set up your business.');
+        setCheckingAuth(false);
+        return;
+
+      } else if (isFailure || error) {
+        oauthProcessed.current = true;
+        
+        // Clear URL params
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        const errorMessage = error ? decodeURIComponent(error.replace(/\+/g, ' ')) : 'Authentication failed';
+        toast.error(errorMessage);
+        navigate('/');
+        return;
+
+      } else if (success !== null || token || error) {
+        // Had some OAuth params but they were invalid - clear them
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
-      toast.success('Account created! Please set up your business.');
-      setCheckingAuth(false);
 
-    } else if (isFailure || error) {
-      const errorMessage = error ? decodeURIComponent(error.replace(/\+/g, ' ')) : 'Authentication failed';
-      toast.error(errorMessage);
-      navigate('/');
-
-    } else {
       // No OAuth callback - check for existing token
       const existingToken = localStorage.getItem('token');
       if (!existingToken) {
@@ -63,7 +85,9 @@ const Onboarding1 = () => {
         return;
       }
       setCheckingAuth(false);
-    }
+    };
+
+    handleAuth();
   }, [navigate, searchParams]);
 
   // Generate initials for preview when business name changes
