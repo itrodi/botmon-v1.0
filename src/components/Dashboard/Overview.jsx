@@ -44,7 +44,6 @@ const StatCard = ({ title, value, trend, trendValue, icon: Icon, iconBg, loading
 );
 
 const ActivityItem = ({ notification }) => {
-  // Format the time display
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Unknown time';
     
@@ -72,7 +71,6 @@ const ActivityItem = ({ notification }) => {
     }
   };
 
-  // Get platform icon color
   const getPlatformColor = (platform) => {
     switch (platform?.toLowerCase()) {
       case 'instagram':
@@ -87,12 +85,9 @@ const ActivityItem = ({ notification }) => {
     }
   };
 
-  // Generate activity message based on notification data
   const getActivityMessage = (notif) => {
     const customerName = notif.name || 'Customer';
     const productName = notif.pname || 'Product';
-    const platform = notif.platform || 'Platform';
-    const status = notif.status || 'Unknown';
     const quantity = notif.quantity || '1';
     const price = notif.price || '0';
 
@@ -156,41 +151,63 @@ const Overview = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartPeriod, setChartPeriod] = useState('week');
+  const [authChecked, setAuthChecked] = useState(false);
 
-  // Handle Google Login OAuth callback
+  // FIRST: Handle OAuth callback and check authentication
   useEffect(() => {
-    const success = searchParams.get('success');
-    const token = searchParams.get('token');
-    const refreshToken = searchParams.get('refresh_token');
-    const error = searchParams.get('error');
+    const handleAuthAndCallback = () => {
+      // Check for OAuth callback parameters (Google login redirects here)
+      const success = searchParams.get('success');
+      const token = searchParams.get('token');
+      const refreshToken = searchParams.get('refresh_token');
+      const errorParam = searchParams.get('error');
 
-    // Clear URL params immediately for security
-    if (success !== null || token || error) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // Handle both "true" and "True" (Python sends capitalized)
-    const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
-    const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
-
-    if (isSuccess && token) {
-      // OAuth successful - store tokens
-      localStorage.setItem('token', token);
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
+      // Clear URL params immediately for security
+      if (success !== null || token || errorParam) {
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
-      toast.success('Login successful!');
-    } else if (isFailure || error) {
-      const errorMessage = error ? decodeURIComponent(error.replace(/\+/g, ' ')) : 'Login failed';
-      toast.error(errorMessage);
-      navigate('/login');
-    }
+
+      // Handle both "true" and "True" (Python sends capitalized)
+      const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
+      const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
+
+      if (isSuccess && token) {
+        // OAuth successful - store tokens
+        localStorage.setItem('token', token);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+        toast.success('Login successful!');
+        setAuthChecked(true);
+        return;
+      } else if (isFailure || errorParam) {
+        const errorMessage = errorParam ? decodeURIComponent(errorParam.replace(/\+/g, ' ')) : 'Login failed';
+        toast.error(errorMessage);
+        navigate('/login');
+        return;
+      }
+
+      // No OAuth callback - check for existing token
+      const existingToken = localStorage.getItem('token');
+      if (!existingToken) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      setAuthChecked(true);
+    };
+
+    handleAuthAndCallback();
   }, [searchParams, navigate]);
 
+  // SECOND: Fetch data only AFTER auth is checked
   useEffect(() => {
-    fetchAnalytics();
-    fetchNotifications();
-  }, []);
+    if (authChecked) {
+      fetchAnalytics();
+      fetchNotifications();
+    }
+  }, [authChecked]);
 
   const fetchAnalytics = async () => {
     try {
@@ -200,7 +217,6 @@ const Overview = () => {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        toast.error('Please login first');
         navigate('/login');
         return;
       }
@@ -224,7 +240,6 @@ const Overview = () => {
       }
 
       const result = await response.json();
-      console.log('Analytics API Response:', result);
       
       if (result.status === 'success' && result.data) {
         setAnalyticsData(result.data);
@@ -249,7 +264,6 @@ const Overview = () => {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        console.log('No token found for notifications');
         return;
       }
 
@@ -263,17 +277,14 @@ const Overview = () => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          console.log('Unauthorized access to notifications');
           return;
         }
         throw new Error('Failed to fetch notifications');
       }
 
       const result = await response.json();
-      console.log('Notifications API Response:', result);
       
       if (result.status === 'success' && result.data) {
-        // Sort notifications by timestamp (newest first) and take only the latest 7
         const sortedNotifications = result.data
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
           .slice(0, 7);
@@ -286,10 +297,8 @@ const Overview = () => {
     }
   };
 
-  // Process chart data based on the analytics data
   const getChartData = () => {
     if (!analyticsData || !analyticsData.revenue_breakdown) {
-      // Generate mock data for the last 7 days if no data available
       const mockData = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
@@ -303,11 +312,8 @@ const Overview = () => {
       return mockData;
     }
 
-    // Process revenue_breakdown data from backend
     const revenueBreakdown = analyticsData.revenue_breakdown || [];
-    console.log('Revenue Breakdown:', revenueBreakdown);
     
-    // Group by date and sum amounts
     const groupedData = {};
     revenueBreakdown.forEach(item => {
       const date = item.date;
@@ -319,12 +325,9 @@ const Overview = () => {
         };
       }
       groupedData[date].revenue += parseFloat(item.amount) || 0;
-      groupedData[date].transactions += 1; // Count number of transactions per day
+      groupedData[date].transactions += 1;
     });
     
-    console.log('Grouped Data:', groupedData);
-    
-    // Convert to chart format - if no data, create empty chart for last 7 days
     if (Object.keys(groupedData).length === 0) {
       const mockData = [];
       for (let i = 6; i >= 0; i--) {
@@ -339,10 +342,6 @@ const Overview = () => {
       return mockData;
     }
     
-    // Get last 7 days from grouped data
-    const sortedDates = Object.keys(groupedData).sort().slice(-7);
-    
-    // If we have less than 7 days, fill in missing days
     const chartData = [];
     const today = new Date();
     
@@ -372,19 +371,6 @@ const Overview = () => {
     return chartData;
   };
 
-  // Calculate percentage changes
-  const calculateTrend = (current, previous) => {
-    if (!previous || previous === 0) {
-      return { trend: current > 0 ? 'up' : 'down', value: current > 0 ? '+100%' : '0%' };
-    }
-    const change = ((current - previous) / previous) * 100;
-    return {
-      trend: change >= 0 ? 'up' : 'down',
-      value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
-    };
-  };
-
-  // Format large numbers
   const formatNumber = (num) => {
     if (!num && num !== 0) return '0';
     
@@ -402,21 +388,11 @@ const Overview = () => {
 
   const chartData = getChartData();
   
-  // Get stats from analytics data with safe fallbacks (corrected field names)
   const revenue = parseFloat(analyticsData?.total_revenue) || 0;
   const quantity = parseInt(analyticsData?.total_quantity) || 0;
   const customers = parseInt(analyticsData?.customers) || 0;
   const visits = parseInt(analyticsData?.visits) || 0;
 
-  console.log('Stats Debug:', {
-    revenue,
-    quantity, 
-    customers,
-    visits,
-    analyticsData
-  });
-
-  // Calculate trends using chart data comparison (since no previous period data from backend)
   const calculateTrendFromChart = (currentValue, chartDataKey) => {
     if (chartData.length < 2) {
       return { trend: 'up', value: '+0%' };
@@ -436,11 +412,22 @@ const Overview = () => {
     };
   };
 
-  // Calculate trends using chart data for revenue and mock for others
   const revenueTrend = calculateTrendFromChart(revenue, 'revenue');
   const quantityTrend = calculateTrendFromChart(quantity, 'quantity');
-  const customersTrend = { trend: 'up', value: '+12%' }; // Mock trend
-  const visitsTrend = { trend: 'up', value: '+8%' }; // Mock trend
+  const customersTrend = { trend: 'up', value: '+12%' };
+  const visitsTrend = { trend: 'up', value: '+8%' };
+
+  // Show loading while checking auth
+  if (!authChecked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -469,19 +456,14 @@ const Overview = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
       <Sidebar />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <DashboardHeader title="Overview" />
 
-        {/* Dashboard Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="p-6">
             <div className="max-w-7xl mx-auto space-y-6">
-              {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                   title="Total Revenue"
@@ -521,9 +503,7 @@ const Overview = () => {
                 />
               </div>
 
-              {/* Chart and Activities Section */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Chart Section */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm">
                   <div className="flex justify-between items-center mb-6">
                     <div>
@@ -610,7 +590,6 @@ const Overview = () => {
                   )}
                 </div>
 
-                {/* Activities Section */}
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold">Recent Activities</h3>

@@ -131,7 +131,7 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     setOauthLoading(true);
-    // Backend redirects to /Onboarding1 which handles the token and redirects existing users to Overview
+    // Backend redirects to /Overview which handles the token
     window.location.href = 'https://api.automation365.io/auth/google-login';
   };
 
