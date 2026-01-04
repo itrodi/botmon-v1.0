@@ -106,6 +106,124 @@ export const logout = async () => {
   window.location.href = '/login';
 };
 
+/**
+ * Process OAuth callback from URL
+ * Returns: { success: boolean, token?: string, error?: string, isOAuthCallback: boolean }
+ */
+export const processOAuthCallback = () => {
+  // Check if we've already processed this OAuth callback
+  const oauthKey = 'oauth_callback_processed';
+  if (sessionStorage.getItem(oauthKey)) {
+    // Already processed, clear the flag
+    sessionStorage.removeItem(oauthKey);
+    return { 
+      success: true, 
+      isOAuthCallback: false,
+      alreadyProcessed: true 
+    };
+  }
+
+  // Parse URL directly to avoid React hook timing issues
+  const urlParams = new URLSearchParams(window.location.search);
+  const success = urlParams.get('success');
+  const token = urlParams.get('token');
+  const refreshToken = urlParams.get('refresh_token');
+  const error = urlParams.get('error');
+
+  // Check if this is an OAuth callback
+  const hasOAuthParams = success !== null || token !== null || error !== null;
+  
+  if (!hasOAuthParams) {
+    return { 
+      success: false, 
+      isOAuthCallback: false 
+    };
+  }
+
+  // Handle both "true" and "True" (Python sends capitalized)
+  const isSuccess = success && (success.toLowerCase() === 'true');
+  const isFailure = success && (success.toLowerCase() === 'false');
+
+  if (isSuccess && token) {
+    // Store tokens in localStorage
+    localStorage.setItem('token', token);
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
+    }
+    
+    // Mark as processed to prevent re-processing on re-render
+    sessionStorage.setItem(oauthKey, 'true');
+    
+    // Clear URL params for security
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    return { 
+      success: true, 
+      isOAuthCallback: true,
+      token: token 
+    };
+  }
+
+  if (isFailure || error) {
+    // Mark as processed
+    sessionStorage.setItem(oauthKey, 'true');
+    
+    // Clear URL params
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    const errorMessage = error 
+      ? decodeURIComponent(error.replace(/\+/g, ' ')) 
+      : 'Authentication failed';
+    
+    return { 
+      success: false, 
+      isOAuthCallback: true,
+      error: errorMessage 
+    };
+  }
+
+  // Had OAuth params but couldn't process them
+  window.history.replaceState({}, document.title, window.location.pathname);
+  
+  return { 
+    success: false, 
+    isOAuthCallback: true,
+    error: 'Invalid OAuth response' 
+  };
+};
+
+/**
+ * Check authentication status - for use in protected pages
+ * Handles OAuth callback if present, otherwise checks for existing token
+ */
+export const checkAuthStatus = () => {
+  // First, try to process OAuth callback if present
+  const oauthResult = processOAuthCallback();
+  
+  if (oauthResult.isOAuthCallback) {
+    return oauthResult;
+  }
+  
+  // If OAuth was already processed in this session, user is authenticated
+  if (oauthResult.alreadyProcessed) {
+    const existingToken = localStorage.getItem('token');
+    return {
+      success: !!existingToken,
+      isOAuthCallback: false,
+      token: existingToken
+    };
+  }
+  
+  // No OAuth callback - check for existing token
+  const existingToken = localStorage.getItem('token');
+  
+  return {
+    success: !!existingToken,
+    isOAuthCallback: false,
+    token: existingToken
+  };
+};
+
 export default {
   clearUserData,
   isAuthenticated,
@@ -113,5 +231,7 @@ export default {
   getUserData,
   getAuthHeaders,
   initializeUserSession,
-  logout
+  logout,
+  processOAuthCallback,
+  checkAuthStatus
 };

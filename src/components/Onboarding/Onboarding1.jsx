@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Globe, Upload, X, User } from 'lucide-react';
+import { Globe, Upload, X } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { checkAuthStatus } from '@/utils/authUtils';
 
 const Onboarding1 = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
@@ -22,73 +22,36 @@ const Onboarding1 = () => {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [dragActive, setDragActive] = useState(false);
-  
-  // Use ref to track if OAuth has been processed (prevents re-processing after URL clear)
-  const oauthProcessed = useRef(false);
 
-  // Handle OAuth callback or check existing authentication
+  // Handle OAuth callback or check existing authentication - runs once on mount
   useEffect(() => {
-    // Skip if OAuth was already processed in this session
-    if (oauthProcessed.current) {
-      return;
-    }
-
     const handleAuth = () => {
-      // Check for OAuth callback parameters (Google signup redirects here)
-      const success = searchParams.get('success');
-      const token = searchParams.get('token');
-      const refreshToken = searchParams.get('refresh_token');
-      const error = searchParams.get('error');
-
-      // Handle both "true" and "True" (Python sends capitalized)
-      const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
-      const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
-
-      if (isSuccess && token) {
-        // Mark OAuth as processed BEFORE clearing URL
-        oauthProcessed.current = true;
-        
-        // OAuth successful - store tokens
-        localStorage.setItem('token', token);
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
+      // Use the utility function to check auth status and process OAuth if needed
+      const authResult = checkAuthStatus();
+      
+      if (authResult.isOAuthCallback) {
+        // This was an OAuth callback
+        if (authResult.success) {
+          toast.success('Account created! Please set up your business.');
+          setCheckingAuth(false);
+        } else {
+          toast.error(authResult.error || 'Authentication failed');
+          navigate('/');
         }
-        
-        // Clear URL params for security AFTER storing tokens
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        toast.success('Account created! Please set up your business.');
-        setCheckingAuth(false);
         return;
-
-      } else if (isFailure || error) {
-        oauthProcessed.current = true;
-        
-        // Clear URL params
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        const errorMessage = error ? decodeURIComponent(error.replace(/\+/g, ' ')) : 'Authentication failed';
-        toast.error(errorMessage);
-        navigate('/');
-        return;
-
-      } else if (success !== null || token || error) {
-        // Had some OAuth params but they were invalid - clear them
-        window.history.replaceState({}, document.title, window.location.pathname);
       }
-
-      // No OAuth callback - check for existing token
-      const existingToken = localStorage.getItem('token');
-      if (!existingToken) {
+      
+      // Not an OAuth callback - check if user has a valid token
+      if (authResult.success && authResult.token) {
+        setCheckingAuth(false);
+      } else {
         toast.error('Please sign up first');
         navigate('/');
-        return;
       }
-      setCheckingAuth(false);
     };
 
     handleAuth();
-  }, [navigate, searchParams]);
+  }, [navigate]);
 
   // Generate initials for preview when business name changes
   const generateInitials = (name) => {

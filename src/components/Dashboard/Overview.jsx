@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Package, Users, Eye, Loader2, ShoppingBag, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { checkAuthStatus } from '@/utils/authUtils';
 import {
   Select,
   SelectContent,
@@ -144,7 +145,6 @@ const ActivityItem = ({ notification }) => {
 
 const Overview = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [analyticsData, setAnalyticsData] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,76 +152,38 @@ const Overview = () => {
   const [error, setError] = useState(null);
   const [chartPeriod, setChartPeriod] = useState('week');
   const [authChecked, setAuthChecked] = useState(false);
-  
-  // Use ref to track if OAuth has been processed (prevents re-processing after URL clear)
-  const oauthProcessed = useRef(false);
 
-  // FIRST: Handle OAuth callback and check authentication
+  // Handle OAuth callback and check authentication - runs once on mount
   useEffect(() => {
-    // Skip if OAuth was already processed in this session
-    if (oauthProcessed.current) {
-      return;
-    }
-
-    const handleAuthAndCallback = () => {
-      // Check for OAuth callback parameters (Google login redirects here)
-      const success = searchParams.get('success');
-      const token = searchParams.get('token');
-      const refreshToken = searchParams.get('refresh_token');
-      const errorParam = searchParams.get('error');
-
-      // Handle both "true" and "True" (Python sends capitalized)
-      const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
-      const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
-
-      if (isSuccess && token) {
-        // Mark OAuth as processed BEFORE clearing URL
-        oauthProcessed.current = true;
-        
-        // OAuth successful - store tokens
-        localStorage.setItem('token', token);
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
+    const handleAuth = () => {
+      // Use the utility function to check auth status and process OAuth if needed
+      const authResult = checkAuthStatus();
+      
+      if (authResult.isOAuthCallback) {
+        // This was an OAuth callback
+        if (authResult.success) {
+          toast.success('Login successful!');
+          setAuthChecked(true);
+        } else {
+          toast.error(authResult.error || 'Login failed');
+          navigate('/login');
         }
-        
-        // Clear URL params for security AFTER storing tokens
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        toast.success('Login successful!');
-        setAuthChecked(true);
         return;
-        
-      } else if (isFailure || errorParam) {
-        oauthProcessed.current = true;
-        
-        // Clear URL params
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        const errorMessage = errorParam ? decodeURIComponent(errorParam.replace(/\+/g, ' ')) : 'Login failed';
-        toast.error(errorMessage);
-        navigate('/login');
-        return;
-        
-      } else if (success !== null || token || errorParam) {
-        // Had some OAuth params but they were invalid - clear them
-        window.history.replaceState({}, document.title, window.location.pathname);
       }
-
-      // No OAuth callback - check for existing token
-      const existingToken = localStorage.getItem('token');
-      if (!existingToken) {
+      
+      // Not an OAuth callback - check if user has a valid token
+      if (authResult.success && authResult.token) {
+        setAuthChecked(true);
+      } else {
         toast.error('Please login first');
         navigate('/login');
-        return;
       }
-
-      setAuthChecked(true);
     };
 
-    handleAuthAndCallback();
-  }, [searchParams, navigate]);
+    handleAuth();
+  }, [navigate]);
 
-  // SECOND: Fetch data only AFTER auth is checked
+  // Fetch data only AFTER auth is checked
   useEffect(() => {
     if (authChecked) {
       fetchAnalytics();
