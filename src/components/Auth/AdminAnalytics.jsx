@@ -10,7 +10,8 @@ import {
 import {
   Users, TrendingUp, Activity, AlertTriangle,
   Clock, Target, MessageSquare, DollarSign,
-  UserCheck, BarChart3, Zap, Package, RefreshCw
+  UserCheck, BarChart3, Zap, Package, RefreshCw,
+  Database, Trash2, Shield, X, CheckCircle, XCircle
 } from 'lucide-react';
 
 const AdminAnalytics = () => {
@@ -27,6 +28,15 @@ const AdminAnalytics = () => {
     churnRisk: null
   });
   const [error, setError] = useState(null);
+
+  // Database management states
+  const [excludeEmails, setExcludeEmails] = useState('');
+  const [deleteEmails, setDeleteEmails] = useState('');
+  const [dbActionLoading, setDbActionLoading] = useState(false);
+  const [dbActionResult, setDbActionResult] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmText, setConfirmText] = useState('');
 
   // Color palette for charts
   const COLORS = ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
@@ -165,6 +175,119 @@ const AdminAnalytics = () => {
     return `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`;
   };
 
+  // ==================== DATABASE MANAGEMENT FUNCTIONS ====================
+
+  const parseEmailList = (emailString) => {
+    if (!emailString.trim()) return [];
+    return emailString
+      .split(/[,\n]/)
+      .map(email => email.trim().toLowerCase())
+      .filter(email => email && email.includes('@'));
+  };
+
+  const handleDeleteDatabase = async () => {
+    setDbActionLoading(true);
+    setDbActionResult(null);
+    
+    try {
+      const API_BASE_URL = 'https://api.automation365.io';
+      const token = localStorage.getItem('token');
+      const emailsToKeep = parseEmailList(excludeEmails);
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/delete-database`,
+        { emails: emailsToKeep },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      setDbActionResult({
+        success: true,
+        type: 'database',
+        data: response.data
+      });
+      setExcludeEmails('');
+    } catch (err) {
+      setDbActionResult({
+        success: false,
+        type: 'database',
+        error: err.response?.data?.error || err.message
+      });
+    } finally {
+      setDbActionLoading(false);
+      setShowConfirmModal(false);
+      setConfirmText('');
+    }
+  };
+
+  const handleDeleteSpecificUsers = async () => {
+    setDbActionLoading(true);
+    setDbActionResult(null);
+    
+    try {
+      const API_BASE_URL = 'https://api.automation365.io';
+      const token = localStorage.getItem('token');
+      const emailsToDelete = parseEmailList(deleteEmails);
+      
+      if (emailsToDelete.length === 0) {
+        setDbActionResult({
+          success: false,
+          type: 'specific',
+          error: 'No valid email addresses provided'
+        });
+        setDbActionLoading(false);
+        setShowConfirmModal(false);
+        return;
+      }
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/delete-specific-user`,
+        { emails: emailsToDelete },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      setDbActionResult({
+        success: true,
+        type: 'specific',
+        data: response.data
+      });
+      setDeleteEmails('');
+    } catch (err) {
+      setDbActionResult({
+        success: false,
+        type: 'specific',
+        error: err.response?.data?.error || err.message
+      });
+    } finally {
+      setDbActionLoading(false);
+      setShowConfirmModal(false);
+      setConfirmText('');
+    }
+  };
+
+  const openConfirmModal = (action) => {
+    setConfirmAction(action);
+    setShowConfirmModal(true);
+    setConfirmText('');
+  };
+
+  const executeConfirmedAction = () => {
+    if (confirmAction === 'database') {
+      handleDeleteDatabase();
+    } else if (confirmAction === 'specific') {
+      handleDeleteSpecificUsers();
+    }
+  };
+
   // ==================== METRIC CARD COMPONENT ====================
 
   const MetricCard = ({ title, value, icon: Icon, colorClass, subtext, trend }) => (
@@ -188,6 +311,332 @@ const AdminAnalytics = () => {
       </div>
     </div>
   );
+
+  // ==================== CONFIRMATION MODAL ====================
+
+  const ConfirmationModal = () => {
+    if (!showConfirmModal) return null;
+
+    const isDatabase = confirmAction === 'database';
+    const requiredText = isDatabase ? 'DELETE DATABASE' : 'DELETE USERS';
+    const isConfirmValid = confirmText === requiredText;
+    const emailsToKeep = parseEmailList(excludeEmails);
+    const emailsToDelete = parseEmailList(deleteEmails);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-fadeIn">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                {isDatabase ? 'Delete Entire Database' : 'Delete Specific Users'}
+              </h3>
+            </div>
+            <button 
+              onClick={() => setShowConfirmModal(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-800 font-medium mb-2">⚠️ This action is irreversible!</p>
+            {isDatabase ? (
+              <div className="text-sm text-red-700">
+                <p>You are about to delete the entire database.</p>
+                {emailsToKeep.length > 0 ? (
+                  <p className="mt-2">
+                    <strong>Accounts to KEEP:</strong> {emailsToKeep.join(', ')}
+                  </p>
+                ) : (
+                  <p className="mt-2 font-semibold">
+                    ⚠️ No accounts specified to keep - ALL DATA WILL BE DELETED!
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-red-700">
+                <p>You are about to permanently delete these accounts:</p>
+                <p className="mt-2 font-medium">{emailsToDelete.join(', ')}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">{requiredText}</span> to confirm:
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 font-mono"
+              placeholder={requiredText}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowConfirmModal(false)}
+              className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={executeConfirmedAction}
+              disabled={!isConfirmValid || dbActionLoading}
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                isConfirmValid && !dbActionLoading
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              {dbActionLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-5 h-5" />
+                  Confirm Delete
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== DATABASE MANAGEMENT TAB ====================
+
+  const renderDatabaseManagement = () => {
+    const emailsToKeep = parseEmailList(excludeEmails);
+    const emailsToDelete = parseEmailList(deleteEmails);
+
+    return (
+      <div className="space-y-8">
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Database Management</h2>
+          <p className="text-gray-600">Manage database cleanup and user deletion. Use with extreme caution.</p>
+        </div>
+
+        {/* Action Result */}
+        {dbActionResult && (
+          <div className={`rounded-xl p-6 shadow-lg ${
+            dbActionResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          }`}>
+            <div className="flex items-start gap-4">
+              {dbActionResult.success ? (
+                <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+              ) : (
+                <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
+              )}
+              <div className="flex-1">
+                <h3 className={`font-semibold ${dbActionResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                  {dbActionResult.success ? 'Operation Successful' : 'Operation Failed'}
+                </h3>
+                {dbActionResult.success ? (
+                  <div className="mt-2 text-sm text-green-700">
+                    <p><strong>Mode:</strong> {dbActionResult.data.mode}</p>
+                    <p><strong>Total Deleted:</strong> {dbActionResult.data.total_deleted} documents</p>
+                    {dbActionResult.data.details && Object.keys(dbActionResult.data.details).length > 0 && (
+                      <div className="mt-2">
+                        <strong>Details by Collection:</strong>
+                        <ul className="list-disc list-inside mt-1">
+                          {Object.entries(dbActionResult.data.details).map(([collection, count]) => (
+                            <li key={collection}>{collection}: {count}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {dbActionResult.data.kept_users && dbActionResult.data.kept_users.length > 0 && (
+                      <p className="mt-2"><strong>Kept Users:</strong> {dbActionResult.data.kept_users.join(', ')}</p>
+                    )}
+                    {dbActionResult.data.deleted_users && dbActionResult.data.deleted_users.length > 0 && (
+                      <p className="mt-2"><strong>Deleted Users:</strong> {dbActionResult.data.deleted_users.join(', ')}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-red-700">{dbActionResult.error}</p>
+                )}
+              </div>
+              <button
+                onClick={() => setDbActionResult(null)}
+                className="p-1 hover:bg-gray-200 rounded transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Delete Entire Database */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
+                  <Database className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Delete Entire Database</h3>
+                  <p className="text-red-100 text-sm">Wipe all data except specified accounts</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Danger Zone</p>
+                    <p>This will delete ALL data in the database. Only the accounts listed below will be preserved.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Emails to KEEP (exclude from deletion)
+                </label>
+                <textarea
+                  value={excludeEmails}
+                  onChange={(e) => setExcludeEmails(e.target.value)}
+                  placeholder="Enter emails separated by commas or new lines...&#10;example@email.com&#10;another@email.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 min-h-[120px] resize-y"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {emailsToKeep.length > 0 
+                    ? `${emailsToKeep.length} valid email(s) will be preserved` 
+                    : 'No emails specified - ALL data will be deleted'}
+                </p>
+              </div>
+
+              {emailsToKeep.length > 0 && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {emailsToKeep.map((email, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center gap-1">
+                      <Shield className="w-3 h-3" />
+                      {email}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => openConfirmModal('database')}
+                className="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-5 h-5" />
+                Delete Database
+              </button>
+            </div>
+          </div>
+
+          {/* Delete Specific Users */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Delete Specific Users</h3>
+                  <p className="text-orange-100 text-sm">Remove individual accounts by email</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium">Targeted Deletion</p>
+                    <p>Only the specified accounts will be deleted. All their associated data will be permanently removed.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Emails to DELETE
+                </label>
+                <textarea
+                  value={deleteEmails}
+                  onChange={(e) => setDeleteEmails(e.target.value)}
+                  placeholder="Enter emails separated by commas or new lines...&#10;user1@email.com&#10;user2@email.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-h-[120px] resize-y"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {emailsToDelete.length > 0 
+                    ? `${emailsToDelete.length} account(s) will be deleted` 
+                    : 'Enter at least one email address'}
+                </p>
+              </div>
+
+              {emailsToDelete.length > 0 && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {emailsToDelete.map((email, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm flex items-center gap-1">
+                      <Trash2 className="w-3 h-3" />
+                      {email}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => openConfirmModal('specific')}
+                disabled={emailsToDelete.length === 0}
+                className={`w-full px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
+                  emailsToDelete.length > 0
+                    ? 'bg-orange-600 text-white hover:bg-orange-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                <Trash2 className="w-5 h-5" />
+                Delete Selected Users
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Safety Information */}
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Safety Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="w-5 h-5 text-green-600" />
+                <span className="font-medium text-gray-900">Confirmation Required</span>
+              </div>
+              <p className="text-sm text-gray-600">All delete operations require typing a confirmation phrase to prevent accidental data loss.</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Database className="w-5 h-5 text-blue-600" />
+                <span className="font-medium text-gray-900">Collections Affected</span>
+              </div>
+              <p className="text-sm text-gray-600">Deletes affect user data, sessions, bot data, orders, chat messages, and all related collections.</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span className="font-medium text-gray-900">Irreversible</span>
+              </div>
+              <p className="text-sm text-gray-600">Deleted data cannot be recovered. Ensure you have backups before performing any delete operations.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ==================== OVERVIEW ====================
 
@@ -1834,6 +2283,9 @@ const AdminAnalytics = () => {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Confirmation Modal */}
+      <ConfirmationModal />
+
       <div className="p-4 lg:p-6">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-lg p-6 lg:p-8 mb-6">
@@ -1874,12 +2326,15 @@ const AdminAnalytics = () => {
               { key: 'success', label: 'User Success', icon: Users },
               { key: 'technical', label: 'Technical', icon: Zap },
               { key: 'churn', label: 'Churn Risk', icon: AlertTriangle },
+              { key: 'database', label: 'Database', icon: Database },
             ].map(tab => (
               <button 
                 key={tab.key}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.key 
-                    ? 'bg-blue-600 text-white' 
+                    ? tab.key === 'database' 
+                      ? 'bg-red-600 text-white' 
+                      : 'bg-blue-600 text-white' 
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
                 onClick={() => setActiveTab(tab.key)}
@@ -1901,6 +2356,7 @@ const AdminAnalytics = () => {
           {activeTab === 'success' && renderUserSuccess()}
           {activeTab === 'technical' && renderTechnicalPerformance()}
           {activeTab === 'churn' && renderChurnRisk()}
+          {activeTab === 'database' && renderDatabaseManagement()}
         </div>
       </div>
     </div>
