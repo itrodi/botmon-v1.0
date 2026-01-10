@@ -56,6 +56,7 @@ const AddServicesPage = () => {
   const [showEditSubModal, setShowEditSubModal] = useState(false);
   
   // Main service state - matching backend exactly
+  // statusOption: 'active' | 'inactive' | 'draft'
   const [serviceData, setServiceData] = useState({
     name: '',
     description: '',
@@ -63,7 +64,7 @@ const AddServicesPage = () => {
     link: '',
     category: '',
     sub: '',
-    status: 'true', // Backend default
+    statusOption: 'active', // 'active', 'inactive', or 'draft'
     payment: true // Backend field
   });
   
@@ -219,6 +220,28 @@ const AddServicesPage = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Handle status change - now handles 'active', 'inactive', 'draft'
+  const handleStatusChange = (value) => {
+    setServiceData(prev => ({
+      ...prev,
+      statusOption: value
+    }));
+  };
+
+  // Helper function to get status and draft values for backend
+  const getStatusAndDraft = (statusOption) => {
+    switch (statusOption) {
+      case 'active':
+        return { status: true, draft: false };
+      case 'inactive':
+        return { status: false, draft: false };
+      case 'draft':
+        return { status: false, draft: true };
+      default:
+        return { status: true, draft: false };
+    }
   };
 
   // Validate image file
@@ -536,6 +559,9 @@ const AddServicesPage = () => {
         return;
       }
 
+      // Get status and draft values based on statusOption
+      const { status, draft } = getStatusAndDraft(serviceData.statusOption);
+
       // Create form data exactly as backend expects
       const formData = new FormData();
       
@@ -546,7 +572,8 @@ const AddServicesPage = () => {
       formData.append('link', serviceData.link || '');
       formData.append('category', serviceData.category || '');
       formData.append('sub', serviceData.sub || '');
-      formData.append('status', serviceData.status);
+      formData.append('status', status.toString());
+      formData.append('draft', draft.toString());
       formData.append('payment', serviceData.payment.toString());
       
       // Add service image
@@ -563,8 +590,10 @@ const AddServicesPage = () => {
         }
       });
 
-      console.log('Submitting service with variants:', {
-        serviceData,
+      console.log('Submitting service with:', {
+        statusOption: serviceData.statusOption,
+        status,
+        draft,
         variantCount: variants.vname.length,
         hasServiceImage: !!serviceImage,
         variantImageCount: variants.vimages.filter(img => img).length
@@ -585,7 +614,10 @@ const AddServicesPage = () => {
       console.log('Upload response:', response.data);
 
       if (response.data.message === "done") {
-        toast.success('Service added successfully');
+        const successMessage = serviceData.statusOption === 'draft' 
+          ? 'Service saved as draft' 
+          : 'Service added successfully';
+        toast.success(successMessage);
         navigate('/ProductPage?tab=services'); // Navigate back to products page
       }
     } catch (error) {
@@ -644,6 +676,8 @@ const AddServicesPage = () => {
                       <Loader className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
                     </>
+                  ) : serviceData.statusOption === 'draft' ? (
+                    'Save as Draft'
                   ) : (
                     'Save Service'
                   )}
@@ -911,17 +945,23 @@ const AddServicesPage = () => {
                       <div className="grid gap-3">
                         <Label htmlFor="status">Status</Label>
                         <Select
-                          value={serviceData.status}
-                          onValueChange={(value) => handleSelectChange('status', value)}
+                          value={serviceData.statusOption}
+                          onValueChange={handleStatusChange}
                         >
                           <SelectTrigger id="status">
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="true">Active</SelectItem>
-                            <SelectItem value="false">Inactive</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-sm text-gray-500">
+                          {serviceData.statusOption === 'active' && 'Active services will be visible in your store'}
+                          {serviceData.statusOption === 'inactive' && 'Inactive services will be hidden from your store'}
+                          {serviceData.statusOption === 'draft' && 'Draft services are saved but not published yet'}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -996,7 +1036,12 @@ const AddServicesPage = () => {
                   disabled={isLoading}
                   className="bg-purple-600 text-white"
                 >
-                  {isLoading ? 'Saving...' : 'Save Service'}
+                  {isLoading 
+                    ? 'Saving...' 
+                    : serviceData.statusOption === 'draft' 
+                      ? 'Save as Draft' 
+                      : 'Save Service'
+                  }
                 </Button>
               </div>
             </form>

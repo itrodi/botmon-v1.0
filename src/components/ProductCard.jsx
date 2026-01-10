@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit2, Trash, Loader } from 'lucide-react';
+import { Edit2, Trash, Loader, FileText } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -20,6 +20,8 @@ const ProductCard = ({
   quantity, 
   status, 
   vname = [], 
+  isDraft = false,
+  itemType = 'product',
   onEdit, 
   onToggle, 
   onDelete 
@@ -68,6 +70,9 @@ const ProductCard = ({
 
   // Get status color
   const getStatusColor = () => {
+    if (isDraft) {
+      return 'bg-yellow-100 text-yellow-800';
+    }
     if (isActive) {
       return 'bg-green-100 text-green-800';
     } else {
@@ -77,6 +82,9 @@ const ProductCard = ({
 
   // Get display status text
   const getStatusText = () => {
+    if (isDraft) {
+      return 'draft';
+    }
     return isActive ? 'active' : 'inactive';
   };
 
@@ -104,9 +112,19 @@ const ProductCard = ({
         {/* Status Badge */}
         <div className="absolute top-2 left-2">
           <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor()}`}>
+            {isDraft && <FileText className="w-3 h-3 inline mr-1" />}
             {getStatusText()}
           </span>
         </div>
+
+        {/* Item Type Badge (for drafts) */}
+        {isDraft && (
+          <div className="absolute bottom-2 left-2">
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
+              {itemType}
+            </span>
+          </div>
+        )}
 
         {/* Variants Badge */}
         {hasVariants && (
@@ -168,7 +186,7 @@ const ProductCard = ({
         {/* Toggle Switch */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
           <span className="text-sm text-gray-600">
-            {isActive ? 'Active' : 'Inactive'}
+            {isDraft ? 'Publish' : isActive ? 'Active' : 'Inactive'}
           </span>
           <div className="flex items-center gap-2">
             {isToggling && <Loader className="w-4 h-4 animate-spin text-gray-400" />}
@@ -180,6 +198,13 @@ const ProductCard = ({
             />
           </div>
         </div>
+        
+        {/* Draft hint */}
+        {isDraft && (
+          <p className="text-xs text-yellow-600 text-center">
+            Toggle to publish this draft
+          </p>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}
@@ -188,7 +213,7 @@ const ProductCard = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the product "{title}". This action cannot be undone.
+              This will permanently delete the {isDraft ? 'draft ' : ''}product "{title}". This action cannot be undone.
               {hasVariants && (
                 <span className="block mt-2 font-medium">
                   Warning: This product has {vname.length} variant{vname.length > 1 ? 's' : ''} that will also be deleted.

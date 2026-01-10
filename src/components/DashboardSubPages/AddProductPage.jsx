@@ -42,7 +42,8 @@ const AddProductPage = () => {
     sub: ''
   });
   
-  // Main product state - matching backend exactly with boolean status
+  // Main product state - matching backend exactly
+  // statusOption: 'active' | 'inactive' | 'draft'
   const [productData, setProductData] = useState({
     name: '',
     description: '',
@@ -52,7 +53,7 @@ const AddProductPage = () => {
     link: '',
     category: '',
     sub: '',
-    status: true // Boolean: true = active, false = inactive
+    statusOption: 'active' // 'active', 'inactive', or 'draft'
   });
   
   // Product image state
@@ -329,14 +330,26 @@ const AddProductPage = () => {
     }));
   };
 
-  // Handle status change specifically
+  // Handle status change - now handles 'active', 'inactive', 'draft'
   const handleStatusChange = (value) => {
-    // Convert string value to boolean
-    const booleanStatus = value === 'active';
     setProductData(prev => ({
       ...prev,
-      status: booleanStatus
+      statusOption: value
     }));
+  };
+
+  // Helper function to get status and draft values for backend
+  const getStatusAndDraft = (statusOption) => {
+    switch (statusOption) {
+      case 'active':
+        return { status: true, draft: false };
+      case 'inactive':
+        return { status: false, draft: false };
+      case 'draft':
+        return { status: false, draft: true };
+      default:
+        return { status: true, draft: false };
+    }
   };
 
   // Validate image file
@@ -537,6 +550,9 @@ const AddProductPage = () => {
         return;
       }
 
+      // Get status and draft values based on statusOption
+      const { status, draft } = getStatusAndDraft(productData.statusOption);
+
       // Create form data exactly as backend expects
       const formData = new FormData();
       
@@ -550,9 +566,9 @@ const AddProductPage = () => {
       formData.append('sub', productData.sub || '');
       formData.append('category', productData.category || '');
       
-      // Send status as string since FormData converts everything to strings
-      // Backend should handle the conversion from "true"/"false" string to boolean
-      formData.append('status', productData.status.toString());
+      // Send status and draft as strings
+      formData.append('status', status.toString());
+      formData.append('draft', draft.toString());
       
       // Add product image
       if (productImage) {
@@ -574,11 +590,10 @@ const AddProductPage = () => {
         }
       });
 
-      console.log('Submitting product with status:', productData.status);
-      console.log('Product data:', {
-        ...productData,
-        status: productData.status,
-        statusType: typeof productData.status,
+      console.log('Submitting product with:', {
+        statusOption: productData.statusOption,
+        status,
+        draft,
         variantCount: variants.vname.length,
         hasProductImage: !!productImage
       });
@@ -606,7 +621,11 @@ const AddProductPage = () => {
       console.log('Upload response:', data);
 
       if (data.message === "done") {
-        toast.success('Product added successfully');
+        const successMessage = productData.statusOption === 'draft' 
+          ? 'Product saved as draft' 
+          : 'Product added successfully';
+        toast.success(successMessage);
+        
         // Reset form
         setProductData({
           name: '',
@@ -617,7 +636,7 @@ const AddProductPage = () => {
           link: '',
           category: '',
           sub: '',
-          status: true // Reset to active (true)
+          statusOption: 'active'
         });
         setProductImage(null);
         setProductImagePreview(null);
@@ -737,7 +756,7 @@ const AddProductPage = () => {
                     Product Status
                   </label>
                   <Select
-                    value={productData.status ? 'active' : 'inactive'}
+                    value={productData.statusOption}
                     onValueChange={handleStatusChange}
                   >
                     <SelectTrigger>
@@ -746,10 +765,13 @@ const AddProductPage = () => {
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-sm text-gray-500">
-                    Active products will be visible in your store
+                    {productData.statusOption === 'active' && 'Active products will be visible in your store'}
+                    {productData.statusOption === 'inactive' && 'Inactive products will be hidden from your store'}
+                    {productData.statusOption === 'draft' && 'Draft products are saved but not published yet'}
                   </p>
                 </div>
               </div>
@@ -958,7 +980,12 @@ const AddProductPage = () => {
                   disabled={isLoading}
                   onClick={handleSubmit}
                 >
-                  {isLoading ? 'Uploading Product...' : 'Upload Product'}
+                  {isLoading 
+                    ? 'Uploading Product...' 
+                    : productData.statusOption === 'draft' 
+                      ? 'Save as Draft' 
+                      : 'Upload Product'
+                  }
                 </Button>
               </div>
             </div>
