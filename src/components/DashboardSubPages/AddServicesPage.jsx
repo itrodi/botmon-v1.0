@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, X, Loader, ChevronLeft, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { Upload, Plus, X, Loader, ChevronLeft, Edit2, FileText } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -145,12 +145,10 @@ const AddServicesPage = () => {
         let validCategories = [];
         
         if (Array.isArray(categoriesData)) {
-          // Filter out items with empty names or invalid data
           validCategories = categoriesData.filter(cat => 
             cat && cat.id && cat.name && cat.name.trim() !== ''
           );
         } else if (typeof categoriesData === 'object') {
-          // Convert object to array and filter
           validCategories = Object.keys(categoriesData)
             .map(key => {
               const cat = categoriesData[key];
@@ -172,12 +170,10 @@ const AddServicesPage = () => {
         let validSubs = [];
         
         if (Array.isArray(subsData)) {
-          // Filter out items with empty names or invalid data
           validSubs = subsData.filter(sub => 
             sub && sub.id && sub.name && sub.name.trim() !== ''
           );
         } else if (typeof subsData === 'object') {
-          // Convert object to array and filter
           validSubs = Object.keys(subsData)
             .map(key => {
               const sub = subsData[key];
@@ -308,20 +304,17 @@ const AddServicesPage = () => {
 
   // Add a new variant (locally, will be sent with service)
   const handleAddVariant = () => {
-    // Validate variant data
     if (!currentVariant.vname || !currentVariant.vprice) {
       toast.error('Please fill in name and price for the variant');
       return;
     }
 
-    // Add to variants arrays
     setVariants(prev => ({
       vname: [...prev.vname, currentVariant.vname],
       vprice: [...prev.vprice, currentVariant.vprice],
-      vimages: [...prev.vimages, variantImage] // Store the actual file (can be null)
+      vimages: [...prev.vimages, variantImage]
     }));
     
-    // Reset the form
     setCurrentVariant({
       vname: '',
       vprice: ''
@@ -329,7 +322,6 @@ const AddServicesPage = () => {
     setVariantImage(null);
     setVariantImagePreview(null);
     
-    // Close the modal
     setShowVariantModal(false);
     toast.success('Variant added successfully');
   };
@@ -345,7 +337,6 @@ const AddServicesPage = () => {
 
   // Add a new category
   const handleAddCategory = async () => {
-    // Validate category data
     if (!newCategory.category) {
       toast.error('Please provide a category name');
       return;
@@ -373,17 +364,14 @@ const AddServicesPage = () => {
       );
 
       if (response.data.message === "Category and subcategory added") {
-        // Reset the form
         setNewCategory({
           category: '',
           sub: ''
         });
         
-        // Close the modal
         setShowCategoryModal(false);
         toast.success('Category added successfully');
         
-        // Refresh categories to ensure consistency
         await fetchCategories();
       }
     } catch (error) {
@@ -435,14 +423,12 @@ const AddServicesPage = () => {
         setShowEditCategoryModal(false);
         setEditingCategory({ id: '', name: '' });
         
-        // Update local state
         setCategories(prev => prev.map(cat => 
           cat.id === editingCategory.id 
             ? { ...cat, name: editingCategory.name }
             : cat
         ));
         
-        // Refresh categories
         await fetchCategories();
       }
     } catch (error) {
@@ -496,14 +482,12 @@ const AddServicesPage = () => {
         setShowEditSubModal(false);
         setEditingSub({ id: '', name: '' });
         
-        // Update local state
         setSubs(prev => prev.map(sub => 
           sub.id === editingSub.id 
             ? { ...sub, name: editingSub.name }
             : sub
         ));
         
-        // Refresh categories
         await fetchCategories();
       }
     } catch (error) {
@@ -543,10 +527,21 @@ const AddServicesPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate required fields
-    if (!serviceData.name || !serviceData.price || !serviceImage) {
-      toast.error('Please fill in all required fields and upload an image');
-      return;
+    const isDraftMode = serviceData.statusOption === 'draft';
+    
+    // Different validation for draft vs publish
+    if (isDraftMode) {
+      // For drafts, only name is required
+      if (!serviceData.name.trim()) {
+        toast.error('Please enter a service name to save as draft');
+        return;
+      }
+    } else {
+      // For active/inactive, all required fields must be filled
+      if (!serviceData.name || !serviceData.price || !serviceImage) {
+        toast.error('Please fill in all required fields and upload an image');
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -567,8 +562,8 @@ const AddServicesPage = () => {
       
       // Add service details
       formData.append('name', serviceData.name);
-      formData.append('description', serviceData.description);
-      formData.append('price', serviceData.price);
+      formData.append('description', serviceData.description || '');
+      formData.append('price', serviceData.price || '0');
       formData.append('link', serviceData.link || '');
       formData.append('category', serviceData.category || '');
       formData.append('sub', serviceData.sub || '');
@@ -576,8 +571,10 @@ const AddServicesPage = () => {
       formData.append('draft', draft.toString());
       formData.append('payment', serviceData.payment.toString());
       
-      // Add service image
-      formData.append('image', serviceImage);
+      // Add service image if available
+      if (serviceImage) {
+        formData.append('image', serviceImage);
+      }
       
       // Add variants data as arrays (backend uses getlist())
       variants.vname.forEach(name => formData.append('vname', name));
@@ -614,11 +611,11 @@ const AddServicesPage = () => {
       console.log('Upload response:', response.data);
 
       if (response.data.message === "done") {
-        const successMessage = serviceData.statusOption === 'draft' 
+        const successMessage = isDraftMode 
           ? 'Service saved as draft' 
           : 'Service added successfully';
         toast.success(successMessage);
-        navigate('/ProductPage?tab=services'); // Navigate back to products page
+        navigate('/ProductPage?tab=services');
       }
     } catch (error) {
       console.error('Error uploading service:', error);
@@ -634,8 +631,10 @@ const AddServicesPage = () => {
   };
 
   const handleDiscard = () => {
-    navigate('/ProductPage?tab=services'); // Navigate back to products page
+    navigate('/ProductPage?tab=services');
   };
+
+  const isDraft = serviceData.statusOption === 'draft';
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -669,14 +668,18 @@ const AddServicesPage = () => {
                   size="sm"
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="bg-purple-600 text-white"
+                  className={`text-white ${
+                    isDraft 
+                      ? 'bg-yellow-600 hover:bg-yellow-700' 
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
                 >
                   {isLoading ? (
                     <>
                       <Loader className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
                     </>
-                  ) : serviceData.statusOption === 'draft' ? (
+                  ) : isDraft ? (
                     'Save as Draft'
                   ) : (
                     'Save Service'
@@ -686,6 +689,91 @@ const AddServicesPage = () => {
             </div>
             
             <form className="space-y-8" onSubmit={handleSubmit}>
+              
+              {/* Save Options Section - Prominent at top */}
+              <Card className="border-2 border-purple-100">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-purple-600" />
+                    <CardTitle>Save Options</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Choose how you want to save this service
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange('active')}
+                      className={`p-4 rounded-lg border-2 transition-all text-left ${
+                        serviceData.statusOption === 'active'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-3 h-3 rounded-full ${
+                          serviceData.statusOption === 'active' ? 'bg-green-500' : 'bg-gray-300'
+                        }`} />
+                        <span className="font-medium">Active</span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Publish immediately and make visible in store
+                      </p>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange('inactive')}
+                      className={`p-4 rounded-lg border-2 transition-all text-left ${
+                        serviceData.statusOption === 'inactive'
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-gray-200 hover:border-red-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-3 h-3 rounded-full ${
+                          serviceData.statusOption === 'inactive' ? 'bg-red-500' : 'bg-gray-300'
+                        }`} />
+                        <span className="font-medium">Inactive</span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Save but keep hidden from store
+                      </p>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange('draft')}
+                      className={`p-4 rounded-lg border-2 transition-all text-left ${
+                        serviceData.statusOption === 'draft'
+                          ? 'border-yellow-500 bg-yellow-50'
+                          : 'border-gray-200 hover:border-yellow-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-3 h-3 rounded-full ${
+                          serviceData.statusOption === 'draft' ? 'bg-yellow-500' : 'bg-gray-300'
+                        }`} />
+                        <span className="font-medium">Draft</span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Save as work in progress (only name required)
+                      </p>
+                    </button>
+                  </div>
+
+                  {isDraft && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Draft mode:</strong> Only the service name is required. You can complete the other details later.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <div className="grid gap-4 md:grid-cols-[1fr_250px] lg:grid-cols-3 lg:gap-8">
                 <div className="grid auto-rows-max items-start gap-4 lg:col-span-2 lg:gap-8">
                   {/* Basic Info */}
@@ -722,7 +810,7 @@ const AddServicesPage = () => {
                           />
                         </div>
                         <div className="grid gap-3">
-                          <Label htmlFor="price">Service Price *</Label>
+                          <Label htmlFor="price">Service Price {!isDraft && '*'}</Label>
                           <Input
                             id="price"
                             name="price"
@@ -732,7 +820,6 @@ const AddServicesPage = () => {
                             onChange={handleInputChange}
                             placeholder="Enter price"
                             className="w-full"
-                            required
                           />
                         </div>
                         <div className="grid gap-3">
@@ -861,7 +948,6 @@ const AddServicesPage = () => {
                                 <SelectItem value="_no_categories" disabled>No categories available</SelectItem>
                               ) : (
                                 categories.map((cat) => {
-                                  // Double-check validity before rendering
                                   if (!cat || !cat.id || !cat.name || cat.name.trim() === '') {
                                     return null;
                                   }
@@ -891,7 +977,6 @@ const AddServicesPage = () => {
                                 <SelectItem value="_no_subcategories" disabled>No subcategories available</SelectItem>
                               ) : (
                                 subs.map((sub) => {
-                                  // Double-check validity before rendering
                                   if (!sub || !sub.id || !sub.name || sub.name.trim() === '') {
                                     return null;
                                   }
@@ -933,43 +1018,10 @@ const AddServicesPage = () => {
                 </div>
 
                 <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
-                  {/* Status Section */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Service Status</CardTitle>
-                      <CardDescription>
-                        Control the visibility of your service
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-3">
-                        <Label htmlFor="status">Status</Label>
-                        <Select
-                          value={serviceData.statusOption}
-                          onValueChange={handleStatusChange}
-                        >
-                          <SelectTrigger id="status">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-sm text-gray-500">
-                          {serviceData.statusOption === 'active' && 'Active services will be visible in your store'}
-                          {serviceData.statusOption === 'inactive' && 'Inactive services will be hidden from your store'}
-                          {serviceData.statusOption === 'draft' && 'Draft services are saved but not published yet'}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Image Upload Section */}
                   <Card className="overflow-hidden">
                     <CardHeader>
-                      <CardTitle>Service Image *</CardTitle>
+                      <CardTitle>Service Image {!isDraft && '*'}</CardTitle>
                       <CardDescription>
                         Upload an image for your service
                       </CardDescription>
@@ -1008,12 +1060,14 @@ const AddServicesPage = () => {
                                 className="sr-only"
                                 onChange={handleImageUpload}
                                 accept="image/*"
-                                required
                               />
                             </label>
                             <p className="pl-1">or drag and drop</p>
                           </div>
                           <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF, WebP up to 10MB</p>
+                          {isDraft && (
+                            <p className="text-xs text-yellow-600 mt-2">Optional for drafts</p>
+                          )}
                         </div>
                       )}
                     </CardContent>
@@ -1034,11 +1088,15 @@ const AddServicesPage = () => {
                   type="submit"
                   size="sm"
                   disabled={isLoading}
-                  className="bg-purple-600 text-white"
+                  className={`text-white ${
+                    isDraft 
+                      ? 'bg-yellow-600 hover:bg-yellow-700' 
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
                 >
                   {isLoading 
                     ? 'Saving...' 
-                    : serviceData.statusOption === 'draft' 
+                    : isDraft 
                       ? 'Save as Draft' 
                       : 'Save Service'
                   }

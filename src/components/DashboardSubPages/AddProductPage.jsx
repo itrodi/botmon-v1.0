@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, X, Edit2, Settings } from 'lucide-react';
+import { Upload, Plus, X, Edit2, Settings, FileText } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -534,11 +534,21 @@ const AddProductPage = () => {
 
   // Submit the form to add a product
   const handleSubmit = async () => {
+    const isDraftMode = productData.statusOption === 'draft';
     
-    // Validate required fields
-    if (!productData.name || !productData.price || !productData.quantity || !productImage) {
-      toast.error('Please fill in all required fields and upload an image');
-      return;
+    // Different validation for draft vs publish
+    if (isDraftMode) {
+      // For drafts, only name is required
+      if (!productData.name.trim()) {
+        toast.error('Please enter a product name to save as draft');
+        return;
+      }
+    } else {
+      // For active/inactive, all required fields must be filled
+      if (!productData.name || !productData.price || !productData.quantity || !productImage) {
+        toast.error('Please fill in all required fields and upload an image');
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -558,9 +568,9 @@ const AddProductPage = () => {
       
       // Add product details
       formData.append('name', productData.name);
-      formData.append('description', productData.description);
-      formData.append('price', productData.price);
-      formData.append('quantity', productData.quantity);
+      formData.append('description', productData.description || '');
+      formData.append('price', productData.price || '0');
+      formData.append('quantity', productData.quantity || '0');
       formData.append('weight', productData.weight || '');
       formData.append('link', productData.link || '');
       formData.append('sub', productData.sub || '');
@@ -570,7 +580,7 @@ const AddProductPage = () => {
       formData.append('status', status.toString());
       formData.append('draft', draft.toString());
       
-      // Add product image
+      // Add product image if available
       if (productImage) {
         formData.append('image', productImage);
       }
@@ -621,7 +631,7 @@ const AddProductPage = () => {
       console.log('Upload response:', data);
 
       if (data.message === "done") {
-        const successMessage = productData.statusOption === 'draft' 
+        const successMessage = isDraftMode 
           ? 'Product saved as draft' 
           : 'Product added successfully';
         toast.success(successMessage);
@@ -658,6 +668,8 @@ const AddProductPage = () => {
     }
   };
 
+  const isDraft = productData.statusOption === 'draft';
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
@@ -667,7 +679,86 @@ const AddProductPage = () => {
         
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-6">
-            <div className="space-y-8">{/* Changed from form to div */}
+            <div className="space-y-8">
+              
+              {/* Save Options Section - Prominent at top */}
+              <div className="bg-white p-6 rounded-lg shadow-sm border-2 border-purple-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <FileText className="w-5 h-5 text-purple-600" />
+                  <h3 className="text-lg font-medium">Save Options</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange('active')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      productData.statusOption === 'active'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-3 h-3 rounded-full ${
+                        productData.statusOption === 'active' ? 'bg-green-500' : 'bg-gray-300'
+                      }`} />
+                      <span className="font-medium">Active</span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Publish immediately and make visible in store
+                    </p>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange('inactive')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      productData.statusOption === 'inactive'
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 hover:border-red-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-3 h-3 rounded-full ${
+                        productData.statusOption === 'inactive' ? 'bg-red-500' : 'bg-gray-300'
+                      }`} />
+                      <span className="font-medium">Inactive</span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Save but keep hidden from store
+                    </p>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange('draft')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      productData.statusOption === 'draft'
+                        ? 'border-yellow-500 bg-yellow-50'
+                        : 'border-gray-200 hover:border-yellow-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-3 h-3 rounded-full ${
+                        productData.statusOption === 'draft' ? 'bg-yellow-500' : 'bg-gray-300'
+                      }`} />
+                      <span className="font-medium">Draft</span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Save as work in progress (only name required)
+                    </p>
+                  </button>
+                </div>
+
+                {isDraft && (
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Draft mode:</strong> Only the product name is required. You can complete the other details later.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Basic Info */}
               <div className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
                 <h3 className="text-lg font-medium border-b pb-2">Product Information</h3>
@@ -700,7 +791,7 @@ const AddProductPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price *
+                      Price {!isDraft && '*'}
                     </label>
                     <Input 
                       name="price"
@@ -713,7 +804,7 @@ const AddProductPage = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Quantity *
+                      Quantity {!isDraft && '*'}
                     </label>
                     <Input 
                       name="quantity"
@@ -750,35 +841,13 @@ const AddProductPage = () => {
                     Add product link if the product is digital so users can access link when purchase is successful
                   </p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Product Status
-                  </label>
-                  <Select
-                    value={productData.statusOption}
-                    onValueChange={handleStatusChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {productData.statusOption === 'active' && 'Active products will be visible in your store'}
-                    {productData.statusOption === 'inactive' && 'Inactive products will be hidden from your store'}
-                    {productData.statusOption === 'draft' && 'Draft products are saved but not published yet'}
-                  </p>
-                </div>
               </div>
 
               {/* Upload Photos */}
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h3 className="text-lg font-medium border-b pb-2 mb-4">Product Image *</h3>
+                <h3 className="text-lg font-medium border-b pb-2 mb-4">
+                  Product Image {!isDraft && '*'}
+                </h3>
                 
                 {productImagePreview ? (
                   <div className="relative">
@@ -818,6 +887,9 @@ const AddProductPage = () => {
                       <p className="pl-1">or drag and drop</p>
                     </div>
                     <p className="text-xs text-gray-500">PNG, JPG, GIF, WebP up to 10MB</p>
+                    {isDraft && (
+                      <p className="text-xs text-yellow-600 mt-2">Optional for drafts</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -976,15 +1048,17 @@ const AddProductPage = () => {
                 <Button type="button" variant="outline">Cancel</Button>
                 <Button 
                   type="button"
-                  className="bg-purple-600 text-white"
+                  className={`text-white ${
+                    isDraft 
+                      ? 'bg-yellow-600 hover:bg-yellow-700' 
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
                   disabled={isLoading}
                   onClick={handleSubmit}
                 >
                   {isLoading 
-                    ? 'Uploading Product...' 
-                    : productData.statusOption === 'draft' 
-                      ? 'Save as Draft' 
-                      : 'Upload Product'
+                    ? (isDraft ? 'Saving Draft...' : 'Uploading Product...') 
+                    : (isDraft ? 'Save as Draft' : 'Upload Product')
                   }
                 </Button>
               </div>
