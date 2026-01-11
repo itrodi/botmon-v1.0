@@ -41,7 +41,7 @@ import IndividualServicePage from './components/IndividualServicePage';
 import AdminAnalytics from './components/Auth/AdminAnalytics';
 import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
-
+import SupportPage from './components/SupportPage';
 function App() {
   return (
     <Router>
@@ -220,6 +220,11 @@ function App() {
           <Route exact path="/Onboarding2" element={
             <ProtectedRoute>
               <Onboarding2/>
+            </ProtectedRoute>
+          }/>
+           <Route exact path="/SupportPage" element={
+            <ProtectedRoute>
+              <SupportPage/>
             </ProtectedRoute>
           }/>
         </Routes>

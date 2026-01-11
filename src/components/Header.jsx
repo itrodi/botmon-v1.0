@@ -382,7 +382,7 @@ const Header = ({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer">
-          <Link to="#" className="flex items-center gap-2 w-full">
+          <Link to="/SupportPage" className="flex items-center gap-2 w-full">
             <HelpCircle className="h-4 w-4" />
             <span>Support</span>
           </Link>
