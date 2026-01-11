@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { 
   Mail, 
   MessageCircle, 
-  Phone, 
   Clock, 
-  ChevronRight, 
   ExternalLink,
   HelpCircle,
   FileText,
@@ -15,8 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import Sidebar from '../Sidebar';
-import DashboardHeader from '../Header';
+import Sidebar from './Sidebar';
+import DashboardHeader from './Header';
 import {
   Card,
   CardContent,
@@ -24,12 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 
 const SupportPage = () => {
   // Configuration - Update these with your actual contact details
@@ -37,13 +29,16 @@ const SupportPage = () => {
   const WHATSAPP_NUMBER = '2348012345678'; // Format: country code + number without + or spaces
   const SUPPORT_HOURS = 'Monday - Friday, 9:00 AM - 6:00 PM (WAT)';
 
-  // State for the contact form (optional feature)
+  // State for the contact form
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     subject: '',
     message: ''
   });
+
+  // State for FAQ expansion
+  const [expandedFaq, setExpandedFaq] = useState(null);
 
   // Handle email click
   const handleEmailClick = () => {
@@ -75,6 +70,11 @@ const SupportPage = () => {
       `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
     );
     window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+  };
+
+  // Toggle FAQ expansion
+  const toggleFaq = (index) => {
+    setExpandedFaq(expandedFaq === index ? null : index);
   };
 
   // FAQ data
@@ -276,7 +276,7 @@ const SupportPage = () => {
               </CardContent>
             </Card>
 
-            {/* FAQ Section */}
+            {/* FAQ Section - Simple expandable cards */}
             <Card className="mb-8">
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -292,18 +292,31 @@ const SupportPage = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <Accordion type="single" collapsible className="w-full">
+                <div className="space-y-3">
                   {faqs.map((faq, index) => (
-                    <AccordionItem key={index} value={`item-${index}`}>
-                      <AccordionTrigger className="text-left hover:no-underline">
+                    <div 
+                      key={index} 
+                      className="border rounded-lg overflow-hidden"
+                    >
+                      <button
+                        onClick={() => toggleFaq(index)}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+                      >
                         <span className="font-medium text-gray-900">{faq.question}</span>
-                      </AccordionTrigger>
-                      <AccordionContent className="text-gray-600">
-                        {faq.answer}
-                      </AccordionContent>
-                    </AccordionItem>
+                        {expandedFaq === index ? (
+                          <ChevronUp className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                        )}
+                      </button>
+                      {expandedFaq === index && (
+                        <div className="px-4 pb-4 text-gray-600 border-t bg-gray-50">
+                          <p className="pt-3">{faq.answer}</p>
+                        </div>
+                      )}
+                    </div>
                   ))}
-                </Accordion>
+                </div>
               </CardContent>
             </Card>
 
