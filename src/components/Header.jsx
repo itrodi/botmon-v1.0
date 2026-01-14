@@ -134,13 +134,14 @@ const Header = ({
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await axios.get('https://api.automation365.io/settings', {
+      // Changed from /settings to /auth/user-header-info for analytics distinction
+      const response = await axios.get('https://api.automation365.io/auth/user-header-info', {
         headers: getAuthHeaders()
       });
 
       if (response.data) {
         const businessInfo = {
-          bname: response.data.bname || 'Your Business',
+          bname: response.data['buisness-name'] || response.data.bname || 'Your Business',
           blogo: response.data.blogo || '/api/placeholder/40/40'
         };
         
@@ -153,9 +154,10 @@ const Header = ({
         }
         
         // Update user name from business name
-        setUserName(response.data.bname || 'User');
-        if (response.data.bname) {
-          localStorage.setItem('userName', response.data.bname);
+        const displayName = response.data['buisness-name'] || response.data.bname || 'User';
+        setUserName(displayName);
+        if (displayName !== 'User') {
+          localStorage.setItem('userName', displayName);
         }
       }
     } catch (error) {

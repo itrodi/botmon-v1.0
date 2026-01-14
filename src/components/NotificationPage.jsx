@@ -84,7 +84,7 @@ const NotificationPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch notifications from API
+  // Fetch notifications from API - using /notification-page endpoint for page visits
   const fetchNotifications = async (silent = false) => {
     try {
       if (!silent) {
@@ -101,7 +101,8 @@ const NotificationPage = () => {
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/notifications', {
+      // Changed from /notifications to /notification-page for analytics distinction
+      const response = await fetch('https://api.automation365.io/notification-page', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
