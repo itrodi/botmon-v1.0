@@ -45,7 +45,7 @@ const ProductPage = () => {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
-  const [drafts, setDrafts] = useState([]); // New state for drafts
+  const [drafts, setDrafts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [allServices, setAllServices] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -57,7 +57,6 @@ const ProductPage = () => {
 
   // Helper function to normalize status values
   const normalizeStatus = (status) => {
-    // Convert various status formats to 'true' or 'false' string
     if (status === true || 
         status === 'true' || 
         status === 'active' || 
@@ -115,15 +114,11 @@ const ProductPage = () => {
         }
       });
 
-      // Process the response data
       let products = response.data || [];
       
-      // Ensure all products have required fields with defaults
-      // Normalize status to string 'true' or 'false'
       products = products.map(product => ({
         ...product,
         id: product.id || product._id,
-        // Normalize status to 'true' or 'false' string
         status: normalizeStatus(product.status),
         draft: product.draft === true || product.draft === 'true',
         quantity: product.quantity || 0,
@@ -139,7 +134,7 @@ const ProductPage = () => {
         vcolor: product.vcolor || [],
         vtype: product.vtype || [],
         vimage: product.vimage || [],
-        type: 'product' // Add type identifier for drafts tab
+        type: 'product'
       }));
       
       setAllProducts(products);
@@ -170,15 +165,11 @@ const ProductPage = () => {
         }
       });
 
-      // Process the response data
       let services = response.data || [];
       
-      // Ensure all services have required fields with defaults
-      // Normalize status to string 'true' or 'false'
       services = services.map(service => ({
         ...service,
         id: service.id || service._id,
-        // Normalize status to 'true' or 'false' string
         status: normalizeStatus(service.status),
         draft: service.draft === true || service.draft === 'true',
         price: service.price || 0,
@@ -190,7 +181,7 @@ const ProductPage = () => {
         vname: service.vname || [],
         vprice: service.vprice || [],
         vimage: service.vimage || [],
-        type: 'service' // Add type identifier for drafts tab
+        type: 'service'
       }));
       
       setAllServices(services);
@@ -210,19 +201,15 @@ const ProductPage = () => {
     let sourceData = [];
     
     if (activeTab === 'products') {
-      // Filter out drafts from products
       sourceData = allProducts.filter(item => !isDraft(item));
     } else if (activeTab === 'services') {
-      // Filter out drafts from services
       sourceData = allServices.filter(item => !isDraft(item));
     } else if (activeTab === 'drafts') {
-      // Combine draft products and services
       const draftProducts = allProducts.filter(item => isDraft(item));
       const draftServices = allServices.filter(item => isDraft(item));
       sourceData = [...draftProducts, ...draftServices];
     }
     
-    // Apply search filter
     let filteredData = sourceData;
     if (searchQuery.trim()) {
       const searchTerm = searchQuery.toLowerCase();
@@ -233,11 +220,8 @@ const ProductPage = () => {
       );
     }
     
-    // Apply active filter - handle both boolean and string status values
-    // Only apply this filter for non-draft tabs
     if (filterActive && activeTab !== 'drafts') {
       filteredData = filteredData.filter(item => {
-        // Normalize status to boolean for comparison
         const itemIsActive = item.status === 'true' || 
                             item.status === true || 
                             item.status === 'active' || 
@@ -246,18 +230,15 @@ const ProductPage = () => {
       });
     }
     
-    // Calculate pagination
     const totalItems = filteredData.length;
     const totalPages = Math.ceil(totalItems / productsPerPage);
     setTotalPages(totalPages);
     
-    // Ensure current page is valid
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1);
-      return; // Will re-run with new currentPage
+      return;
     }
     
-    // Paginate the results
     const startIndex = (currentPage - 1) * productsPerPage;
     const endIndex = startIndex + productsPerPage;
     const paginatedData = filteredData.slice(startIndex, endIndex);
@@ -274,9 +255,8 @@ const ProductPage = () => {
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
-    setCurrentPage(1); // Reset to first page on search
+    setCurrentPage(1);
     
-    // Update URL without triggering a page reload
     const newUrl = query.trim() 
       ? `${location.pathname}?search=${encodeURIComponent(query)}`
       : location.pathname;
@@ -289,6 +269,42 @@ const ProductPage = () => {
     window.history.replaceState({}, '', location.pathname);
   };
 
+  // Publish a draft by calling the edit endpoint with draft: false
+  const publishDraft = async (id, itemType) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        return false;
+      }
+
+      const endpoint = itemType === 'service' 
+        ? 'https://api.automation365.io/edit-service'
+        : 'https://api.automation365.io/edit-product';
+
+      // Create FormData to match the edit endpoint expectation
+      const formData = new FormData();
+      formData.append('id', id);
+      formData.append('status', 'true');
+      formData.append('draft', 'false');
+
+      const response = await axios.post(endpoint, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.message) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error publishing draft:', error);
+      throw error;
+    }
+  };
+
   const handleToggleStatus = async (id, newStatus, itemType = null) => {
     try {
       const token = localStorage.getItem('token');
@@ -297,51 +313,71 @@ const ProductPage = () => {
         return;
       }
 
-      // Determine the correct endpoint based on the active tab or item type
-      let endpoint;
-      if (activeTab === 'drafts') {
-        // For drafts tab, use the item type to determine endpoint
-        endpoint = itemType === 'service' 
-          ? 'https://api.automation365.io/service-status'
-          : 'https://api.automation365.io/product-status';
-      } else {
-        endpoint = activeTab === 'services' 
-          ? 'https://api.automation365.io/service-status'
-          : 'https://api.automation365.io/product-status';
-      }
+      // Determine the item type for drafts tab
+      const type = itemType || (activeTab === 'services' ? 'service' : 'product');
+      
+      // Check if this is a draft being published
+      const isPublishingDraft = activeTab === 'drafts' && newStatus === 'true';
 
-      const response = await axios.post(
-        endpoint,
-        {
-          id,
-          status: newStatus  // This will be 'true' or 'false' as string
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
+      if (isPublishingDraft) {
+        // Use the edit endpoint to set both status and draft fields
+        const success = await publishDraft(id, type);
+        
+        if (success) {
+          toast.success(`${type === 'service' ? 'Service' : 'Product'} published successfully`);
+          
+          // Update local state
+          if (type === 'product') {
+            setAllProducts(prevProducts => 
+              prevProducts.map(product => 
+                product.id === id ? { ...product, status: 'true', draft: false } : product
+              )
+            );
+          } else {
+            setAllServices(prevServices => 
+              prevServices.map(service => 
+                service.id === id ? { ...service, status: 'true', draft: false } : service
+              )
+            );
           }
         }
-      );
+      } else {
+        // Regular status toggle (not publishing a draft)
+        const endpoint = type === 'service' 
+          ? 'https://api.automation365.io/service-status'
+          : 'https://api.automation365.io/product-status';
 
-      if (response.data.message === "Status updated" || response.data === "done") {
-        toast.success('Status updated successfully');
-        
-        // Update the local state with the new status
-        // Also set draft to false when changing status (publishing)
-        if (activeTab === 'products' || (activeTab === 'drafts' && itemType === 'product')) {
-          setAllProducts(prevProducts => 
-            prevProducts.map(product => 
-              product.id === id ? { ...product, status: newStatus, draft: false } : product
-            )
-          );
-        }
-        if (activeTab === 'services' || (activeTab === 'drafts' && itemType === 'service')) {
-          setAllServices(prevServices => 
-            prevServices.map(service => 
-              service.id === id ? { ...service, status: newStatus, draft: false } : service
-            )
-          );
+        const response = await axios.post(
+          endpoint,
+          {
+            id,
+            status: newStatus
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (response.data.message === "Status updated" || response.data === "done") {
+          toast.success('Status updated successfully');
+          
+          // Update local state
+          if (type === 'product') {
+            setAllProducts(prevProducts => 
+              prevProducts.map(product => 
+                product.id === id ? { ...product, status: newStatus } : product
+              )
+            );
+          } else {
+            setAllServices(prevServices => 
+              prevServices.map(service => 
+                service.id === id ? { ...service, status: newStatus } : service
+              )
+            );
+          }
         }
       }
     } catch (error) {
@@ -349,17 +385,9 @@ const ProductPage = () => {
       
       // Revert the status in the UI if the API call failed
       if (activeTab === 'products') {
-        const product = allProducts.find(p => p.id === id);
-        if (product) {
-          // Force re-render with original status
-          setAllProducts([...allProducts]);
-        }
+        setAllProducts([...allProducts]);
       } else if (activeTab === 'services') {
-        const service = allServices.find(s => s.id === id);
-        if (service) {
-          // Force re-render with original status
-          setAllServices([...allServices]);
-        }
+        setAllServices([...allServices]);
       }
       
       if (error.response?.status === 401) {
@@ -374,7 +402,6 @@ const ProductPage = () => {
 
   const handleEdit = (id, itemType = null) => {
     if (activeTab === 'drafts') {
-      // For drafts tab, use the item type to determine route
       if (itemType === 'service') {
         navigate(`/EditService?id=${id}`);
       } else {
@@ -397,7 +424,6 @@ const ProductPage = () => {
 
       let endpoint;
       if (activeTab === 'drafts') {
-        // For drafts tab, use the item type to determine endpoint
         endpoint = itemType === 'service' 
           ? 'https://api.automation365.io/delete-services'
           : 'https://api.automation365.io/delete-products';
@@ -421,7 +447,6 @@ const ProductPage = () => {
       if (response.data === "done") {
         toast.success(`${itemType === 'service' || activeTab === 'services' ? 'Service' : 'Product'} deleted successfully`);
         
-        // Update the local state by removing the deleted item
         if (activeTab === 'products' || (activeTab === 'drafts' && itemType === 'product')) {
           setAllProducts(prevProducts => prevProducts.filter(product => product.id !== id));
         }
@@ -453,10 +478,9 @@ const ProductPage = () => {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setCurrentPage(1);
-    setFilterActive(false); // Reset filter when changing tabs
+    setFilterActive(false);
   };
 
-  // Get the appropriate display data based on active tab
   const getDisplayData = () => {
     switch (activeTab) {
       case 'products':
@@ -472,11 +496,8 @@ const ProductPage = () => {
 
   const displayData = getDisplayData();
   const hasSearchQuery = searchQuery.trim().length > 0;
-
-  // Count drafts for badge
   const draftCount = allProducts.filter(isDraft).length + allServices.filter(isDraft).length;
 
-  // Pagination helper functions
   const renderPaginationButtons = () => {
     const buttons = [];
     const maxVisible = 5;
@@ -549,7 +570,6 @@ const ProductPage = () => {
     return buttons;
   };
 
-  // Get page title based on active tab
   const getPageTitle = () => {
     switch (activeTab) {
       case 'products':
@@ -706,7 +726,6 @@ const ProductPage = () => {
                     {/* Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                       {displayData.map((item) => {
-                        // For drafts tab, render based on item type
                         if (activeTab === 'drafts') {
                           if (item.type === 'service') {
                             return (
@@ -747,7 +766,6 @@ const ProductPage = () => {
                           }
                         }
                         
-                        // For products/services tabs
                         return activeTab === 'products' ? (
                           <ProductCard
                             key={item.id}
