@@ -15,9 +15,9 @@ const Messages = () => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [chatPaused, setChatPaused] = useState(false);
-  const [pausingChat, setPausingChat] = useState(false);
+  const [togglingPause, setTogglingPause] = useState(false);
   const [markingAsRead, setMarkingAsRead] = useState(false);
-  const [readChatIds, setReadChatIds] = useState(new Set()); // Track which chats have been read
+  const [readChatIds, setReadChatIds] = useState(new Set());
   const messagesEndRef = useRef(null);
 
   // Auto-scroll to bottom when messages change
@@ -52,7 +52,6 @@ const Messages = () => {
       }
       setError(null);
       
-      // Get JWT token from localStorage
       const token = localStorage.getItem('token');
       
       if (!token) {
@@ -94,9 +93,12 @@ const Messages = () => {
             setSelectedChat(prev => ({
               ...prev,
               messages: updatedMessages,
-              // Use sender_id from the messages
               instagramUserId: updatedMessages[0]?.sender_id || prev.instagramUserId
             }));
+            
+            // Update paused state from messages metadata
+            const isPaused = updatedMessages.some(msg => msg.metadata?.automation_paused);
+            setChatPaused(isPaused);
           }
         }
       } else {
@@ -137,7 +139,7 @@ const Messages = () => {
         },
         body: JSON.stringify({
           username: username,
-          messages: messageIds // Send array of sender_ids
+          messages: messageIds
         })
       });
 
@@ -200,7 +202,6 @@ const Messages = () => {
           messages: updatedMessages
         }));
         
-        // Mark this chat as read in our tracking Set
         setReadChatIds(prev => new Set([...prev, key]));
       }
       
@@ -213,7 +214,6 @@ const Messages = () => {
 
   // Calculate unread count for a chat
   const getUnreadCount = (chatId) => {
-    // If this chat has been opened and marked as read, return 0
     if (readChatIds.has(chatId)) {
       return 0;
     }
@@ -236,7 +236,6 @@ const Messages = () => {
     const messages = chatData.messages[chatId] || [];
     const username = chatId.replace('instagram:', '');
     
-    // Find the first message to get avatar
     const firstMessage = messages.find(msg => msg.direction === 'incoming');
     const avatar = firstMessage?.metadata?.profile_pic_url || '/default-avatar.png';
     
@@ -246,12 +245,16 @@ const Messages = () => {
       avatar: avatar,
       platform: 'instagram',
       messages: messages,
-      instagramUserId: messages[0]?.sender_id || null
+      instagramUserId: messages[0]?.sender_id || null,
+      username: username // Store username for API calls
     };
     
     setSelectedChat(chat);
     setShowChat(true);
-    setChatPaused(messages.some(msg => msg.metadata?.automation_paused));
+    
+    // Check if automation is paused from message metadata
+    const isPaused = messages.some(msg => msg.metadata?.automation_paused);
+    setChatPaused(isPaused);
     
     // Mark unread messages as read
     const unreadMessages = messages.filter(
@@ -261,11 +264,10 @@ const Messages = () => {
     if (unreadMessages.length > 0) {
       const messageIds = unreadMessages
         .map(msg => msg.sender_id)
-        .filter(id => id); // Filter out any undefined/null sender_ids
+        .filter(id => id);
       
       if (messageIds.length > 0) {
         markMessagesAsRead(username, messageIds);
-        // Immediately mark this chat as read in our tracking
         setReadChatIds(prev => new Set([...prev, chatId]));
       }
     }
@@ -276,55 +278,132 @@ const Messages = () => {
     }
   };
 
-  // Handle chat pause/resume
-  const handleChatPause = async () => {
-    if (!selectedChat || !selectedChat.instagramUserId || pausingChat) return;
+  // Pause chat automation
+  const pauseChat = async () => {
+    if (!selectedChat || togglingPause) return;
     
-    setPausingChat(true);
-    const newPausedState = !chatPaused;
+    setTogglingPause(true);
     
     try {
       const token = localStorage.getItem('token');
       
       if (!token) {
         console.error('No token found');
+        window.location.href = '/login';
         return;
       }
 
-      console.log('Toggling automation:', { 
-        userId: selectedChat.instagramUserId,
-        pause: newPausedState 
-      });
+      const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
+      
+      console.log('Pausing chat for:', username);
 
-      const response = await fetch('https://api.automation365.io/pause-automation', {
+      const response = await fetch('https://api.automation365.io/pause-chat', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          instagram_user_id: selectedChat.instagramUserId,
-          pause: newPausedState
+          username: username,
+          instagram_user_id: selectedChat.instagramUserId
         })
       });
 
+      if (response.status === 401) {
+        console.error('Session expired');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`Failed to ${newPausedState ? 'pause' : 'resume'} automation`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to pause chat (${response.status})`);
       }
 
       const result = await response.json();
-      console.log('Automation toggle response:', result);
+      console.log('Pause chat response:', result);
       
-      setChatPaused(newPausedState);
+      setChatPaused(true);
       
-      // Show success message (you can add a toast notification here)
-      console.log(`Automation ${newPausedState ? 'paused' : 'resumed'} successfully`);
+      // Optionally refresh chat history to get updated metadata
+      await fetchChatHistory(true);
       
     } catch (err) {
-      console.error('Error toggling automation:', err);
-      // Show error message (you can add a toast notification here)
+      console.error('Error pausing chat:', err);
+      alert(`Failed to pause automation: ${err.message}`);
     } finally {
-      setPausingChat(false);
+      setTogglingPause(false);
+    }
+  };
+
+  // Resume/Play chat automation
+  const playChat = async () => {
+    if (!selectedChat || togglingPause) return;
+    
+    setTogglingPause(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('No token found');
+        window.location.href = '/login';
+        return;
+      }
+
+      const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
+      
+      console.log('Resuming chat for:', username);
+
+      const response = await fetch('https://api.automation365.io/play-chat', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: username,
+          instagram_user_id: selectedChat.instagramUserId
+        })
+      });
+
+      if (response.status === 401) {
+        console.error('Session expired');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to resume chat (${response.status})`);
+      }
+
+      const result = await response.json();
+      console.log('Play chat response:', result);
+      
+      setChatPaused(false);
+      
+      // Optionally refresh chat history to get updated metadata
+      await fetchChatHistory(true);
+      
+    } catch (err) {
+      console.error('Error resuming chat:', err);
+      alert(`Failed to resume automation: ${err.message}`);
+    } finally {
+      setTogglingPause(false);
+    }
+  };
+
+  // Handle pause/play toggle
+  const handleTogglePause = () => {
+    if (chatPaused) {
+      playChat();
+    } else {
+      pauseChat();
     }
   };
 
@@ -341,13 +420,8 @@ const Messages = () => {
         grouped[platform] = [];
       }
       
-      // Get the latest message
       const latestMessage = messages[messages.length - 1];
-      
-      // Calculate unread count using our function
       const unreadCount = getUnreadCount(key);
-      
-      // Get profile info from the first incoming message
       const firstIncomingMsg = messages.find(msg => msg.direction === 'incoming');
       const avatar = firstIncomingMsg?.metadata?.profile_pic_url || '/default-avatar.png';
       const displayName = firstIncomingMsg?.metadata?.username || username;
@@ -438,23 +512,20 @@ const Messages = () => {
     setSendingMessage(true);
     const messageToSend = messageInput.trim();
     
-    // Create temporary message for immediate UI feedback
     const tempMessage = {
       message: messageToSend,
       direction: 'outgoing',
       timestamp: new Date().toISOString(),
       message_type: 'text',
       metadata: {},
-      temp: true // Mark as temporary
+      temp: true
     };
     
-    // Add temporary message to the UI
     setSelectedChat(prev => ({
       ...prev,
       messages: [...prev.messages, tempMessage]
     }));
     
-    // Clear input immediately
     setMessageInput('');
     
     try {
@@ -465,7 +536,6 @@ const Messages = () => {
         throw new Error('Authentication required');
       }
 
-      // Extract username from chat ID
       const username = selectedChat.id.replace('instagram:', '');
       
       console.log('Sending message:', { 
@@ -501,22 +571,17 @@ const Messages = () => {
       const result = await response.json();
       console.log('Send message response:', result);
       
-      // Refresh chat history to get the actual sent message
       await fetchChatHistory(true);
       
     } catch (err) {
       console.error('Error sending message:', err);
       
-      // Remove temporary message on error
       setSelectedChat(prev => ({
         ...prev,
         messages: prev.messages.filter(msg => !msg.temp)
       }));
       
-      // Restore the message in the input for retry
       setMessageInput(messageToSend);
-      
-      // Show error message (you can add a toast notification here)
       alert('Failed to send message. Please try again.');
     } finally {
       setSendingMessage(false);
@@ -656,26 +721,35 @@ const Messages = () => {
                             </div>
                           </div>
                           <button 
-                            className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
-                            onClick={handleChatPause}
-                            disabled={pausingChat}
+                            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                              chatPaused 
+                                ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' 
+                                : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'
+                            }`}
+                            onClick={handleTogglePause}
+                            disabled={togglingPause}
                           >
-                            {pausingChat ? (
-                              <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div>
+                            {togglingPause ? (
+                              <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
                             ) : chatPaused ? (
                               <Play className="w-4 h-4" />
                             ) : (
                               <Pause className="w-4 h-4" />
                             )}
                             <span className="hidden lg:inline">
-                              {pausingChat ? 'Loading...' : chatPaused ? 'Resume Automation' : 'Pause Automation'}
+                              {togglingPause 
+                                ? 'Loading...' 
+                                : chatPaused 
+                                  ? 'Resume Automation' 
+                                  : 'Pause Automation'
+                              }
                             </span>
                           </button>
                         </div>
                         {chatPaused && (
-                          <div className="mt-2 px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-lg">
-                            <AlertCircle className="w-4 h-4 inline mr-1" />
-                            Chat automation is paused
+                          <div className="mt-2 px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-lg flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>Chat automation is paused. Click "Resume Automation" to enable automatic responses.</span>
                           </div>
                         )}
                       </div>

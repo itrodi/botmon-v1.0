@@ -165,7 +165,7 @@ const ProductCard = ({
         {/* Price and Quantity */}
         <div className="flex items-center justify-between">
           <span className="font-semibold text-lg text-gray-900">
-            ${formatPrice(price)}
+            ₦{formatPrice(price)}
           </span>
           <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
             QTY: {quantity || 0}

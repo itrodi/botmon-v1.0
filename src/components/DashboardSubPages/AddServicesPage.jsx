@@ -523,9 +523,16 @@ const AddServicesPage = () => {
     setShowEditSubModal(true);
   };
 
+  // Handle discard - navigate back to services page
+  const handleDiscard = () => {
+    navigate('/ProductPage?tab=services');
+  };
+
   // Submit the form to add a service
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     
     const isDraftMode = serviceData.statusOption === 'draft';
     
@@ -615,6 +622,8 @@ const AddServicesPage = () => {
           ? 'Service saved as draft' 
           : 'Service added successfully';
         toast.success(successMessage);
+        
+        // Navigate to ProductPage with services tab selected
         navigate('/ProductPage?tab=services');
       }
     } catch (error) {
@@ -630,10 +639,6 @@ const AddServicesPage = () => {
     }
   };
 
-  const handleDiscard = () => {
-    navigate('/ProductPage?tab=services');
-  };
-
   const isDraft = serviceData.statusOption === 'draft';
 
   return (
@@ -646,12 +651,15 @@ const AddServicesPage = () => {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-6">
             <div className="flex items-center gap-4 mb-6">
-              <Link to="/products">
-                <Button variant="outline" size="icon" className="h-7 w-7">
-                  <ChevronLeft className="h-4 w-4" />
-                  <span className="sr-only">Back</span>
-                </Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-7 w-7"
+                onClick={handleDiscard}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Back</span>
+              </Button>
               <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
                 Add Service
               </h1>
@@ -1078,6 +1086,7 @@ const AddServicesPage = () => {
               {/* Mobile Action Buttons */}
               <div className="flex items-center justify-center gap-2 md:hidden">
                 <Button 
+                  type="button"
                   variant="outline" 
                   size="sm"
                   onClick={handleDiscard}

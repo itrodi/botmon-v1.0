@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import {
@@ -27,6 +28,8 @@ import {
 } from "@/components/ui/tabs";
 
 const AddProductPage = () => {
+  const navigate = useNavigate();
+  
   // State for modals
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -111,6 +114,7 @@ const AddProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -124,6 +128,11 @@ const AddProductPage = () => {
       console.log('Categories response status:', response.status);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expired. Please login again.');
+          navigate('/login');
+          return;
+        }
         throw new Error('Failed to fetch categories');
       }
 
@@ -176,6 +185,7 @@ const AddProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -195,6 +205,11 @@ const AddProductPage = () => {
       );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expired. Please login again.');
+          navigate('/login');
+          return;
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to edit category');
       }
@@ -251,6 +266,7 @@ const AddProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -270,6 +286,11 @@ const AddProductPage = () => {
       );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expired. Please login again.');
+          navigate('/login');
+          return;
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to edit subcategory');
       }
@@ -489,6 +510,7 @@ const AddProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -505,6 +527,11 @@ const AddProductPage = () => {
       );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expired. Please login again.');
+          navigate('/login');
+          return;
+        }
         throw new Error('Failed to add category');
       }
 
@@ -532,6 +559,11 @@ const AddProductPage = () => {
     }
   };
 
+  // Handle discard - navigate back to products page
+  const handleDiscard = () => {
+    navigate('/ProductPage?tab=products');
+  };
+
   // Submit the form to add a product
   const handleSubmit = async () => {
     const isDraftMode = productData.statusOption === 'draft';
@@ -557,6 +589,7 @@ const AddProductPage = () => {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -623,6 +656,11 @@ const AddProductPage = () => {
       console.log('Upload response status:', response.status);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expired. Please login again.');
+          navigate('/login');
+          return;
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to add product');
       }
@@ -636,29 +674,8 @@ const AddProductPage = () => {
           : 'Product added successfully';
         toast.success(successMessage);
         
-        // Reset form
-        setProductData({
-          name: '',
-          description: '',
-          price: '',
-          quantity: '',
-          weight: '',
-          link: '',
-          category: '',
-          sub: '',
-          statusOption: 'active'
-        });
-        setProductImage(null);
-        setProductImagePreview(null);
-        setVariants({
-          vname: [],
-          vprice: [],
-          vquantity: [],
-          vsize: [],
-          vcolor: [],
-          vtype: [],
-          vimages: []
-        });
+        // Navigate to ProductPage with products tab selected
+        navigate('/ProductPage?tab=products');
       }
     } catch (error) {
       console.error('Error uploading product:', error);
@@ -1045,7 +1062,13 @@ const AddProductPage = () => {
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-4">
-                <Button type="button" variant="outline">Cancel</Button>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={handleDiscard}
+                >
+                  Cancel
+                </Button>
                 <Button 
                   type="button"
                   className={`text-white ${

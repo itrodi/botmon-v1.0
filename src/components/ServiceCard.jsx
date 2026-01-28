@@ -178,7 +178,7 @@ const ServiceCard = ({
         {/* Price */}
         <div className="flex items-center justify-between">
           <span className="font-semibold text-lg text-gray-900">
-            ${formatPrice(price)}
+            ₦{formatPrice(price)}
           </span>
         </div>
 
