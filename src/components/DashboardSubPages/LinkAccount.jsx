@@ -592,18 +592,46 @@ const LinkAccount = () => {
   };
 
   // ============================================
-  // UNLINK HANDLERS
+  // UNLINK HANDLERS (FIXED)
   // ============================================
 
-  // Unlink Instagram Handler
+  // Helper function to clear local state for a platform
+  const clearLocalState = (platform) => {
+    setLinkedAccounts(prev => {
+      const updated = { ...prev, [platform]: false };
+      localStorage.setItem('linkedAccounts', JSON.stringify(updated));
+      return updated;
+    });
+    
+    switch (platform) {
+      case 'instagram':
+        setInstagramProfile({});
+        localStorage.removeItem('instagram_profile');
+        break;
+      case 'facebook':
+        setFacebookProfile({});
+        localStorage.removeItem('facebook_profile');
+        break;
+      case 'whatsapp':
+        setWhatsappConfig({});
+        localStorage.removeItem('whatsapp_config');
+        break;
+    }
+  };
+
+  // Unlink Instagram Handler (FIXED)
   const unlinkInstagram = async () => {
     const token = localStorage.getItem('token');
     let instaId = instagramProfile.id;
     
     if (!token) {
       toast.error('Please login first');
+      setShowUnlinkDialog(false);
+      setAccountToUnlink(null);
       return;
     }
+    
+    setUnlinkingInProgress(true);
     
     // If no ID in state, try to get it from API
     if (!instaId) {
@@ -623,13 +651,11 @@ const LinkAccount = () => {
       }
     }
     
+    // If still no ID, try to unlink anyway (backend might handle it by user token)
+    // or clear local state as fallback
     if (!instaId) {
-      toast.error('Unable to find Instagram account to unlink');
-      setShowUnlinkDialog(false);
-      return;
+      console.warn('No Instagram ID found, attempting unlink without ID or clearing local state');
     }
-    
-    setUnlinkingInProgress(true);
     
     try {
       const response = await fetch('https://api.automation365.io/unlink-instagram', {
@@ -638,27 +664,34 @@ const LinkAccount = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ insta_id: instaId })
+        body: JSON.stringify({ insta_id: instaId || null })
       });
       
-      const data = await response.json();
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.warn('Could not parse response JSON:', parseError);
+      }
       
-      if (response.ok && data.success) {
-        setLinkedAccounts(prev => {
-          const updated = { ...prev, instagram: false };
-          localStorage.setItem('linkedAccounts', JSON.stringify(updated));
-          return updated;
-        });
-        setInstagramProfile({});
-        localStorage.removeItem('instagram_profile');
-        
+      if (response.ok) {
+        // Clear local state on successful API response
+        clearLocalState('instagram');
         toast.success('Instagram account unlinked successfully');
       } else {
-        toast.error(data.message || 'Failed to unlink Instagram');
+        // If API returns error, still offer to clear local state
+        console.error('API error:', data);
+        toast.error(data.message || 'Failed to unlink Instagram from server');
+        
+        // Clear local state anyway to allow re-linking
+        clearLocalState('instagram');
       }
     } catch (error) {
       console.error('Error unlinking Instagram:', error);
-      toast.error('Failed to unlink Instagram');
+      toast.error('Network error - clearing local connection data');
+      
+      // Clear local state on network error to allow re-linking
+      clearLocalState('instagram');
     } finally {
       setUnlinkingInProgress(false);
       setShowUnlinkDialog(false);
@@ -666,19 +699,20 @@ const LinkAccount = () => {
     }
   };
 
-  // Unlink Facebook Handler
+  // Unlink Facebook Handler (FIXED)
   const unlinkFacebook = async () => {
     const token = localStorage.getItem('token');
     
     if (!token) {
       toast.error('Please login first');
+      setShowUnlinkDialog(false);
+      setAccountToUnlink(null);
       return;
     }
     
     setUnlinkingInProgress(true);
     
     try {
-      // Call unlink API if it exists
       const response = await fetch('https://api.automation365.io/unlink-messenger', {
         method: 'POST',
         headers: {
@@ -687,26 +721,19 @@ const LinkAccount = () => {
         }
       });
       
-      // Even if API fails, clear local state
-      setLinkedAccounts(prev => {
-        const updated = { ...prev, facebook: false };
-        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
-        return updated;
-      });
-      setFacebookProfile({});
-      localStorage.removeItem('facebook_profile');
+      // Clear local state regardless of API response
+      clearLocalState('facebook');
       
-      toast.success('Facebook account unlinked successfully');
+      if (response.ok) {
+        toast.success('Facebook account unlinked successfully');
+      } else {
+        // Still show success since we cleared local state
+        toast.success('Facebook account unlinked');
+      }
     } catch (error) {
+      console.error('Error unlinking Facebook:', error);
       // Clear local state even on error
-      setLinkedAccounts(prev => {
-        const updated = { ...prev, facebook: false };
-        localStorage.setItem('linkedAccounts', JSON.stringify(updated));
-        return updated;
-      });
-      setFacebookProfile({});
-      localStorage.removeItem('facebook_profile');
-      
+      clearLocalState('facebook');
       toast.success('Facebook account unlinked');
     } finally {
       setUnlinkingInProgress(false);
@@ -715,19 +742,20 @@ const LinkAccount = () => {
     }
   };
 
-  // Unlink WhatsApp Handler
+  // Unlink WhatsApp Handler (FIXED)
   const unlinkWhatsApp = async () => {
     const token = localStorage.getItem('token');
     
     if (!token) {
       toast.error('Please login first');
+      setShowUnlinkDialog(false);
+      setAccountToUnlink(null);
       return;
     }
     
     setUnlinkingInProgress(true);
     
     try {
-      // Call unlink API if it exists
       await fetch('https://api.automation365.io/unlink-whatsapp', {
         method: 'POST',
         headers: {
@@ -741,13 +769,7 @@ const LinkAccount = () => {
     }
     
     // Clear local state
-    setLinkedAccounts(prev => {
-      const updated = { ...prev, whatsapp: false };
-      localStorage.setItem('linkedAccounts', JSON.stringify(updated));
-      return updated;
-    });
-    setWhatsappConfig({});
-    localStorage.removeItem('whatsapp_config');
+    clearLocalState('whatsapp');
     
     toast.success('WhatsApp account unlinked');
     setUnlinkingInProgress(false);
@@ -755,8 +777,14 @@ const LinkAccount = () => {
     setAccountToUnlink(null);
   };
 
-  // Confirm unlink based on platform
+  // Confirm unlink based on platform (FIXED - added safety checks)
   const confirmUnlink = () => {
+    if (!accountToUnlink) {
+      console.error('No account selected to unlink');
+      setShowUnlinkDialog(false);
+      return;
+    }
+    
     switch (accountToUnlink) {
       case 'instagram':
         unlinkInstagram();
@@ -768,12 +796,13 @@ const LinkAccount = () => {
         unlinkWhatsApp();
         break;
       default:
+        console.error('Unknown platform:', accountToUnlink);
         setShowUnlinkDialog(false);
         setAccountToUnlink(null);
     }
   };
 
-  // Handle account toggle
+  // Handle account toggle (FIXED - ensure proper state before showing dialog)
   const handleAccountToggle = (platform, checked) => {
     if (checked) {
       switch (platform) {
@@ -798,6 +827,7 @@ const LinkAccount = () => {
       }
     } else {
       if (['instagram', 'facebook', 'whatsapp'].includes(platform)) {
+        // Set both states before showing dialog
         setAccountToUnlink(platform);
         setShowUnlinkDialog(true);
       } else {
@@ -1167,11 +1197,16 @@ const LinkAccount = () => {
       </div>
       
       {/* Unlink Confirmation Dialog */}
-      <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
+      <Dialog open={showUnlinkDialog} onOpenChange={(open) => {
+        setShowUnlinkDialog(open);
+        if (!open) {
+          setAccountToUnlink(null);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Unlink {accountToUnlink?.charAt(0).toUpperCase() + accountToUnlink?.slice(1)} Account
+              Unlink {accountToUnlink ? accountToUnlink.charAt(0).toUpperCase() + accountToUnlink.slice(1) : ''} Account
             </DialogTitle>
             <DialogDescription>
               Are you sure you want to unlink your {accountToUnlink} account? 

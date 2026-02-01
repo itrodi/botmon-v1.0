@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw, CheckCheck, Check } from 'lucide-react';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
@@ -18,18 +18,23 @@ const Messages = () => {
   const [togglingPause, setTogglingPause] = useState(false);
   const [markingAsRead, setMarkingAsRead] = useState(false);
   const [readChatIds, setReadChatIds] = useState(new Set());
+  const [pausedChats, setPausedChats] = useState(new Set()); // Track paused chats locally
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   // Auto-scroll to bottom when messages change
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = useCallback((behavior = "smooth") => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, []);
 
   useEffect(() => {
-    if (selectedChat) {
-      scrollToBottom();
+    if (selectedChat?.messages) {
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => scrollToBottom(), 100);
     }
-  }, [selectedChat?.messages]);
+  }, [selectedChat?.messages, scrollToBottom]);
 
   // Fetch chat history from API
   useEffect(() => {
@@ -93,12 +98,13 @@ const Messages = () => {
             setSelectedChat(prev => ({
               ...prev,
               messages: updatedMessages,
-              instagramUserId: updatedMessages[0]?.sender_id || prev.instagramUserId
+              instagramUserId: updatedMessages.find(m => m.sender_id)?.sender_id || prev.instagramUserId
             }));
             
-            // Update paused state from messages metadata
-            const isPaused = updatedMessages.some(msg => msg.metadata?.automation_paused);
-            setChatPaused(isPaused);
+            // Update paused state from messages metadata or local state
+            const isPausedFromMetadata = updatedMessages.some(msg => msg.metadata?.automation_paused);
+            const isPausedLocally = pausedChats.has(selectedChat.id);
+            setChatPaused(isPausedFromMetadata || isPausedLocally);
           }
         }
       } else {
@@ -239,22 +245,26 @@ const Messages = () => {
     const firstMessage = messages.find(msg => msg.direction === 'incoming');
     const avatar = firstMessage?.metadata?.profile_pic_url || '/default-avatar.png';
     
+    // Find a valid sender_id from incoming messages
+    const incomingMessage = messages.find(msg => msg.direction === 'incoming' && msg.sender_id);
+    
     const chat = {
       id: chatId,
       name: chatName || username,
       avatar: avatar,
       platform: 'instagram',
       messages: messages,
-      instagramUserId: messages[0]?.sender_id || null,
+      instagramUserId: incomingMessage?.sender_id || null,
       username: username // Store username for API calls
     };
     
     setSelectedChat(chat);
     setShowChat(true);
     
-    // Check if automation is paused from message metadata
-    const isPaused = messages.some(msg => msg.metadata?.automation_paused);
-    setChatPaused(isPaused);
+    // Check if automation is paused from message metadata or local state
+    const isPausedFromMetadata = messages.some(msg => msg.metadata?.automation_paused);
+    const isPausedLocally = pausedChats.has(chatId);
+    setChatPaused(isPausedFromMetadata || isPausedLocally);
     
     // Mark unread messages as read
     const unreadMessages = messages.filter(
@@ -276,6 +286,9 @@ const Messages = () => {
     if (window.innerWidth <= 768) {
       setShowChatList(false);
     }
+    
+    // Scroll to bottom after selecting chat
+    setTimeout(() => scrollToBottom("auto"), 150);
   };
 
   // Pause chat automation
@@ -294,8 +307,15 @@ const Messages = () => {
       }
 
       const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
+      const instagramUserId = selectedChat.instagramUserId;
       
-      console.log('Pausing chat for:', username);
+      console.log('Pausing chat for:', { username, instagramUserId });
+
+      // Build request body - only include instagram_user_id if it exists
+      const requestBody = { username };
+      if (instagramUserId) {
+        requestBody.instagram_user_id = instagramUserId;
+      }
 
       const response = await fetch('https://api.automation365.io/pause-chat', {
         method: 'POST',
@@ -303,10 +323,7 @@ const Messages = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          username: username,
-          instagram_user_id: selectedChat.instagramUserId
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (response.status === 401) {
@@ -317,15 +334,23 @@ const Messages = () => {
         return;
       }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to pause chat (${response.status})`);
+      // Try to parse response
+      let result = {};
+      try {
+        result = await response.json();
+      } catch (e) {
+        console.warn('Could not parse pause response:', e);
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || result.message || `Failed to pause chat (${response.status})`);
+      }
+
       console.log('Pause chat response:', result);
       
+      // Update local state immediately
       setChatPaused(true);
+      setPausedChats(prev => new Set([...prev, selectedChat.id]));
       
       // Optionally refresh chat history to get updated metadata
       await fetchChatHistory(true);
@@ -354,8 +379,15 @@ const Messages = () => {
       }
 
       const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
+      const instagramUserId = selectedChat.instagramUserId;
       
-      console.log('Resuming chat for:', username);
+      console.log('Resuming chat for:', { username, instagramUserId });
+
+      // Build request body - only include instagram_user_id if it exists
+      const requestBody = { username };
+      if (instagramUserId) {
+        requestBody.instagram_user_id = instagramUserId;
+      }
 
       const response = await fetch('https://api.automation365.io/play-chat', {
         method: 'POST',
@@ -363,10 +395,7 @@ const Messages = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          username: username,
-          instagram_user_id: selectedChat.instagramUserId
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (response.status === 401) {
@@ -377,15 +406,27 @@ const Messages = () => {
         return;
       }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to resume chat (${response.status})`);
+      // Try to parse response
+      let result = {};
+      try {
+        result = await response.json();
+      } catch (e) {
+        console.warn('Could not parse play response:', e);
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || result.message || `Failed to resume chat (${response.status})`);
+      }
+
       console.log('Play chat response:', result);
       
+      // Update local state immediately
       setChatPaused(false);
+      setPausedChats(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedChat.id);
+        return newSet;
+      });
       
       // Optionally refresh chat history to get updated metadata
       await fetchChatHistory(true);
@@ -528,6 +569,9 @@ const Messages = () => {
     
     setMessageInput('');
     
+    // Scroll to bottom after adding message
+    setTimeout(() => scrollToBottom(), 100);
+    
     try {
       const token = localStorage.getItem('token');
       
@@ -601,12 +645,23 @@ const Messages = () => {
   const groupedChats = getChatsGroupedByPlatform();
   const filteredChats = filterChats(groupedChats);
 
+  // Get messages in chronological order (oldest first, so newest at bottom)
+  const getOrderedMessages = () => {
+    if (!selectedChat?.messages) return [];
+    // Messages should be displayed oldest first (top) to newest (bottom)
+    // If API returns newest first, we need to reverse
+    // If API returns oldest first, we use as-is
+    // Based on your code doing .reverse(), it seems API returns oldest first
+    // So we should NOT reverse to show oldest at top, newest at bottom
+    return [...selectedChat.messages];
+  };
+
   return (
-    <div className="flex bg-gray-100 min-h-screen">
+    <div className="flex bg-gray-100 h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <Header />
-        <div className="flex-1 bg-white rounded-lg shadow m-2 sm:m-6 overflow-hidden">
+        <div className="flex-1 bg-white rounded-lg shadow m-2 sm:m-6 overflow-hidden flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -628,10 +683,10 @@ const Messages = () => {
               </div>
             </div>
           ) : (
-            <div className="flex h-full">
-              {/* Chat List */}
-              <div className={`${showChatList ? 'block' : 'hidden'} md:block w-full md:w-1/3 border-r h-full flex flex-col`}>
-                <div className="p-4 border-b">
+            <div className="flex h-full overflow-hidden">
+              {/* Chat List - Fixed height, scrollable */}
+              <div className={`${showChatList ? 'flex' : 'hidden'} md:flex w-full md:w-1/3 border-r h-full flex-col overflow-hidden`}>
+                <div className="p-4 border-b flex-shrink-0">
                   <h2 className="text-2xl font-semibold mb-4">Messages</h2>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -671,6 +726,7 @@ const Messages = () => {
                               active={selectedChat?.id === chat.id}
                               unreadCount={chat.unreadCount}
                               platformIcon={getPlatformIcon(platform)}
+                              isPaused={pausedChats.has(chat.id)}
                             />
                           </div>
                         ))}
@@ -680,35 +736,35 @@ const Messages = () => {
                 </div>
                 
                 {isRefreshing && (
-                  <div className="p-2 border-t bg-gray-50 flex items-center justify-center gap-2">
+                  <div className="p-2 border-t bg-gray-50 flex items-center justify-center gap-2 flex-shrink-0">
                     <RefreshCw className="w-4 h-4 animate-spin text-purple-600" />
                     <span className="text-sm text-gray-600">Refreshing...</span>
                   </div>
                 )}
               </div>
 
-              {/* Chat Area */}
-              <div className={`${showChat ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full`}>
+              {/* Chat Area - Fixed height, messages scrollable */}
+              <div className={`${showChat ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden`}>
                 {selectedChat ? (
                   <>
-                    {/* Chat Header */}
-                    <div className="border-b">
-                      {showChat && (
-                        <button
-                          onClick={handleBackToList}
-                          className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
-                        >
-                          <ArrowLeft className="w-5 h-5" />
-                        </button>
-                      )}
+                    {/* Chat Header - Fixed */}
+                    <div className="border-b flex-shrink-0">
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
+                            {/* Back button for mobile */}
+                            <button
+                              onClick={handleBackToList}
+                              className="md:hidden p-2 hover:bg-gray-100 rounded-lg -ml-2"
+                            >
+                              <ArrowLeft className="w-5 h-5" />
+                            </button>
                             <div className="relative">
                               <img 
                                 src={selectedChat.avatar}
                                 alt={selectedChat.name}
-                                className="w-10 h-10 rounded-full"
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => { e.target.src = '/default-avatar.png'; }}
                               />
                               <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
                             </div>
@@ -721,11 +777,11 @@ const Messages = () => {
                             </div>
                           </div>
                           <button 
-                            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${
                               chatPaused 
                                 ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' 
                                 : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'
-                            }`}
+                            } ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`}
                             onClick={handleTogglePause}
                             disabled={togglingPause}
                           >
@@ -736,29 +792,32 @@ const Messages = () => {
                             ) : (
                               <Pause className="w-4 h-4" />
                             )}
-                            <span className="hidden lg:inline">
+                            <span className="hidden sm:inline">
                               {togglingPause 
                                 ? 'Loading...' 
                                 : chatPaused 
-                                  ? 'Resume Automation' 
-                                  : 'Pause Automation'
+                                  ? 'Resume' 
+                                  : 'Pause'
                               }
                             </span>
                           </button>
                         </div>
                         {chatPaused && (
                           <div className="mt-2 px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-lg flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4" />
-                            <span>Chat automation is paused. Click "Resume Automation" to enable automatic responses.</span>
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <span>Automation paused. Click "Resume" to enable automatic responses.</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                    {/* Messages - Scrollable */}
+                    <div 
+                      ref={messagesContainerRef}
+                      className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4"
+                    >
                       {selectedChat.messages && selectedChat.messages.length > 0 ? (
-                        selectedChat.messages.slice().reverse().map((msg, index) => (
+                        getOrderedMessages().map((msg, index) => (
                           <div 
                             key={`${msg.timestamp}_${index}_${msg.sender_id || 'no-id'}`} 
                             className={`flex gap-3 ${msg.direction === 'outgoing' ? 'justify-end' : ''} 
@@ -768,7 +827,8 @@ const Messages = () => {
                               <img 
                                 src={selectedChat.avatar}
                                 alt={selectedChat.name}
-                                className="w-10 h-10 rounded-full"
+                                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover"
+                                onError={(e) => { e.target.src = '/default-avatar.png'; }}
                               />
                             )}
                             <div className={`rounded-lg p-3 max-w-[80%] sm:max-w-md ${
@@ -824,20 +884,20 @@ const Messages = () => {
                       <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Input Area */}
-                    <div className="p-4 border-t">
+                    {/* Input Area - Fixed */}
+                    <div className="p-4 border-t flex-shrink-0">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
                           <Mic className="w-5 h-5 text-gray-400 hidden sm:block cursor-pointer hover:text-gray-600" />
                           <input 
                             placeholder="Type a message..." 
-                            className="flex-1 bg-transparent outline-none"
+                            className="flex-1 bg-transparent outline-none min-w-0"
                             value={messageInput}
                             onChange={(e) => setMessageInput(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                             disabled={sendingMessage}
                           />
-                          <div className="flex items-center gap-2 text-gray-400">
+                          <div className="flex items-center gap-2 text-gray-400 flex-shrink-0">
                             <button className="hover:text-gray-600">
                               <Paperclip className="w-5 h-5" />
                             </button>
@@ -853,7 +913,7 @@ const Messages = () => {
                           </div>
                         </div>
                         <button 
-                          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 rounded-lg disabled:opacity-50 flex-shrink-0"
                           onClick={handleSendMessage}
                           disabled={sendingMessage || !messageInput.trim()}
                         >
@@ -884,30 +944,38 @@ const Messages = () => {
   );
 };
 
-const ChatItem = ({ name, message, time, avatar, platform, active, unreadCount, platformIcon }) => {
+const ChatItem = ({ name, message, time, avatar, platform, active, unreadCount, platformIcon, isPaused }) => {
   return (
     <div className={`flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${active ? 'bg-purple-50' : ''}`}>
-      <div className="relative">
+      <div className="relative flex-shrink-0">
         <img 
           src={avatar}
           alt={name}
-          className="w-12 h-12 rounded-full"
+          className="w-12 h-12 rounded-full object-cover"
+          onError={(e) => { e.target.src = '/default-avatar.png'; }}
         />
         <span className="absolute -bottom-1 -right-1">
           {platformIcon}
         </span>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className={`font-medium ${unreadCount > 0 ? 'font-semibold' : ''}`}>{name}</h3>
-          <span className="text-xs text-gray-400">{time}</span>
+        <div className="flex items-center justify-between mb-1 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className={`font-medium truncate ${unreadCount > 0 ? 'font-semibold' : ''}`}>{name}</h3>
+            {isPaused && (
+              <span className="flex-shrink-0 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
+                Paused
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-gray-400 flex-shrink-0">{time}</span>
         </div>
         <p className={`text-sm truncate ${unreadCount > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
           {message}
         </p>
       </div>
       {unreadCount > 0 && (
-        <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
+        <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center flex-shrink-0">
           {unreadCount}
         </span>
       )} 
