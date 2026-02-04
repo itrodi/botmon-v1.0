@@ -317,7 +317,7 @@ const Messages = () => {
         requestBody.instagram_user_id = instagramUserId;
       }
 
-      const response = await fetch('https://api.automation365.io/pause-chat', {
+      const response = await fetch('https://instagram.automation365.io/pause-chat', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -389,7 +389,7 @@ const Messages = () => {
         requestBody.instagram_user_id = instagramUserId;
       }
 
-      const response = await fetch('https://api.automation365.io/play-chat', {
+      const response = await fetch('https://instagram.automation365.io/play-chat', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
