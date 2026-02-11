@@ -533,7 +533,7 @@ const LinkAccount = () => {
     const instagramAuthUrl = new URL('https://www.instagram.com/oauth/authorize');
     instagramAuthUrl.searchParams.set('force_reauth', 'true');
     instagramAuthUrl.searchParams.set('client_id', '9440795702651023');
-    instagramAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/instagram');
+    instagramAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/instagram-settings');
     instagramAuthUrl.searchParams.set('response_type', 'code');
     instagramAuthUrl.searchParams.set('scope', 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights');
     instagramAuthUrl.searchParams.set('state', encodedState);

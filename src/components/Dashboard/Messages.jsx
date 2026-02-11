@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw, CheckCheck, Check } from 'lucide-react';
+import { io } from 'socket.io-client';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
 
@@ -18,9 +19,17 @@ const Messages = () => {
   const [togglingPause, setTogglingPause] = useState(false);
   const [markingAsRead, setMarkingAsRead] = useState(false);
   const [readChatIds, setReadChatIds] = useState(new Set());
-  const [pausedChats, setPausedChats] = useState(new Set()); // Track paused chats locally
+  const [pausedChats, setPausedChats] = useState(new Set());
+  const [socketConnected, setSocketConnected] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const socketRef = useRef(null);
+  const selectedChatRef = useRef(null);
+
+  // Keep selectedChatRef in sync so socket callback can access latest state
+  useEffect(() => {
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback((behavior = "smooth") => {
@@ -31,21 +40,113 @@ const Messages = () => {
 
   useEffect(() => {
     if (selectedChat?.messages) {
-      // Use setTimeout to ensure DOM has updated
       setTimeout(() => scrollToBottom(), 100);
     }
   }, [selectedChat?.messages, scrollToBottom]);
 
-  // Fetch chat history from API
+  // ──────────────────────────────────────────────
+  // Socket.IO connection for real-time messages
+  // ──────────────────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Connect to the socket server
+    const socket = io('https://api.automation365.io', {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+      setSocketConnected(false);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+      setSocketConnected(false);
+    });
+
+    // ── Listen for new incoming messages ──
+    socket.on('new_chat_message', (messageData) => {
+      console.log('New chat message received via socket:', messageData);
+
+      // Determine the chat key (e.g. "instagram:username")
+      const chatKey = messageData.chat_id
+        || messageData.chatId
+        || (messageData.platform && messageData.username
+          ? `${messageData.platform}:${messageData.username}`
+          : null);
+
+      if (!chatKey) {
+        console.warn('Received message without identifiable chat key:', messageData);
+        return;
+      }
+
+      // Build a normalised message object
+      const newMessage = {
+        message: messageData.message || messageData.text || '',
+        direction: messageData.direction || 'incoming',
+        timestamp: messageData.timestamp || new Date().toISOString(),
+        message_type: messageData.message_type || 'text',
+        sender_id: messageData.sender_id || null,
+        metadata: messageData.metadata || {},
+      };
+
+      // 1. Update chatData (the full chat list)
+      setChatData((prev) => {
+        if (!prev || !prev.messages) return prev;
+
+        const existingMessages = prev.messages[chatKey] || [];
+        return {
+          ...prev,
+          messages: {
+            ...prev.messages,
+            [chatKey]: [...existingMessages, newMessage],
+          },
+        };
+      });
+
+      // 2. If the user is currently viewing this chat, append there too
+      const currentChat = selectedChatRef.current;
+      if (currentChat && currentChat.id === chatKey) {
+        setSelectedChat((prev) => ({
+          ...prev,
+          messages: [...(prev.messages || []), newMessage],
+        }));
+
+        // Auto-scroll for the active conversation
+        setTimeout(() => scrollToBottom(), 100);
+
+        // Mark as read immediately since user is viewing the chat
+        if (newMessage.direction === 'incoming' && newMessage.sender_id) {
+          const username = chatKey.replace('instagram:', '');
+          markMessagesAsRead(username, [newMessage.sender_id]);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ──────────────────────────────────────────────
+  // Initial data fetch (no more polling interval)
+  // ──────────────────────────────────────────────
   useEffect(() => {
     fetchChatHistory();
-    
-    // Set up auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchChatHistory(true);
-    }, 30000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const fetchChatHistory = async (silent = false) => {
@@ -56,9 +157,9 @@ const Messages = () => {
         setIsRefreshing(true);
       }
       setError(null);
-      
+
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         console.error('No token found');
         window.location.href = '/login';
@@ -87,10 +188,10 @@ const Messages = () => {
 
       const result = await response.json();
       console.log('Chat History API Response:', result);
-      
+
       if (result.status === 'success' && result.data) {
         setChatData(result.data);
-        
+
         // Update selected chat if it exists
         if (selectedChat && result.data.messages) {
           const updatedMessages = result.data.messages[selectedChat.id];
@@ -100,8 +201,7 @@ const Messages = () => {
               messages: updatedMessages,
               instagramUserId: updatedMessages.find(m => m.sender_id)?.sender_id || prev.instagramUserId
             }));
-            
-            // Update paused state from messages metadata or local state
+
             const isPausedFromMetadata = updatedMessages.some(msg => msg.metadata?.automation_paused);
             const isPausedLocally = pausedChats.has(selectedChat.id);
             setChatPaused(isPausedFromMetadata || isPausedLocally);
@@ -121,15 +221,16 @@ const Messages = () => {
     }
   };
 
+  // ──────────────────────────────────────────────
   // Mark messages as read
+  // ──────────────────────────────────────────────
   const markMessagesAsRead = async (username, messageIds) => {
     if (markingAsRead || !messageIds || messageIds.length === 0) return;
-    
+
     setMarkingAsRead(true);
-    
+
     try {
       const token = localStorage.getItem('token');
-      
       if (!token) {
         console.error('No token found');
         return;
@@ -163,54 +264,36 @@ const Messages = () => {
 
       const result = await response.json();
       console.log('Mark messages as read response:', result);
-      
-      // Update local state to reflect read status immediately
+
+      // Update local state to reflect read status
       if (selectedChat) {
         setSelectedChat(prev => ({
           ...prev,
           messages: prev.messages.map(msg => {
             if (messageIds.includes(msg.sender_id)) {
-              return {
-                ...msg,
-                metadata: {
-                  ...msg.metadata,
-                  read: true
-                }
-              };
+              return { ...msg, metadata: { ...msg.metadata, read: true } };
             }
             return msg;
           })
         }));
       }
-      
-      // Update chat data to reflect read status
+
       if (chatData && chatData.messages) {
         const updatedMessages = { ...chatData.messages };
         const key = `instagram:${username}`;
-        
+
         if (updatedMessages[key]) {
           updatedMessages[key] = updatedMessages[key].map(msg => {
             if (messageIds.includes(msg.sender_id)) {
-              return {
-                ...msg,
-                metadata: {
-                  ...msg.metadata,
-                  read: true
-                }
-              };
+              return { ...msg, metadata: { ...msg.metadata, read: true } };
             }
             return msg;
           });
         }
-        
-        setChatData(prev => ({
-          ...prev,
-          messages: updatedMessages
-        }));
-        
+
+        setChatData(prev => ({ ...prev, messages: updatedMessages }));
         setReadChatIds(prev => new Set([...prev, key]));
       }
-      
     } catch (err) {
       console.error('Error marking messages as read:', err);
     } finally {
@@ -218,36 +301,37 @@ const Messages = () => {
     }
   };
 
-  // Calculate unread count for a chat
+  // ──────────────────────────────────────────────
+  // Unread count
+  // ──────────────────────────────────────────────
   const getUnreadCount = (chatId) => {
-    if (readChatIds.has(chatId)) {
-      return 0;
-    }
-    
-    if (!chatData || !chatData.messages || !chatData.messages[chatId]) {
-      return 0;
-    }
-    
+    if (readChatIds.has(chatId)) return 0;
+    if (!chatData || !chatData.messages || !chatData.messages[chatId]) return 0;
+
     const messages = chatData.messages[chatId];
-    return messages.filter(msg => 
-      msg.direction === 'incoming' && 
+    return messages.filter(msg =>
+      msg.direction === 'incoming' &&
       (!msg.metadata || !msg.metadata.read)
     ).length;
   };
 
-  // Handle chat selection
+  // ──────────────────────────────────────────────
+  // Chat selection
+  // ──────────────────────────────────────────────
   const handleChatSelect = (chatId, chatName) => {
     if (!chatData || !chatData.messages) return;
-    
+
     const messages = chatData.messages[chatId] || [];
     const username = chatId.replace('instagram:', '');
-    
+
     const firstMessage = messages.find(msg => msg.direction === 'incoming');
     const avatar = firstMessage?.metadata?.profile_pic_url || '/default-avatar.png';
-    
-    // Find a valid sender_id from incoming messages
+
+    // Find sender_id from incoming messages
     const incomingMessage = messages.find(msg => msg.direction === 'incoming' && msg.sender_id);
-    
+
+    console.log('Chat selected — sender_id found:', incomingMessage?.sender_id);
+
     const chat = {
       id: chatId,
       name: chatName || username,
@@ -255,51 +339,51 @@ const Messages = () => {
       platform: 'instagram',
       messages: messages,
       instagramUserId: incomingMessage?.sender_id || null,
-      username: username // Store username for API calls
+      username: username
     };
-    
+
     setSelectedChat(chat);
     setShowChat(true);
-    
-    // Check if automation is paused from message metadata or local state
+
+    // Check paused state
     const isPausedFromMetadata = messages.some(msg => msg.metadata?.automation_paused);
     const isPausedLocally = pausedChats.has(chatId);
     setChatPaused(isPausedFromMetadata || isPausedLocally);
-    
+
     // Mark unread messages as read
     const unreadMessages = messages.filter(
       msg => msg.direction === 'incoming' && (!msg.metadata || !msg.metadata.read)
     );
-    
+
     if (unreadMessages.length > 0) {
       const messageIds = unreadMessages
         .map(msg => msg.sender_id)
         .filter(id => id);
-      
+
       if (messageIds.length > 0) {
         markMessagesAsRead(username, messageIds);
         setReadChatIds(prev => new Set([...prev, chatId]));
       }
     }
-    
-    // Mobile view handling
+
+    // Mobile view
     if (window.innerWidth <= 768) {
       setShowChatList(false);
     }
-    
-    // Scroll to bottom after selecting chat
+
     setTimeout(() => scrollToBottom("auto"), 150);
   };
 
-  // Pause chat automation
+  // ──────────────────────────────────────────────
+  // Pause chat automation  (sends sender_id)
+  // ──────────────────────────────────────────────
   const pauseChat = async () => {
     if (!selectedChat || togglingPause) return;
-    
+
     setTogglingPause(true);
-    
+
     try {
       const token = localStorage.getItem('token');
-      
       if (!token) {
         console.error('No token found');
         window.location.href = '/login';
@@ -307,15 +391,18 @@ const Messages = () => {
       }
 
       const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
-      const instagramUserId = selectedChat.instagramUserId;
-      
-      console.log('Pausing chat for:', { username, instagramUserId });
+      const senderId = selectedChat.instagramUserId;
 
-      // Build request body - only include instagram_user_id if it exists
-      const requestBody = { username };
-      if (instagramUserId) {
-        requestBody.instagram_user_id = instagramUserId;
+      console.log('Pausing chat for:', { username, sender_id: senderId });
+
+      if (!senderId) {
+        console.warn('No sender_id available for this chat — pause may fail');
       }
+
+      const requestBody = {
+        username,
+        sender_id: senderId || null,
+      };
 
       const response = await fetch('https://instagram.automation365.io/pause-chat', {
         method: 'POST',
@@ -334,7 +421,6 @@ const Messages = () => {
         return;
       }
 
-      // Try to parse response
       let result = {};
       try {
         result = await response.json();
@@ -347,14 +433,12 @@ const Messages = () => {
       }
 
       console.log('Pause chat response:', result);
-      
-      // Update local state immediately
+
       setChatPaused(true);
       setPausedChats(prev => new Set([...prev, selectedChat.id]));
-      
-      // Optionally refresh chat history to get updated metadata
+
+      // Refresh to sync metadata
       await fetchChatHistory(true);
-      
     } catch (err) {
       console.error('Error pausing chat:', err);
       alert(`Failed to pause automation: ${err.message}`);
@@ -363,15 +447,16 @@ const Messages = () => {
     }
   };
 
-  // Resume/Play chat automation
+  // ──────────────────────────────────────────────
+  // Resume / play chat automation  (sends sender_id)
+  // ──────────────────────────────────────────────
   const playChat = async () => {
     if (!selectedChat || togglingPause) return;
-    
+
     setTogglingPause(true);
-    
+
     try {
       const token = localStorage.getItem('token');
-      
       if (!token) {
         console.error('No token found');
         window.location.href = '/login';
@@ -379,15 +464,18 @@ const Messages = () => {
       }
 
       const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
-      const instagramUserId = selectedChat.instagramUserId;
-      
-      console.log('Resuming chat for:', { username, instagramUserId });
+      const senderId = selectedChat.instagramUserId;
 
-      // Build request body - only include instagram_user_id if it exists
-      const requestBody = { username };
-      if (instagramUserId) {
-        requestBody.instagram_user_id = instagramUserId;
+      console.log('Resuming chat for:', { username, sender_id: senderId });
+
+      if (!senderId) {
+        console.warn('No sender_id available for this chat — resume may fail');
       }
+
+      const requestBody = {
+        username,
+        sender_id: senderId || null,
+      };
 
       const response = await fetch('https://instagram.automation365.io/play-chat', {
         method: 'POST',
@@ -406,7 +494,6 @@ const Messages = () => {
         return;
       }
 
-      // Try to parse response
       let result = {};
       try {
         result = await response.json();
@@ -419,18 +506,15 @@ const Messages = () => {
       }
 
       console.log('Play chat response:', result);
-      
-      // Update local state immediately
+
       setChatPaused(false);
       setPausedChats(prev => {
         const newSet = new Set(prev);
         newSet.delete(selectedChat.id);
         return newSet;
       });
-      
-      // Optionally refresh chat history to get updated metadata
+
       await fetchChatHistory(true);
-      
     } catch (err) {
       console.error('Error resuming chat:', err);
       alert(`Failed to resume automation: ${err.message}`);
@@ -439,7 +523,6 @@ const Messages = () => {
     }
   };
 
-  // Handle pause/play toggle
   const handleTogglePause = () => {
     if (chatPaused) {
       playChat();
@@ -448,25 +531,27 @@ const Messages = () => {
     }
   };
 
-  // Get chats grouped by platform
+  // ──────────────────────────────────────────────
+  // Chat grouping / filtering helpers
+  // ──────────────────────────────────────────────
   const getChatsGroupedByPlatform = () => {
     if (!chatData || !chatData.messages) return {};
-    
+
     const grouped = {};
-    
+
     Object.entries(chatData.messages).forEach(([key, messages]) => {
       const [platform, username] = key.split(':');
-      
+
       if (!grouped[platform]) {
         grouped[platform] = [];
       }
-      
+
       const latestMessage = messages[messages.length - 1];
       const unreadCount = getUnreadCount(key);
       const firstIncomingMsg = messages.find(msg => msg.direction === 'incoming');
       const avatar = firstIncomingMsg?.metadata?.profile_pic_url || '/default-avatar.png';
       const displayName = firstIncomingMsg?.metadata?.username || username;
-      
+
       grouped[platform].push({
         id: key,
         username: username,
@@ -478,8 +563,7 @@ const Messages = () => {
         messages: messages
       });
     });
-    
-    // Sort each platform's chats by timestamp (most recent first)
+
     Object.keys(grouped).forEach(platform => {
       grouped[platform].sort((a, b) => {
         const timeA = new Date(a.timestamp).getTime();
@@ -487,13 +571,12 @@ const Messages = () => {
         return timeB - timeA;
       });
     });
-    
+
     return grouped;
   };
 
-  // Platform icon helper
   const getPlatformIcon = (platform) => {
-    switch(platform) {
+    switch (platform) {
       case 'instagram':
         return <Instagram className="w-4 h-4" />;
       default:
@@ -501,58 +584,55 @@ const Messages = () => {
     }
   };
 
-  // Format time helper
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) {
-      return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       });
     } else if (diffDays === 1) {
       return 'Yesterday';
     } else if (diffDays < 7) {
       return date.toLocaleDateString('en-US', { weekday: 'short' });
     } else {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      });
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   };
 
-  // Filter chats based on search
   const filterChats = (chats) => {
     if (!searchQuery.trim()) return chats;
-    
+
     const filtered = {};
     Object.entries(chats).forEach(([platform, platformChats]) => {
-      const filteredPlatformChats = platformChats.filter(chat => 
+      const filteredPlatformChats = platformChats.filter(chat =>
         chat.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         chat.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
         chat.latestMessage.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      
+
       if (filteredPlatformChats.length > 0) {
         filtered[platform] = filteredPlatformChats;
       }
     });
-    
+
     return filtered;
   };
 
-  // Handle sending messages
+  // ──────────────────────────────────────────────
+  // Send message
+  // ──────────────────────────────────────────────
   const handleSendMessage = async () => {
     if (!messageInput.trim() || sendingMessage || !selectedChat) return;
-    
+
     setSendingMessage(true);
     const messageToSend = messageInput.trim();
-    
+
     const tempMessage = {
       message: messageToSend,
       direction: 'outgoing',
@@ -561,31 +641,25 @@ const Messages = () => {
       metadata: {},
       temp: true
     };
-    
+
     setSelectedChat(prev => ({
       ...prev,
       messages: [...prev.messages, tempMessage]
     }));
-    
+
     setMessageInput('');
-    
-    // Scroll to bottom after adding message
     setTimeout(() => scrollToBottom(), 100);
-    
+
     try {
       const token = localStorage.getItem('token');
-      
       if (!token) {
         console.error('No token found');
         throw new Error('Authentication required');
       }
 
       const username = selectedChat.id.replace('instagram:', '');
-      
-      console.log('Sending message:', { 
-        to: username,
-        message: messageToSend 
-      });
+
+      console.log('Sending message:', { to: username, message: messageToSend });
 
       const response = await fetch('https://api.automation365.io/send-message', {
         method: 'POST',
@@ -614,17 +688,24 @@ const Messages = () => {
 
       const result = await response.json();
       console.log('Send message response:', result);
-      
-      await fetchChatHistory(true);
-      
+
+      // Replace temp message with confirmed one
+      setSelectedChat(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg.temp && msg.message === messageToSend
+            ? { ...msg, temp: false }
+            : msg
+        )
+      }));
     } catch (err) {
       console.error('Error sending message:', err);
-      
+
       setSelectedChat(prev => ({
         ...prev,
         messages: prev.messages.filter(msg => !msg.temp)
       }));
-      
+
       setMessageInput(messageToSend);
       alert('Failed to send message. Please try again.');
     } finally {
@@ -645,14 +726,8 @@ const Messages = () => {
   const groupedChats = getChatsGroupedByPlatform();
   const filteredChats = filterChats(groupedChats);
 
-  // Get messages in chronological order (oldest first, so newest at bottom)
   const getOrderedMessages = () => {
     if (!selectedChat?.messages) return [];
-    // Messages should be displayed oldest first (top) to newest (bottom)
-    // If API returns newest first, we need to reverse
-    // If API returns oldest first, we use as-is
-    // Based on your code doing .reverse(), it seems API returns oldest first
-    // So we should NOT reverse to show oldest at top, newest at bottom
     return [...selectedChat.messages];
   };
 
@@ -674,7 +749,7 @@ const Messages = () => {
               <div className="text-center">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <p className="text-red-500 mb-4">{error}</p>
-                <button 
+                <button
                   onClick={handleRefresh}
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                 >
@@ -684,22 +759,39 @@ const Messages = () => {
             </div>
           ) : (
             <div className="flex h-full overflow-hidden">
-              {/* Chat List - Fixed height, scrollable */}
+              {/* ── Chat List ── */}
               <div className={`${showChatList ? 'flex' : 'hidden'} md:flex w-full md:w-1/3 border-r h-full flex-col overflow-hidden`}>
                 <div className="p-4 border-b flex-shrink-0">
-                  <h2 className="text-2xl font-semibold mb-4">Messages</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-semibold">Messages</h2>
+                    <div className="flex items-center gap-2">
+                      {/* Socket connection indicator */}
+                      <span
+                        className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`}
+                        title={socketConnected ? 'Real-time connected' : 'Reconnecting...'}
+                      />
+                      <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Refresh messages"
+                      >
+                        <RefreshCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input 
+                    <input
                       type="text"
-                      placeholder="Search chats..." 
+                      placeholder="Search chats..."
                       className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-purple-600"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto">
                   {Object.keys(filteredChats).length === 0 ? (
                     <div className="text-center py-8">
@@ -734,7 +826,7 @@ const Messages = () => {
                     ))
                   )}
                 </div>
-                
+
                 {isRefreshing && (
                   <div className="p-2 border-t bg-gray-50 flex items-center justify-center gap-2 flex-shrink-0">
                     <RefreshCw className="w-4 h-4 animate-spin text-purple-600" />
@@ -743,16 +835,15 @@ const Messages = () => {
                 )}
               </div>
 
-              {/* Chat Area - Fixed height, messages scrollable */}
+              {/* ── Chat Area ── */}
               <div className={`${showChat ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden`}>
                 {selectedChat ? (
                   <>
-                    {/* Chat Header - Fixed */}
+                    {/* Chat Header */}
                     <div className="border-b flex-shrink-0">
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            {/* Back button for mobile */}
                             <button
                               onClick={handleBackToList}
                               className="md:hidden p-2 hover:bg-gray-100 rounded-lg -ml-2"
@@ -760,7 +851,7 @@ const Messages = () => {
                               <ArrowLeft className="w-5 h-5" />
                             </button>
                             <div className="relative">
-                              <img 
+                              <img
                                 src={selectedChat.avatar}
                                 alt={selectedChat.name}
                                 className="w-10 h-10 rounded-full object-cover"
@@ -776,10 +867,10 @@ const Messages = () => {
                               </div>
                             </div>
                           </div>
-                          <button 
+                          <button
                             className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${
-                              chatPaused 
-                                ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' 
+                              chatPaused
+                                ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700'
                                 : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'
                             } ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`}
                             onClick={handleTogglePause}
@@ -793,10 +884,10 @@ const Messages = () => {
                               <Pause className="w-4 h-4" />
                             )}
                             <span className="hidden sm:inline">
-                              {togglingPause 
-                                ? 'Loading...' 
-                                : chatPaused 
-                                  ? 'Resume' 
+                              {togglingPause
+                                ? 'Loading...'
+                                : chatPaused
+                                  ? 'Resume'
                                   : 'Pause'
                               }
                             </span>
@@ -811,20 +902,20 @@ const Messages = () => {
                       </div>
                     </div>
 
-                    {/* Messages - Scrollable */}
-                    <div 
+                    {/* Messages */}
+                    <div
                       ref={messagesContainerRef}
                       className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4"
                     >
                       {selectedChat.messages && selectedChat.messages.length > 0 ? (
                         getOrderedMessages().map((msg, index) => (
-                          <div 
-                            key={`${msg.timestamp}_${index}_${msg.sender_id || 'no-id'}`} 
+                          <div
+                            key={`${msg.timestamp}_${index}_${msg.sender_id || 'no-id'}`}
                             className={`flex gap-3 ${msg.direction === 'outgoing' ? 'justify-end' : ''} 
                               ${msg.temp ? 'opacity-70' : ''}`}
                           >
                             {msg.direction === 'incoming' && (
-                              <img 
+                              <img
                                 src={selectedChat.avatar}
                                 alt={selectedChat.name}
                                 className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover"
@@ -836,7 +927,7 @@ const Messages = () => {
                             }`}>
                               {msg.message_type === 'image' && msg.metadata?.image_url ? (
                                 <>
-                                  <img 
+                                  <img
                                     src={msg.metadata.image_url}
                                     alt="Image"
                                     className="max-w-full rounded-lg mb-2"
@@ -845,7 +936,7 @@ const Messages = () => {
                                 </>
                               ) : msg.message_type === 'video' && msg.metadata?.video_url ? (
                                 <>
-                                  <video 
+                                  <video
                                     src={msg.metadata.video_url}
                                     controls
                                     className="max-w-full rounded-lg mb-2"
@@ -884,13 +975,13 @@ const Messages = () => {
                       <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Input Area - Fixed */}
+                    {/* Input Area */}
                     <div className="p-4 border-t flex-shrink-0">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
                           <Mic className="w-5 h-5 text-gray-400 hidden sm:block cursor-pointer hover:text-gray-600" />
-                          <input 
-                            placeholder="Type a message..." 
+                          <input
+                            placeholder="Type a message..."
                             className="flex-1 bg-transparent outline-none min-w-0"
                             value={messageInput}
                             onChange={(e) => setMessageInput(e.target.value)}
@@ -912,7 +1003,7 @@ const Messages = () => {
                             </button>
                           </div>
                         </div>
-                        <button 
+                        <button
                           className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 rounded-lg disabled:opacity-50 flex-shrink-0"
                           onClick={handleSendMessage}
                           disabled={sendingMessage || !messageInput.trim()}
@@ -948,7 +1039,7 @@ const ChatItem = ({ name, message, time, avatar, platform, active, unreadCount, 
   return (
     <div className={`flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${active ? 'bg-purple-50' : ''}`}>
       <div className="relative flex-shrink-0">
-        <img 
+        <img
           src={avatar}
           alt={name}
           className="w-12 h-12 rounded-full object-cover"
@@ -978,7 +1069,7 @@ const ChatItem = ({ name, message, time, avatar, platform, active, unreadCount, 
         <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center flex-shrink-0">
           {unreadCount}
         </span>
-      )} 
+      )}
     </div>
   );
 };

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar as CalendarIcon, User, BadgeCheck, MessageCircle, XCircle, ShoppingBag, DollarSign, Filter, Mail, MessageSquare, Phone, RefreshCw, Bell, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { io } from 'socket.io-client';
 import {
   Popover,
   PopoverContent,
@@ -23,12 +24,14 @@ const NotificationPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [markingAsRead, setMarkingAsRead] = useState({});
   const [filterType, setFilterType] = useState('all');
+  const [socketConnected, setSocketConnected] = useState(false);
   const [notificationChannels, setNotificationChannels] = useState({
     email: true,
     sms: false,
     whatsapp: false,
     call: true
   });
+  const socketRef = useRef(null);
 
   // Get notification type for filtering
   const getNotificationType = (notification) => {
@@ -72,19 +75,87 @@ const NotificationPage = () => {
     return 'New activity recorded';
   };
 
-  // Fetch notifications on mount and set up auto-refresh
+  // Process a raw notification into the shape the UI expects
+  const processNotification = (notif) => {
+    return {
+      ...notif,
+      timestamp: notif.timestamp || notif.created_at || new Date().toISOString(),
+      id: notif.ids || notif.id || notif._id,
+      marked: notif.marked || false,
+      notificationType: getNotificationType(notif),
+      title: getNotificationTitle(notif),
+      message: getNotificationMessage(notif),
+    };
+  };
+
+  // ──────────────────────────────────────────────
+  // Socket.IO — listen for new_notification
+  // ──────────────────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const socket = io('https://api.automation365.io', {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Notification socket connected:', socket.id);
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Notification socket disconnected:', reason);
+      setSocketConnected(false);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Notification socket error:', err.message);
+      setSocketConnected(false);
+    });
+
+    // ── Real-time notification listener ──
+    socket.on('new_notification', (data) => {
+      console.log('New notification received via socket:', data);
+
+      const processed = processNotification(data);
+
+      // Prepend to the list (newest first)
+      setNotifications((prev) => {
+        // Deduplicate — skip if we already have this notification
+        const existingId = processed.id || processed.ids;
+        if (existingId && prev.some(n => (n.id === existingId || n.ids === existingId))) {
+          return prev;
+        }
+        return [processed, ...prev];
+      });
+
+      // Show a toast for the new notification
+      toast.success(processed.title || 'New notification', {
+        duration: 4000,
+        icon: '🔔',
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ──────────────────────────────────────────────
+  // Initial fetch (no more polling)
+  // ──────────────────────────────────────────────
   useEffect(() => {
     fetchNotifications();
-    
-    // Auto-refresh every 60 seconds
-    const interval = setInterval(() => {
-      fetchNotifications(true);
-    }, 60000);
-
-    return () => clearInterval(interval);
   }, []);
 
-  // Fetch notifications from API - using /notification-page endpoint for page visits
   const fetchNotifications = async (silent = false) => {
     try {
       if (!silent) {
@@ -101,7 +172,6 @@ const NotificationPage = () => {
         return;
       }
 
-      // Changed from /notifications to /notification-page for analytics distinction
       const response = await fetch('https://api.automation365.io/notification-page', {
         method: 'GET',
         headers: {
@@ -127,30 +197,10 @@ const NotificationPage = () => {
       console.log('Notifications API Response:', result);
       
       if (result.status === 'success' && result.data) {
-        // Process and sort notifications by timestamp (newest first)
-        const processedNotifications = result.data.map(notif => {
-          const processedNotif = {
-            ...notif,
-            timestamp: notif.timestamp || notif.created_at || new Date().toISOString(),
-            // Ensure we have an id field for operations
-            id: notif.ids || notif.id || notif._id,
-            // Ensure marked field exists
-            marked: notif.marked || false,
-            // Add computed fields for easier access
-            notificationType: getNotificationType(notif),
-            title: getNotificationTitle(notif),
-            message: getNotificationMessage(notif)
-          };
-          
-          console.log('Processing notification:', {
-            original: notif,
-            processed: processedNotif
-          });
-          
-          return processedNotif;
-        }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const processedNotifications = result.data
+          .map(processNotification)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        console.log('All processed notifications:', processedNotifications);
         setNotifications(processedNotifications);
       } else {
         console.warn('Unexpected API response format:', result);
@@ -208,7 +258,6 @@ const NotificationPage = () => {
       const result = await response.json();
       console.log('Mark as read response:', result);
 
-      // Update local state
       setNotifications(prev => 
         prev.map(notif => 
           (notif.id === notificationId || notif.ids === notificationId)
@@ -231,7 +280,6 @@ const NotificationPage = () => {
     const type = notification.Type?.toLowerCase() || notification.type?.toLowerCase();
     const platform = notification.platform?.toLowerCase();
     
-    // Platform-based icons
     if (platform === 'instagram') {
       return <ShoppingBag className="w-4 h-4 text-pink-600" />;
     } else if (platform === 'whatsapp') {
@@ -240,7 +288,6 @@ const NotificationPage = () => {
       return <MessageCircle className="w-4 h-4 text-blue-600" />;
     }
     
-    // Type-based icons
     const icons = {
       'product': <ShoppingBag className="w-4 h-4 text-orange-600" />,
       'order': <ShoppingBag className="w-4 h-4 text-orange-600" />,
@@ -255,17 +302,15 @@ const NotificationPage = () => {
     return icons[type] || <Bell className="w-4 h-4 text-gray-600" />;
   };
 
-  // Get background color for avatar based on platform/type
+  // Get background color for avatar
   const getAvatarColor = (notification) => {
     const platform = notification.platform?.toLowerCase();
     const type = notification.Type?.toLowerCase() || notification.type?.toLowerCase();
     
-    // Platform-based colors
     if (platform === 'instagram') return 'E4405F';
     if (platform === 'whatsapp') return '25D366';
     if (platform === 'facebook' || platform === 'messenger') return '1877F2';
     
-    // Type-based colors
     const colors = {
       'product': 'f97316',
       'order': 'f97316',
@@ -301,7 +346,7 @@ const NotificationPage = () => {
     }
   };
 
-  // Filter notifications based on selected filter
+  // Filter notifications
   const filterNotifications = () => {
     let filtered = [...notifications];
     
@@ -311,20 +356,10 @@ const NotificationPage = () => {
         if (filterType === 'read') return notif.marked;
         
         const notificationType = getNotificationType(notif);
-        const matches = notificationType === filterType;
-        
-        console.log('Filtering notification:', {
-          notification: notif,
-          filterType,
-          notificationType,
-          matches
-        });
-        
-        return matches;
+        return notificationType === filterType;
       });
     }
     
-    console.log('Filtered notifications:', filtered);
     return filtered;
   };
 
@@ -352,7 +387,6 @@ const NotificationPage = () => {
         grouped[dateKey].push(notif);
       } catch (error) {
         console.error('Error grouping notification by date:', notif, error);
-        // Add to "Unknown" group for invalid dates
         if (!grouped['Unknown']) {
           grouped['Unknown'] = [];
         }
@@ -370,7 +404,6 @@ const NotificationPage = () => {
       [channel]: !prev[channel]
     }));
     
-    // TODO: Send channel preferences to backend when endpoint is available
     console.log('Channel preferences updated:', { [channel]: !notificationChannels[channel] });
   };
 
@@ -440,13 +473,20 @@ const NotificationPage = () => {
                         </span>
                       )}
                     </h2>
-                    <button
-                      onClick={() => fetchNotifications()}
-                      disabled={isRefreshing}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <RefreshCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Socket connection indicator */}
+                      <span
+                        className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`}
+                        title={socketConnected ? 'Real-time connected' : 'Reconnecting...'}
+                      />
+                      <button
+                        onClick={() => fetchNotifications()}
+                        disabled={isRefreshing}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <RefreshCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Popover>
