@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Calendar as CalendarIcon, User, BadgeCheck, MessageCircle, XCircle, ShoppingBag, DollarSign, Filter, Mail, MessageSquare, Phone, RefreshCw, Bell, AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, User, BadgeCheck, MessageCircle, XCircle, ShoppingBag, DollarSign, Mail, MessageSquare, Phone, RefreshCw, Bell, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useSocket } from '../context/SocketContext';
 import {
@@ -17,7 +17,7 @@ import Header from '../components/Header';
 
 const NotificationPage = () => {
   const navigate = useNavigate();
-  const { socket, connected: socketConnected } = useSocket();
+  const { socket, connected: socketConnected, connect } = useSocket();
 
   const [date, setDate] = useState(new Date());
   const [notifications, setNotifications] = useState([]);
@@ -68,12 +68,20 @@ const NotificationPage = () => {
     message: getNotificationMessage(notif),
   });
 
+  // ── Connect socket when this page mounts ──
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && !socketConnected) {
+      connect();
+    }
+  }, [connect, socketConnected]);
+
   // ── Socket listener for real-time notifications ──
   useEffect(() => {
     if (!socket) return;
 
     const handleNewNotification = (data) => {
-      console.log('New notification received via socket:', data);
+      console.log('New notification via socket:', data);
       const processed = processNotification(data);
 
       setNotifications((prev) => {
@@ -105,8 +113,8 @@ const NotificationPage = () => {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
-      if (response.status === 401) { toast.error('Session expired. Please login again.'); localStorage.removeItem('token'); navigate('/login'); return; }
-      if (!response.ok) { const errorText = await response.text(); throw new Error(`Failed to fetch notifications (${response.status})`); }
+      if (response.status === 401) { toast.error('Session expired.'); localStorage.removeItem('token'); navigate('/login'); return; }
+      if (!response.ok) throw new Error(`Failed to fetch notifications (${response.status})`);
 
       const result = await response.json();
       if (result.status === 'success' && result.data) {
@@ -140,7 +148,7 @@ const NotificationPage = () => {
 
       setNotifications(prev => prev.map(n => (n.id === notificationId || n.ids === notificationId) ? { ...n, marked: true } : n));
       toast.success('Notification marked as read');
-    } catch (err) { console.error('Error marking notification as read:', err); toast.error('Failed to mark notification as read'); }
+    } catch (err) { console.error(err); toast.error('Failed to mark notification as read'); }
     finally { setMarkingAsRead(prev => ({ ...prev, [notificationId]: false })); }
   };
 

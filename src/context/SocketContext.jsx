@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
+const SOCKET_URL = 'https://api.automation365.io';
+
 const SocketContext = createContext({
   socket: null,
   connected: false,
@@ -12,28 +14,26 @@ export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
   const [connected, setConnected] = useState(false);
+  const [version, setVersion] = useState(0);
   const socketRef = useRef(null);
 
-  // Connect the socket — call this explicitly after login
   const connect = useCallback(() => {
-    // Don't double-connect
     if (socketRef.current?.connected) return;
 
     const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('[Socket] No token found — cannot connect');
+      console.warn('[Socket] No token — cannot connect');
       return;
     }
 
-    // Clean up any lingering socket before creating a new one
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
 
-    console.log('[Socket] Connecting to https://api.automation365.io ...');
+    console.log('[Socket] Connecting to', SOCKET_URL);
 
-    const socket = io('https://api.automation365.io', {
+    const socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -55,28 +55,26 @@ export const SocketProvider = ({ children }) => {
     socket.on('connect_error', (err) => {
       console.error('[Socket] Connection error:', err.message);
       setConnected(false);
-
-      // If the server rejects the token, stop retrying
       if (err.message?.includes('401') || err.message?.includes('unauthorized')) {
-        console.warn('[Socket] Auth rejected — stopping reconnection');
+        console.warn('[Socket] Auth rejected — stopping');
         socket.disconnect();
       }
     });
 
     socketRef.current = socket;
+    setVersion(v => v + 1);
   }, []);
 
-  // Disconnect the socket — call this explicitly on logout
   const disconnect = useCallback(() => {
     if (socketRef.current) {
-      console.log('[Socket] Manually disconnecting');
+      console.log('[Socket] Disconnecting');
       socketRef.current.disconnect();
       socketRef.current = null;
       setConnected(false);
+      setVersion(v => v + 1);
     }
   }, []);
 
-  // Cleanup on unmount only (no auto-connect)
   useEffect(() => {
     return () => {
       if (socketRef.current) {
@@ -86,15 +84,8 @@ export const SocketProvider = ({ children }) => {
     };
   }, []);
 
-  const value = {
-    socket: socketRef.current,
-    connected,
-    connect,
-    disconnect,
-  };
-
   return (
-    <SocketContext.Provider value={value}>
+    <SocketContext.Provider value={{ socket: socketRef.current, connected, connect, disconnect }}>
       {children}
     </SocketContext.Provider>
   );

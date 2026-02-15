@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw, CheckCheck, Check } from 'lucide-react';
-import { useSocket } from '../../context/SocketContext';
+import { useSocket } from '../context/SocketContext';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
 
 const Messages = () => {
-  const { socket, connected: socketConnected } = useSocket();
+  const { socket, connected: socketConnected, connect } = useSocket();
 
   const [showChatList, setShowChatList] = useState(true);
   const [showChat, setShowChat] = useState(false);
@@ -38,12 +38,20 @@ const Messages = () => {
     if (selectedChat?.messages) setTimeout(() => scrollToBottom(), 100);
   }, [selectedChat?.messages, scrollToBottom]);
 
+  // ── Connect socket when this page mounts ──
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && !socketConnected) {
+      connect();
+    }
+  }, [connect, socketConnected]);
+
   // ── Socket listener for real-time chat messages ──
   useEffect(() => {
     if (!socket) return;
 
     const handleNewMessage = (messageData) => {
-      console.log('New chat message received via socket:', messageData);
+      console.log('New chat message via socket:', messageData);
 
       const chatKey = messageData.chat_id
         || messageData.chatId
@@ -52,7 +60,7 @@ const Messages = () => {
           : null);
 
       if (!chatKey) {
-        console.warn('Received message without identifiable chat key:', messageData);
+        console.warn('Message without chat key:', messageData);
         return;
       }
 
@@ -107,18 +115,20 @@ const Messages = () => {
       if (!response.ok) throw new Error(`Failed to fetch messages (${response.status})`);
 
       const result = await response.json();
+
       if (result.status === 'success' && result.data) {
         setChatData(result.data);
 
-        if (selectedChat && result.data.messages) {
-          const updatedMessages = result.data.messages[selectedChat.id];
+        if (selectedChatRef.current && result.data.messages) {
+          const chatId = selectedChatRef.current.id;
+          const updatedMessages = result.data.messages[chatId];
           if (updatedMessages) {
             setSelectedChat(prev => ({
-              ...prev, messages: updatedMessages,
+              ...prev,
+              messages: updatedMessages,
               instagramUserId: updatedMessages.find(m => m.sender_id)?.sender_id || prev.instagramUserId
             }));
-            const isPaused = updatedMessages.some(msg => msg.metadata?.automation_paused) || pausedChats.has(selectedChat.id);
-            setChatPaused(isPaused);
+            // DON'T reset chatPaused here — let pause/play handle their own state
           }
         }
       } else {
@@ -146,9 +156,9 @@ const Messages = () => {
       });
 
       if (response.status === 401) { localStorage.clear(); sessionStorage.clear(); window.location.href = '/login'; return; }
-      if (!response.ok) throw new Error(`Failed to mark messages as read (${response.status})`);
+      if (!response.ok) throw new Error(`Failed to mark messages as read`);
 
-      if (selectedChat) {
+      if (selectedChatRef.current) {
         setSelectedChat(prev => ({
           ...prev,
           messages: prev.messages.map(msg =>
@@ -157,17 +167,19 @@ const Messages = () => {
         }));
       }
 
-      if (chatData?.messages) {
+      setChatData(prev => {
+        if (!prev?.messages) return prev;
         const key = `instagram:${username}`;
-        const updated = { ...chatData.messages };
+        const updated = { ...prev.messages };
         if (updated[key]) {
           updated[key] = updated[key].map(msg =>
             messageIds.includes(msg.sender_id) ? { ...msg, metadata: { ...msg.metadata, read: true } } : msg
           );
         }
-        setChatData(prev => ({ ...prev, messages: updated }));
-        setReadChatIds(prev => new Set([...prev, key]));
-      }
+        return { ...prev, messages: updated };
+      });
+
+      setReadChatIds(prev => new Set([...prev, `instagram:${username}`]));
     } catch (err) { console.error('Error marking messages as read:', err); }
     finally { setMarkingAsRead(false); }
   };
@@ -195,7 +207,11 @@ const Messages = () => {
 
     setSelectedChat(chat);
     setShowChat(true);
-    setChatPaused(messages.some(msg => msg.metadata?.automation_paused) || pausedChats.has(chatId));
+
+    // Set paused state from metadata or local tracking
+    const isPausedFromMetadata = messages.some(msg => msg.metadata?.automation_paused);
+    const isPausedLocally = pausedChats.has(chatId);
+    setChatPaused(isPausedFromMetadata || isPausedLocally);
 
     const unread = messages.filter(msg => msg.direction === 'incoming' && (!msg.metadata || !msg.metadata.read));
     if (unread.length > 0) {
@@ -207,61 +223,111 @@ const Messages = () => {
     setTimeout(() => scrollToBottom(), 150);
   };
 
-  // ── Pause chat (sends sender_id) ──
+  // ──────────────────────────────────────────────
+  // Pause chat — FIXED: no fetchChatHistory that
+  // would reset chatPaused, immediate state update
+  // ──────────────────────────────────────────────
   const pauseChat = async () => {
     if (!selectedChat || togglingPause) return;
     setTogglingPause(true);
+
+    // Optimistically update UI immediately
+    setChatPaused(true);
+    setPausedChats(prev => new Set([...prev, selectedChat.id]));
+
     try {
       const token = localStorage.getItem('token');
       if (!token) { window.location.href = '/login'; return; }
+
       const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
       const senderId = selectedChat.instagramUserId;
-      if (!senderId) console.warn('No sender_id available — pause may fail');
+
+      console.log('Pausing chat:', { username, sender_id: senderId });
+      if (!senderId) console.warn('No sender_id — pause may fail on backend');
 
       const response = await fetch('https://instagram.automation365.io/pause-chat', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, sender_id: senderId || null })
       });
-      if (response.status === 401) { localStorage.clear(); sessionStorage.clear(); window.location.href = '/login'; return; }
-      let result = {}; try { result = await response.json(); } catch (e) {}
-      if (!response.ok) throw new Error(result.error || result.message || `Failed to pause chat (${response.status})`);
 
-      setChatPaused(true);
-      setPausedChats(prev => new Set([...prev, selectedChat.id]));
-      await fetchChatHistory(true);
-    } catch (err) { console.error('Error pausing chat:', err); alert(`Failed to pause automation: ${err.message}`); }
-    finally { setTogglingPause(false); }
+      if (response.status === 401) { localStorage.clear(); sessionStorage.clear(); window.location.href = '/login'; return; }
+
+      let result = {};
+      try { result = await response.json(); } catch (e) { /* ignore */ }
+
+      if (!response.ok) {
+        // Revert optimistic update on failure
+        setChatPaused(false);
+        setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat.id); return s; });
+        throw new Error(result.error || result.message || `Failed to pause chat (${response.status})`);
+      }
+
+      console.log('Pause response:', result);
+    } catch (err) {
+      console.error('Error pausing chat:', err);
+      alert(`Failed to pause automation: ${err.message}`);
+    } finally {
+      setTogglingPause(false);
+    }
   };
 
-  // ── Resume / play chat (sends sender_id) ──
+  // ──────────────────────────────────────────────
+  // Resume / play chat — FIXED: same pattern
+  // ──────────────────────────────────────────────
   const playChat = async () => {
     if (!selectedChat || togglingPause) return;
     setTogglingPause(true);
+
+    // Optimistically update UI immediately
+    setChatPaused(false);
+    setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat.id); return s; });
+
     try {
       const token = localStorage.getItem('token');
       if (!token) { window.location.href = '/login'; return; }
+
       const username = selectedChat.username || selectedChat.id.replace('instagram:', '');
       const senderId = selectedChat.instagramUserId;
-      if (!senderId) console.warn('No sender_id available — resume may fail');
+
+      console.log('Resuming chat:', { username, sender_id: senderId });
+      if (!senderId) console.warn('No sender_id — resume may fail on backend');
 
       const response = await fetch('https://instagram.automation365.io/play-chat', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, sender_id: senderId || null })
       });
-      if (response.status === 401) { localStorage.clear(); sessionStorage.clear(); window.location.href = '/login'; return; }
-      let result = {}; try { result = await response.json(); } catch (e) {}
-      if (!response.ok) throw new Error(result.error || result.message || `Failed to resume chat (${response.status})`);
 
-      setChatPaused(false);
-      setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat.id); return s; });
-      await fetchChatHistory(true);
-    } catch (err) { console.error('Error resuming chat:', err); alert(`Failed to resume automation: ${err.message}`); }
-    finally { setTogglingPause(false); }
+      if (response.status === 401) { localStorage.clear(); sessionStorage.clear(); window.location.href = '/login'; return; }
+
+      let result = {};
+      try { result = await response.json(); } catch (e) { /* ignore */ }
+
+      if (!response.ok) {
+        // Revert optimistic update on failure
+        setChatPaused(true);
+        setPausedChats(prev => new Set([...prev, selectedChat.id]));
+        throw new Error(result.error || result.message || `Failed to resume chat (${response.status})`);
+      }
+
+      console.log('Play response:', result);
+    } catch (err) {
+      console.error('Error resuming chat:', err);
+      alert(`Failed to resume automation: ${err.message}`);
+    } finally {
+      setTogglingPause(false);
+    }
   };
 
-  const handleTogglePause = () => chatPaused ? playChat() : pauseChat();
+  const handleTogglePause = () => {
+    if (togglingPause) return; // Extra guard against double-clicks
+    if (chatPaused) {
+      playChat();
+    } else {
+      pauseChat();
+    }
+  };
 
   // ── Helpers ──
   const getChatsGroupedByPlatform = () => {
@@ -300,7 +366,11 @@ const Messages = () => {
     if (!searchQuery.trim()) return chats;
     const filtered = {};
     Object.entries(chats).forEach(([platform, list]) => {
-      const f = list.filter(c => c.displayName.toLowerCase().includes(searchQuery.toLowerCase()) || c.username.toLowerCase().includes(searchQuery.toLowerCase()) || c.latestMessage.toLowerCase().includes(searchQuery.toLowerCase()));
+      const f = list.filter(c =>
+        c.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.latestMessage.toLowerCase().includes(searchQuery.toLowerCase())
+      );
       if (f.length > 0) filtered[platform] = f;
     });
     return filtered;
@@ -425,7 +495,10 @@ const Messages = () => {
                               <div className="flex items-center gap-1 text-green-500 text-sm"><span>Active now</span>{getPlatformIcon(selectedChat.platform)}</div>
                             </div>
                           </div>
-                          <button className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${chatPaused ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'} ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`} onClick={handleTogglePause} disabled={togglingPause}>
+                          <button
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${chatPaused ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'} ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            onClick={handleTogglePause} disabled={togglingPause}
+                          >
                             {togglingPause ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div> : chatPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                             <span className="hidden sm:inline">{togglingPause ? 'Loading...' : chatPaused ? 'Resume' : 'Pause'}</span>
                           </button>
