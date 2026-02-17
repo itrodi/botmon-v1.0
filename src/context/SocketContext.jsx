@@ -18,6 +18,7 @@ export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
 
   const connect = useCallback(() => {
+    // Already connected — skip
     if (socketRef.current?.connected) {
       console.log('[Socket] Already connected:', socketRef.current.id);
       return;
@@ -36,11 +37,12 @@ export const SocketProvider = ({ children }) => {
       socketRef.current = null;
     }
 
-    console.log('[Socket] Connecting to', SOCKET_URL);
+    console.log('[Socket] Connecting to', SOCKET_URL, 'with token:', token.substring(0, 20) + '...');
 
+    // ── Matches backend tester EXACTLY ──
     const newSocket = io(SOCKET_URL, {
       transports: ['websocket'],
-      query: { token },           // Backend reads token from query params
+      query: { token: token },
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
@@ -48,17 +50,17 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect', () => {
-      console.log('[Socket] Connected — id:', newSocket.id);
+      console.log('[Socket] ✅ Connected — id:', newSocket.id);
       setConnected(true);
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('[Socket] Disconnected:', reason);
+      console.log('[Socket] ⚠️ Disconnected:', reason);
       setConnected(false);
     });
 
     newSocket.on('connect_error', (err) => {
-      console.error('[Socket] Connection error:', err.message);
+      console.error('[Socket] ❌ Connection error:', err.message);
       setConnected(false);
 
       if (err.message?.includes('401') || err.message?.includes('unauthorized')) {
@@ -82,6 +84,15 @@ export const SocketProvider = ({ children }) => {
     }
   }, []);
 
+  // ── AUTO-CONNECT: connect immediately if token exists ──
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      connect();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (socketRef.current) {

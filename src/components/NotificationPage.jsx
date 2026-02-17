@@ -17,7 +17,7 @@ import Header from '../components/Header';
 
 const NotificationPage = () => {
   const navigate = useNavigate();
-  const { socket, connected: socketConnected, connect } = useSocket();
+  const { socket, connected: socketConnected } = useSocket();
 
   const [date, setDate] = useState(new Date());
   const [notifications, setNotifications] = useState([]);
@@ -68,20 +68,12 @@ const NotificationPage = () => {
     message: getNotificationMessage(notif),
   });
 
-  // ── Connect socket when this page mounts ──
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token && !socketConnected) {
-      connect();
-    }
-  }, [connect, socketConnected]);
-
   // ── Socket listener for real-time notifications ──
   useEffect(() => {
     if (!socket) return;
 
     const handleNewNotification = (data) => {
-      console.log('New notification via socket:', data);
+      console.log('[Socket] new_notification:', data);
       const processed = processNotification(data);
 
       setNotifications((prev) => {

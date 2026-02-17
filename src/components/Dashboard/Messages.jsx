@@ -8,7 +8,7 @@ const API_BASE = 'https://api.automation365.io';
 const INSTAGRAM_API = 'https://instagram.automation365.io';
 
 const Messages = () => {
-  const { socket, connected: socketConnected, connect } = useSocket();
+  const { socket, connected: socketConnected } = useSocket();
 
   // ── Conversation list state ──
   const [conversations, setConversations] = useState([]);
@@ -67,12 +67,6 @@ const Messages = () => {
     }
   }, [messages, scrollToBottom, loadingOlderMessages]);
 
-  // ── Connect socket on mount ──
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token && !socketConnected) connect();
-  }, [connect, socketConnected]);
-
   // ──────────────────────────────────────────────
   // Socket: listen for real-time messages
   // ──────────────────────────────────────────────
@@ -80,7 +74,7 @@ const Messages = () => {
     if (!socket) return;
 
     const handleNewMessage = (messageData) => {
-      console.log('New chat message via socket:', messageData);
+      console.log('[Socket] new_chat_message:', messageData);
 
       const newMessage = {
         _id: messageData._id || messageData.id || '',
@@ -91,11 +85,10 @@ const Messages = () => {
         sender_id: messageData.sender_id || '',
       };
 
-      // Determine which conversation this belongs to
       const msgUsername = messageData.username || messageData.chat_with;
       const msgConversationId = messageData.conversation_id || messageData.chat_id;
 
-      // Update conversation list (bump to top, update last_message)
+      // Update conversation list — bump to top, update last_message
       setConversations(prev => {
         const updated = prev.map(conv => {
           const isMatch = (msgConversationId && conv._id === msgConversationId)
@@ -113,7 +106,6 @@ const Messages = () => {
           }
           return conv;
         });
-        // Sort by timestamp descending
         return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
 
@@ -125,7 +117,6 @@ const Messages = () => {
 
         if (isCurrentChat) {
           setMessages(prev => {
-            // Deduplicate
             if (newMessage._id && prev.some(m => m._id === newMessage._id)) return prev;
             return [...prev, newMessage];
           });
@@ -134,8 +125,17 @@ const Messages = () => {
       }
     };
 
+    const handleNewNotification = (data) => {
+      console.log('[Socket] new_notification:', data);
+    };
+
     socket.on('new_chat_message', handleNewMessage);
-    return () => { socket.off('new_chat_message', handleNewMessage); };
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('new_chat_message', handleNewMessage);
+      socket.off('new_notification', handleNewNotification);
+    };
   }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ──────────────────────────────────────────────
@@ -170,7 +170,6 @@ const Messages = () => {
         const pagination = result.data.pagination || {};
 
         if (cursor) {
-          // Appending more conversations
           setConversations(prev => [...prev, ...newConversations]);
         } else {
           setConversations(newConversations);
@@ -218,7 +217,6 @@ const Messages = () => {
       const pagination = result.pagination || {};
 
       if (cursor) {
-        // Prepend older messages
         setMessages(prev => [...newMessages, ...prev]);
       } else {
         setMessages(newMessages);
@@ -227,11 +225,9 @@ const Messages = () => {
       setMessagesCursor(pagination.next_cursor || null);
       setHasMoreMessages(pagination.has_next || false);
 
-      // Update selected chat with profile info from response
       if (!cursor && result.profile_picture) {
         setSelectedChat(prev => prev ? { ...prev, avatar: result.profile_picture } : prev);
       }
-
     } catch (err) {
       console.error('Error fetching messages:', err);
     } finally {
@@ -258,8 +254,6 @@ const Messages = () => {
     setMessages([]);
     setMessagesCursor(null);
     setHasMoreMessages(false);
-
-    // Check paused state
     setChatPaused(pausedChats.has(conversation._id));
 
     // Reset unread count locally
@@ -267,22 +261,18 @@ const Messages = () => {
       prev.map(c => c._id === conversation._id ? { ...c, unread_count: 0 } : c)
     );
 
-    // Fetch messages for this conversation
     fetchMessages(conversation._id);
 
     if (window.innerWidth <= 768) setShowChatList(false);
   };
 
-  // ──────────────────────────────────────────────
-  // Load older messages (scroll up pagination)
-  // ──────────────────────────────────────────────
+  // ── Load older messages ──
   const loadOlderMessages = () => {
     if (!selectedChat?._id || !hasMoreMessages || loadingOlderMessages) return;
     const container = messagesContainerRef.current;
     const prevHeight = container?.scrollHeight || 0;
 
     fetchMessages(selectedChat._id, messagesCursor).then(() => {
-      // Maintain scroll position after prepending
       if (container) {
         requestAnimationFrame(() => {
           container.scrollTop = container.scrollHeight - prevHeight;
@@ -299,7 +289,6 @@ const Messages = () => {
     setSendingMessage(true);
     const msg = messageInput.trim();
 
-    // Optimistic temp message
     const temp = {
       _id: `temp_${Date.now()}`,
       message: msg,
@@ -327,12 +316,10 @@ const Messages = () => {
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to send message (${response.status})`);
 
-      // Mark temp as confirmed
       setMessages(prev => prev.map(m =>
         m._id === temp._id ? { ...m, temp: false, _id: '' } : m
       ));
 
-      // Update conversation list
       setConversations(prev => {
         const updated = prev.map(c =>
           c._id === selectedChat._id
@@ -346,9 +333,7 @@ const Messages = () => {
       setMessages(prev => prev.filter(m => m._id !== temp._id));
       setMessageInput(msg);
       alert('Failed to send message. Please try again.');
-    } finally {
-      setSendingMessage(false);
-    }
+    } finally { setSendingMessage(false); }
   };
 
   // ──────────────────────────────────────────────
@@ -377,7 +362,6 @@ const Messages = () => {
         setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; });
         throw new Error(result.error || result.message || `Failed to pause (${response.status})`);
       }
-      console.log('Pause success:', result);
     } catch (err) {
       console.error('Error pausing:', err);
       alert(`Failed to pause: ${err.message}`);
@@ -410,7 +394,6 @@ const Messages = () => {
         setPausedChats(prev => new Set([...prev, selectedChat._id]));
         throw new Error(result.error || result.message || `Failed to resume (${response.status})`);
       }
-      console.log('Resume success:', result);
     } catch (err) {
       console.error('Error resuming:', err);
       alert(`Failed to resume: ${err.message}`);
@@ -444,9 +427,12 @@ const Messages = () => {
   const handleBackToList = () => { setShowChatList(true); setShowChat(false); setSelectedChat(null); setMessages([]); };
   const handleRefresh = () => fetchConversations(null, true);
 
-  // ──────────────────────────────────────────────
-  // Render
-  // ──────────────────────────────────────────────
+  /*
+   * ── MESSAGE ALIGNMENT ──
+   * outgoing = bot/user's automated replies → LEFT side (gray bubble)
+   * incoming = customer/client messages    → RIGHT side (purple bubble)
+   */
+
   return (
     <div className="flex bg-gray-100 h-screen overflow-hidden">
       <Sidebar />
@@ -574,18 +560,14 @@ const Messages = () => {
                       </div>
                     </div>
 
-                    {/* Messages */}
+                    {/* Messages area */}
                     <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-                      {/* Load older messages button */}
+                      {/* Load older messages */}
                       {hasMoreMessages && (
                         <div className="text-center">
                           <button onClick={loadOlderMessages} disabled={loadingOlderMessages}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50">
-                            {loadingOlderMessages ? (
-                              <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div>
-                            ) : (
-                              <ChevronUp className="w-4 h-4" />
-                            )}
+                            {loadingOlderMessages ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div> : <ChevronUp className="w-4 h-4" />}
                             Load older messages
                           </button>
                         </div>
@@ -596,31 +578,63 @@ const Messages = () => {
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                         </div>
                       ) : messages.length > 0 ? (
-                        messages.map((msg, i) => (
-                          <div key={msg._id || `${msg.timestamp}_${i}`} className={`flex gap-3 ${msg.direction === 'outgoing' ? 'justify-end' : ''} ${msg.temp ? 'opacity-70' : ''}`}>
-                            {msg.direction === 'incoming' && (
-                              <img src={selectedChat.avatar} alt={selectedChat.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />
-                            )}
-                            <div className={`rounded-lg p-3 max-w-[80%] sm:max-w-md ${msg.direction === 'outgoing' ? 'bg-purple-600 text-white' : 'bg-gray-100'}`}>
-                              {msg.type === 'image' && msg.metadata?.image_url ? (
-                                <><img src={msg.metadata.image_url} alt="Image" className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
-                              ) : msg.type === 'video' && msg.metadata?.video_url ? (
-                                <><video src={msg.metadata.video_url} controls className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
-                              ) : (
-                                <p className={msg.direction === 'outgoing' ? 'text-white' : ''}>{msg.message}</p>
+                        messages.map((msg, i) => {
+                          /*
+                           * ALIGNMENT:
+                           * outgoing (bot/user replies) → LEFT side, gray bubble
+                           * incoming (customer messages) → RIGHT side, purple bubble
+                           */
+                          const isOutgoing = msg.direction === 'outgoing';
+                          const isIncoming = msg.direction === 'incoming';
+
+                          return (
+                            <div
+                              key={msg._id || `${msg.timestamp}_${i}`}
+                              className={`flex gap-3 ${isIncoming ? 'justify-end' : 'justify-start'} ${msg.temp ? 'opacity-70' : ''}`}
+                            >
+                              {/* Bot avatar on left for outgoing (bot) messages */}
+                              {isOutgoing && (
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                                  <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                                </div>
                               )}
-                              <div className={`flex items-center justify-between mt-1 ${msg.direction === 'outgoing' ? 'text-purple-200' : 'text-gray-500'}`}>
-                                <p className="text-xs">
-                                  {formatTime(msg.timestamp)}
-                                  {msg.temp && <span className="ml-1">(Sending...)</span>}
+
+                              <div className={`rounded-lg p-3 max-w-[80%] sm:max-w-md ${
+                                isIncoming
+                                  ? 'bg-purple-600 text-white'   /* Customer → right, purple */
+                                  : 'bg-gray-100 text-gray-900'  /* Bot → left, gray */
+                              }`}>
+                                {/* Label */}
+                                <p className={`text-xs font-medium mb-1 ${isIncoming ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  {isIncoming ? selectedChat.name : 'Bot'}
                                 </p>
-                                {msg.direction === 'outgoing' && !msg.temp && (
-                                  <span className="ml-2">{msg.metadata?.read ? <CheckCheck className="w-4 h-4" /> : <Check className="w-4 h-4" />}</span>
+
+                                {msg.type === 'image' && msg.metadata?.image_url ? (
+                                  <><img src={msg.metadata.image_url} alt="Image" className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
+                                ) : msg.type === 'video' && msg.metadata?.video_url ? (
+                                  <><video src={msg.metadata.video_url} controls className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
+                                ) : (
+                                  <p>{msg.message}</p>
                                 )}
+
+                                <div className={`flex items-center justify-between mt-1 ${isIncoming ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  <p className="text-xs">
+                                    {formatTime(msg.timestamp)}
+                                    {msg.temp && <span className="ml-1">(Sending...)</span>}
+                                  </p>
+                                  {isOutgoing && !msg.temp && (
+                                    <span className="ml-2">{msg.metadata?.read ? <CheckCheck className="w-4 h-4" /> : <Check className="w-4 h-4" />}</span>
+                                  )}
+                                </div>
                               </div>
+
+                              {/* Customer avatar on right for incoming messages */}
+                              {isIncoming && (
+                                <img src={selectedChat.avatar} alt={selectedChat.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />
+                              )}
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="text-center py-8">
                           <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
