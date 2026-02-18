@@ -10,13 +10,11 @@ const INSTAGRAM_API = 'https://instagram.automation365.io';
 const Messages = () => {
   const { socket, connected: socketConnected } = useSocket();
 
-  // ── Conversation list state ──
   const [conversations, setConversations] = useState([]);
   const [conversationsCursor, setConversationsCursor] = useState(null);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
 
-  // ── Selected chat state ──
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messagesCursor, setMessagesCursor] = useState(null);
@@ -24,7 +22,6 @@ const Messages = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
 
-  // ── UI state ──
   const [showChatList, setShowChatList] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +39,6 @@ const Messages = () => {
 
   useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
 
-  // ── Helpers ──
   const getToken = () => {
     const token = localStorage.getItem('token');
     if (!token) { window.location.href = '/login'; return null; }
@@ -50,9 +46,7 @@ const Messages = () => {
   };
 
   const handleAuthError = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = '/login';
+    localStorage.clear(); sessionStorage.clear(); window.location.href = '/login';
   };
 
   const scrollToBottom = useCallback(() => {
@@ -62,19 +56,38 @@ const Messages = () => {
   }, []);
 
   useEffect(() => {
-    if (messages.length > 0 && !loadingOlderMessages) {
-      setTimeout(() => scrollToBottom(), 100);
-    }
+    if (messages.length > 0 && !loadingOlderMessages) setTimeout(() => scrollToBottom(), 100);
   }, [messages, scrollToBottom, loadingOlderMessages]);
 
   // ──────────────────────────────────────────────
-  // Socket: listen for real-time messages
+  // DEBUG: Log socket state on every render cycle
   // ──────────────────────────────────────────────
   useEffect(() => {
-    if (!socket) return;
+    console.log('[Messages] Component mounted');
+    console.log('[Messages] socket object:', socket ? 'exists' : 'null');
+    console.log('[Messages] socketConnected:', socketConnected);
+  }, []);
+
+  useEffect(() => {
+    console.log('[Messages] Socket state changed — socket:', socket ? `exists (id: ${socket.id})` : 'null', '| connected:', socketConnected);
+  }, [socket, socketConnected]);
+
+  // ──────────────────────────────────────────────
+  // Socket listeners with debug logging
+  // ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket) {
+      console.log('[Messages] ⏳ No socket yet — waiting for connection...');
+      return;
+    }
+
+    console.log('[Messages] 🔗 Attaching socket listeners. Socket ID:', socket.id, '| Connected:', socket.connected);
 
     const handleNewMessage = (messageData) => {
-      console.log('[Socket] new_chat_message:', messageData);
+      console.log('═══════════════════════════════════════════');
+      console.log('[Messages] 📩 new_chat_message RECEIVED');
+      console.log('[Messages] Raw data:', JSON.stringify(messageData));
+      console.log('═══════════════════════════════════════════');
 
       const newMessage = {
         _id: messageData._id || messageData.id || '',
@@ -88,7 +101,8 @@ const Messages = () => {
       const msgUsername = messageData.username || messageData.chat_with;
       const msgConversationId = messageData.conversation_id || messageData.chat_id;
 
-      // Update conversation list — bump to top, update last_message
+      console.log('[Messages] Parsed — username:', msgUsername, '| conversation_id:', msgConversationId);
+
       setConversations(prev => {
         const updated = prev.map(conv => {
           const isMatch = (msgConversationId && conv._id === msgConversationId)
@@ -100,8 +114,7 @@ const Messages = () => {
               last_message_type: newMessage.type,
               timestamp: newMessage.timestamp,
               unread_count: (selectedChatRef.current?._id === conv._id || selectedChatRef.current?.username === conv.username)
-                ? conv.unread_count
-                : (conv.unread_count || 0) + 1,
+                ? conv.unread_count : (conv.unread_count || 0) + 1,
             };
           }
           return conv;
@@ -109,11 +122,12 @@ const Messages = () => {
         return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
 
-      // If user is viewing this conversation, append message
       const current = selectedChatRef.current;
       if (current) {
         const isCurrentChat = (msgConversationId && current._id === msgConversationId)
           || (msgUsername && current.username === msgUsername);
+
+        console.log('[Messages] Is current chat?', isCurrentChat, '| Current:', current.username, '| Message for:', msgUsername);
 
         if (isCurrentChat) {
           setMessages(prev => {
@@ -125,102 +139,73 @@ const Messages = () => {
       }
     };
 
-    const handleNewNotification = (data) => {
-      console.log('[Socket] new_notification:', data);
-    };
-
     socket.on('new_chat_message', handleNewMessage);
-    socket.on('new_notification', handleNewNotification);
+    console.log('[Messages] ✅ Listener attached for "new_chat_message"');
 
     return () => {
       socket.off('new_chat_message', handleNewMessage);
-      socket.off('new_notification', handleNewNotification);
+      console.log('[Messages] 🔌 Listener removed for "new_chat_message"');
     };
   }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ──────────────────────────────────────────────
-  // Fetch conversations list
-  // ──────────────────────────────────────────────
+  // ── Fetch conversations ──
   useEffect(() => { fetchConversations(); }, []);
 
   const fetchConversations = async (cursor = null, silent = false) => {
     try {
-      if (!silent) setLoadingConversations(true);
-      else setIsRefreshing(true);
+      if (!silent) setLoadingConversations(true); else setIsRefreshing(true);
       setError(null);
-
-      const token = getToken();
-      if (!token) return;
+      const token = getToken(); if (!token) return;
 
       let url = `${API_BASE}/conversations?limit=20`;
       if (cursor) url += `&cursor=${cursor}`;
 
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      console.log('[Messages] Fetching conversations:', url);
 
+      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch conversations (${response.status})`);
 
       const result = await response.json();
-      console.log('Conversations response:', result);
+      console.log('[Messages] Conversations response:', result);
 
       if (result.status === 'success' && result.data) {
         const newConversations = result.data.conversations || [];
         const pagination = result.data.pagination || {};
-
-        if (cursor) {
-          setConversations(prev => [...prev, ...newConversations]);
-        } else {
-          setConversations(newConversations);
-        }
-
+        if (cursor) setConversations(prev => [...prev, ...newConversations]);
+        else setConversations(newConversations);
         setConversationsCursor(pagination.next_cursor || null);
         setHasMoreConversations(pagination.has_next || false);
       }
     } catch (err) {
-      console.error('Error fetching conversations:', err);
+      console.error('[Messages] Error fetching conversations:', err);
       if (!silent) setError(err.message);
-    } finally {
-      setLoadingConversations(false);
-      setIsRefreshing(false);
-    }
+    } finally { setLoadingConversations(false); setIsRefreshing(false); }
   };
 
-  // ──────────────────────────────────────────────
-  // Fetch messages for a conversation
-  // ──────────────────────────────────────────────
+  // ── Fetch messages ──
   const fetchMessages = async (conversationId, cursor = null) => {
     try {
-      if (cursor) setLoadingOlderMessages(true);
-      else setLoadingMessages(true);
-
-      const token = getToken();
-      if (!token) return;
+      if (cursor) setLoadingOlderMessages(true); else setLoadingMessages(true);
+      const token = getToken(); if (!token) return;
 
       let url = `${API_BASE}/get_messages?conversation_id=${conversationId}`;
       if (cursor) url += `&cursor=${cursor}`;
 
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      console.log('[Messages] Fetching messages:', url);
 
+      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch messages (${response.status})`);
 
       const result = await response.json();
-      console.log('Messages response:', result);
+      console.log('[Messages] Messages response:', result);
 
-      const newMessages = (result.messages || []).sort(
-        (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-      );
+      const newMessages = (result.messages || []).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       const pagination = result.pagination || {};
 
-      if (cursor) {
-        setMessages(prev => [...newMessages, ...prev]);
-      } else {
-        setMessages(newMessages);
-      }
+      if (cursor) setMessages(prev => [...newMessages, ...prev]);
+      else setMessages(newMessages);
 
       setMessagesCursor(pagination.next_cursor || null);
       setHasMoreMessages(pagination.has_next || false);
@@ -228,18 +213,14 @@ const Messages = () => {
       if (!cursor && result.profile_picture) {
         setSelectedChat(prev => prev ? { ...prev, avatar: result.profile_picture } : prev);
       }
-    } catch (err) {
-      console.error('Error fetching messages:', err);
-    } finally {
-      setLoadingMessages(false);
-      setLoadingOlderMessages(false);
-    }
+    } catch (err) { console.error('[Messages] Error fetching messages:', err); }
+    finally { setLoadingMessages(false); setLoadingOlderMessages(false); }
   };
 
-  // ──────────────────────────────────────────────
-  // Select a conversation
-  // ──────────────────────────────────────────────
+  // ── Select conversation ──
   const handleChatSelect = (conversation) => {
+    console.log('[Messages] Selected conversation:', conversation.username, '| _id:', conversation._id);
+
     const chat = {
       _id: conversation._id,
       username: conversation.username,
@@ -255,165 +236,93 @@ const Messages = () => {
     setMessagesCursor(null);
     setHasMoreMessages(false);
     setChatPaused(pausedChats.has(conversation._id));
-
-    // Reset unread count locally
-    setConversations(prev =>
-      prev.map(c => c._id === conversation._id ? { ...c, unread_count: 0 } : c)
-    );
-
+    setConversations(prev => prev.map(c => c._id === conversation._id ? { ...c, unread_count: 0 } : c));
     fetchMessages(conversation._id);
-
     if (window.innerWidth <= 768) setShowChatList(false);
   };
 
-  // ── Load older messages ──
   const loadOlderMessages = () => {
     if (!selectedChat?._id || !hasMoreMessages || loadingOlderMessages) return;
     const container = messagesContainerRef.current;
     const prevHeight = container?.scrollHeight || 0;
-
     fetchMessages(selectedChat._id, messagesCursor).then(() => {
-      if (container) {
-        requestAnimationFrame(() => {
-          container.scrollTop = container.scrollHeight - prevHeight;
-        });
-      }
+      if (container) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight - prevHeight; });
     });
   };
 
-  // ──────────────────────────────────────────────
-  // Send message
-  // ──────────────────────────────────────────────
+  // ── Send message ──
   const handleSendMessage = async () => {
     if (!messageInput.trim() || sendingMessage || !selectedChat) return;
     setSendingMessage(true);
     const msg = messageInput.trim();
-
-    const temp = {
-      _id: `temp_${Date.now()}`,
-      message: msg,
-      direction: 'outgoing',
-      timestamp: new Date().toISOString(),
-      type: 'text',
-      sender_id: '',
-      temp: true,
-    };
+    const temp = { _id: `temp_${Date.now()}`, message: msg, direction: 'outgoing', timestamp: new Date().toISOString(), type: 'text', sender_id: '', temp: true };
 
     setMessages(prev => [...prev, temp]);
     setMessageInput('');
     setTimeout(() => scrollToBottom(), 100);
 
     try {
-      const token = getToken();
-      if (!token) return;
-
+      const token = getToken(); if (!token) return;
       const response = await fetch(`${API_BASE}/send-message`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: selectedChat.username, message: msg, platform: 'instagram' })
       });
-
       if (response.status === 401) { handleAuthError(); return; }
-      if (!response.ok) throw new Error(`Failed to send message (${response.status})`);
+      if (!response.ok) throw new Error(`Failed to send (${response.status})`);
 
-      setMessages(prev => prev.map(m =>
-        m._id === temp._id ? { ...m, temp: false, _id: '' } : m
-      ));
-
+      setMessages(prev => prev.map(m => m._id === temp._id ? { ...m, temp: false, _id: '' } : m));
       setConversations(prev => {
-        const updated = prev.map(c =>
-          c._id === selectedChat._id
-            ? { ...c, last_message: msg, last_message_type: 'text', timestamp: new Date().toISOString() }
-            : c
-        );
+        const updated = prev.map(c => c._id === selectedChat._id ? { ...c, last_message: msg, timestamp: new Date().toISOString() } : c);
         return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
     } catch (err) {
-      console.error('Error sending message:', err);
+      console.error('[Messages] Send error:', err);
       setMessages(prev => prev.filter(m => m._id !== temp._id));
       setMessageInput(msg);
-      alert('Failed to send message. Please try again.');
+      alert('Failed to send message.');
     } finally { setSendingMessage(false); }
   };
 
-  // ──────────────────────────────────────────────
-  // Pause — optimistic, revert on failure
-  // ──────────────────────────────────────────────
+  // ── Pause/Play ──
   const pauseChat = async () => {
     if (!selectedChat || togglingPause) return;
-    setTogglingPause(true);
-    setChatPaused(true);
-    setPausedChats(prev => new Set([...prev, selectedChat._id]));
-
+    setTogglingPause(true); setChatPaused(true); setPausedChats(prev => new Set([...prev, selectedChat._id]));
     try {
-      const token = getToken();
-      if (!token) return;
-
+      const token = getToken(); if (!token) return;
       const response = await fetch(`${INSTAGRAM_API}/pause-chat`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: selectedChat.username, sender_id: selectedChat.sender_id || null })
       });
-
       if (response.status === 401) { handleAuthError(); return; }
       let result = {}; try { result = await response.json(); } catch (e) {}
-      if (!response.ok) {
-        setChatPaused(false);
-        setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; });
-        throw new Error(result.error || result.message || `Failed to pause (${response.status})`);
-      }
-    } catch (err) {
-      console.error('Error pausing:', err);
-      alert(`Failed to pause: ${err.message}`);
-    } finally { setTogglingPause(false); }
+      if (!response.ok) { setChatPaused(false); setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; }); throw new Error(result.error || `Failed (${response.status})`); }
+    } catch (err) { console.error('Pause error:', err); alert(`Failed to pause: ${err.message}`); }
+    finally { setTogglingPause(false); }
   };
 
-  // ──────────────────────────────────────────────
-  // Resume — optimistic, revert on failure
-  // ──────────────────────────────────────────────
   const playChat = async () => {
     if (!selectedChat || togglingPause) return;
-    setTogglingPause(true);
-    setChatPaused(false);
-    setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; });
-
+    setTogglingPause(true); setChatPaused(false); setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; });
     try {
-      const token = getToken();
-      if (!token) return;
-
+      const token = getToken(); if (!token) return;
       const response = await fetch(`${INSTAGRAM_API}/play-chat`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: selectedChat.username, sender_id: selectedChat.sender_id || null })
       });
-
       if (response.status === 401) { handleAuthError(); return; }
       let result = {}; try { result = await response.json(); } catch (e) {}
-      if (!response.ok) {
-        setChatPaused(true);
-        setPausedChats(prev => new Set([...prev, selectedChat._id]));
-        throw new Error(result.error || result.message || `Failed to resume (${response.status})`);
-      }
-    } catch (err) {
-      console.error('Error resuming:', err);
-      alert(`Failed to resume: ${err.message}`);
-    } finally { setTogglingPause(false); }
+      if (!response.ok) { setChatPaused(true); setPausedChats(prev => new Set([...prev, selectedChat._id])); throw new Error(result.error || `Failed (${response.status})`); }
+    } catch (err) { console.error('Resume error:', err); alert(`Failed to resume: ${err.message}`); }
+    finally { setTogglingPause(false); }
   };
 
-  const handleTogglePause = () => {
-    if (togglingPause) return;
-    chatPaused ? playChat() : pauseChat();
-  };
+  const handleTogglePause = () => { if (togglingPause) return; chatPaused ? playChat() : pauseChat(); };
 
-  // ── Filtering ──
   const filteredConversations = searchQuery.trim()
-    ? conversations.filter(c =>
-        c.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.last_message?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? conversations.filter(c => c.username?.toLowerCase().includes(searchQuery.toLowerCase()) || c.last_message?.toLowerCase().includes(searchQuery.toLowerCase()))
     : conversations;
 
-  // ── Format time ──
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
     const d = new Date(timestamp);
@@ -426,12 +335,6 @@ const Messages = () => {
 
   const handleBackToList = () => { setShowChatList(true); setShowChat(false); setSelectedChat(null); setMessages([]); };
   const handleRefresh = () => fetchConversations(null, true);
-
-  /*
-   * ── MESSAGE ALIGNMENT ──
-   * outgoing = bot/user's automated replies → LEFT side (gray bubble)
-   * incoming = customer/client messages    → RIGHT side (purple bubble)
-   */
 
   return (
     <div className="flex bg-gray-100 h-screen overflow-hidden">
@@ -456,14 +359,15 @@ const Messages = () => {
             </div>
           ) : (
             <div className="flex h-full overflow-hidden">
-              {/* ── Conversation List ── */}
+              {/* Conversation List */}
               <div className={`${showChatList ? 'flex' : 'hidden'} md:flex w-full md:w-1/3 border-r h-full flex-col overflow-hidden`}>
                 <div className="p-4 border-b flex-shrink-0">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-semibold">Messages</h2>
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`} title={socketConnected ? 'Real-time connected' : 'Reconnecting...'} />
-                      <button onClick={handleRefresh} disabled={isRefreshing} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Refresh">
+                      <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`} title={socketConnected ? 'Real-time connected' : 'Disconnected'} />
+                      <span className="text-xs text-gray-400">{socketConnected ? 'Live' : 'Offline'}</span>
+                      <button onClick={handleRefresh} disabled={isRefreshing} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                         <RefreshCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
                       </button>
                     </div>
@@ -497,37 +401,22 @@ const Messages = () => {
                                 </div>
                                 <span className="text-xs text-gray-400 flex-shrink-0">{formatTime(conv.timestamp)}</span>
                               </div>
-                              <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
-                                {conv.last_message || 'No messages'}
-                              </p>
+                              <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{conv.last_message || 'No messages'}</p>
                             </div>
-                            {conv.unread_count > 0 && (
-                              <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center flex-shrink-0">{conv.unread_count}</span>
-                            )}
+                            {conv.unread_count > 0 && <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center flex-shrink-0">{conv.unread_count}</span>}
                           </div>
                         </div>
                       ))}
-                      {hasMoreConversations && (
-                        <button onClick={() => fetchConversations(conversationsCursor)} className="w-full p-3 text-sm text-purple-600 hover:bg-gray-50">
-                          Load more conversations
-                        </button>
-                      )}
+                      {hasMoreConversations && <button onClick={() => fetchConversations(conversationsCursor)} className="w-full p-3 text-sm text-purple-600 hover:bg-gray-50">Load more conversations</button>}
                     </>
                   )}
                 </div>
-
-                {isRefreshing && (
-                  <div className="p-2 border-t bg-gray-50 flex items-center justify-center gap-2 flex-shrink-0">
-                    <RefreshCw className="w-4 h-4 animate-spin text-purple-600" /><span className="text-sm text-gray-600">Refreshing...</span>
-                  </div>
-                )}
               </div>
 
-              {/* ── Chat Area ── */}
+              {/* Chat Area */}
               <div className={`${showChat ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden`}>
                 {selectedChat ? (
                   <>
-                    {/* Chat Header */}
                     <div className="border-b flex-shrink-0">
                       <div className="p-4">
                         <div className="flex items-center justify-between">
@@ -539,34 +428,22 @@ const Messages = () => {
                             </div>
                             <div>
                               <h3 className="font-medium">{selectedChat.name}</h3>
-                              <div className="flex items-center gap-1 text-green-500 text-sm">
-                                <span>Active now</span><Instagram className="w-3 h-3" />
-                              </div>
+                              <div className="flex items-center gap-1 text-green-500 text-sm"><span>Active now</span><Instagram className="w-3 h-3" /></div>
                             </div>
                           </div>
-                          <button
-                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${chatPaused ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'} ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`}
-                            onClick={handleTogglePause} disabled={togglingPause}
-                          >
+                          <button className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${chatPaused ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'} ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`} onClick={handleTogglePause} disabled={togglingPause}>
                             {togglingPause ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div> : chatPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                             <span className="hidden sm:inline">{togglingPause ? 'Loading...' : chatPaused ? 'Resume' : 'Pause'}</span>
                           </button>
                         </div>
-                        {chatPaused && (
-                          <div className="mt-2 px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-lg flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 flex-shrink-0" /><span>Automation paused. Click "Resume" to enable automatic responses.</span>
-                          </div>
-                        )}
+                        {chatPaused && <div className="mt-2 px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" /><span>Automation paused.</span></div>}
                       </div>
                     </div>
 
-                    {/* Messages area */}
                     <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-                      {/* Load older messages */}
                       {hasMoreMessages && (
                         <div className="text-center">
-                          <button onClick={loadOlderMessages} disabled={loadingOlderMessages}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50">
+                          <button onClick={loadOlderMessages} disabled={loadingOlderMessages} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50">
                             {loadingOlderMessages ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div> : <ChevronUp className="w-4 h-4" />}
                             Load older messages
                           </button>
@@ -574,41 +451,23 @@ const Messages = () => {
                       )}
 
                       {loadingMessages ? (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        </div>
+                        <div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div></div>
                       ) : messages.length > 0 ? (
                         messages.map((msg, i) => {
-                          /*
-                           * ALIGNMENT:
-                           * outgoing (bot/user replies) → LEFT side, gray bubble
-                           * incoming (customer messages) → RIGHT side, purple bubble
-                           */
                           const isOutgoing = msg.direction === 'outgoing';
                           const isIncoming = msg.direction === 'incoming';
 
                           return (
-                            <div
-                              key={msg._id || `${msg.timestamp}_${i}`}
-                              className={`flex gap-3 ${isIncoming ? 'justify-end' : 'justify-start'} ${msg.temp ? 'opacity-70' : ''}`}
-                            >
-                              {/* Bot avatar on left for outgoing (bot) messages */}
+                            <div key={msg._id || `${msg.timestamp}_${i}`} className={`flex gap-3 ${isIncoming ? 'justify-end' : 'justify-start'} ${msg.temp ? 'opacity-70' : ''}`}>
                               {isOutgoing && (
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
                                   <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                                 </div>
                               )}
-
-                              <div className={`rounded-lg p-3 max-w-[80%] sm:max-w-md ${
-                                isIncoming
-                                  ? 'bg-purple-600 text-white'   /* Customer → right, purple */
-                                  : 'bg-gray-100 text-gray-900'  /* Bot → left, gray */
-                              }`}>
-                                {/* Label */}
+                              <div className={`rounded-lg p-3 max-w-[80%] sm:max-w-md ${isIncoming ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
                                 <p className={`text-xs font-medium mb-1 ${isIncoming ? 'text-purple-200' : 'text-gray-500'}`}>
                                   {isIncoming ? selectedChat.name : 'Bot'}
                                 </p>
-
                                 {msg.type === 'image' && msg.metadata?.image_url ? (
                                   <><img src={msg.metadata.image_url} alt="Image" className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
                                 ) : msg.type === 'video' && msg.metadata?.video_url ? (
@@ -616,35 +475,21 @@ const Messages = () => {
                                 ) : (
                                   <p>{msg.message}</p>
                                 )}
-
                                 <div className={`flex items-center justify-between mt-1 ${isIncoming ? 'text-purple-200' : 'text-gray-500'}`}>
-                                  <p className="text-xs">
-                                    {formatTime(msg.timestamp)}
-                                    {msg.temp && <span className="ml-1">(Sending...)</span>}
-                                  </p>
-                                  {isOutgoing && !msg.temp && (
-                                    <span className="ml-2">{msg.metadata?.read ? <CheckCheck className="w-4 h-4" /> : <Check className="w-4 h-4" />}</span>
-                                  )}
+                                  <p className="text-xs">{formatTime(msg.timestamp)}{msg.temp && <span className="ml-1">(Sending...)</span>}</p>
+                                  {isOutgoing && !msg.temp && <span className="ml-2">{msg.metadata?.read ? <CheckCheck className="w-4 h-4" /> : <Check className="w-4 h-4" />}</span>}
                                 </div>
                               </div>
-
-                              {/* Customer avatar on right for incoming messages */}
-                              {isIncoming && (
-                                <img src={selectedChat.avatar} alt={selectedChat.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />
-                              )}
+                              {isIncoming && <img src={selectedChat.avatar} alt={selectedChat.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />}
                             </div>
                           );
                         })
                       ) : (
-                        <div className="text-center py-8">
-                          <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                          <p className="text-gray-500">No messages in this conversation yet</p>
-                        </div>
+                        <div className="text-center py-8"><MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No messages yet</p></div>
                       )}
                       <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Input */}
                     <div className="p-4 border-t flex-shrink-0">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
@@ -668,7 +513,7 @@ const Messages = () => {
                     <div className="text-center">
                       <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-700 mb-2">Select a conversation</h3>
-                      <p className="text-gray-500">Choose a chat from the list to start messaging</p>
+                      <p className="text-gray-500">Choose a chat from the list</p>
                     </div>
                   </div>
                 )}

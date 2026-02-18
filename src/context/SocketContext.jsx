@@ -18,7 +18,6 @@ export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
 
   const connect = useCallback(() => {
-    // Already connected — skip
     if (socketRef.current?.connected) {
       console.log('[Socket] Already connected:', socketRef.current.id);
       return;
@@ -26,20 +25,24 @@ export const SocketProvider = ({ children }) => {
 
     const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('[Socket] No token — cannot connect');
+      console.warn('[Socket] ❌ No token in localStorage — cannot connect');
       return;
     }
 
-    // Tear down any stale socket
     if (socketRef.current) {
       socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
       socketRef.current = null;
     }
 
-    console.log('[Socket] Connecting to', SOCKET_URL, 'with token:', token.substring(0, 20) + '...');
+    console.log('═══════════════════════════════════════════');
+    console.log('[Socket] 🔌 CONNECTING...');
+    console.log('[Socket] URL:', SOCKET_URL);
+    console.log('[Socket] Token:', token.substring(0, 40) + '...');
+    console.log('[Socket] Method: query: { token }');
+    console.log('[Socket] Transport: websocket');
+    console.log('═══════════════════════════════════════════');
 
-    // ── Matches backend tester EXACTLY ──
     const newSocket = io(SOCKET_URL, {
       transports: ['websocket'],
       query: { token: token },
@@ -50,23 +53,45 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect', () => {
-      console.log('[Socket] ✅ Connected — id:', newSocket.id);
+      console.log('═══════════════════════════════════════════');
+      console.log('[Socket] ✅ CONNECTED');
+      console.log('[Socket] Socket ID:', newSocket.id);
+      console.log('[Socket] Transport:', newSocket.io.engine.transport.name);
+      console.log('═══════════════════════════════════════════');
       setConnected(true);
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('[Socket] ⚠️ Disconnected:', reason);
+      console.log('[Socket] ⚠️ DISCONNECTED — Reason:', reason);
       setConnected(false);
     });
 
     newSocket.on('connect_error', (err) => {
-      console.error('[Socket] ❌ Connection error:', err.message);
+      console.log('═══════════════════════════════════════════');
+      console.error('[Socket] ❌ CONNECTION FAILED');
+      console.error('[Socket] Error message:', err.message);
+      console.error('[Socket] Error type:', err.type);
+      console.error('[Socket] Error description:', err.description);
+      console.log('═══════════════════════════════════════════');
       setConnected(false);
 
       if (err.message?.includes('401') || err.message?.includes('unauthorized')) {
-        console.warn('[Socket] Auth rejected — stopping reconnection');
+        console.warn('[Socket] → Token rejected. Stopping reconnect.');
         newSocket.disconnect();
       }
+    });
+
+    // Catch EVERY event the server sends
+    newSocket.onAny((eventName, ...args) => {
+      console.log(`[Socket] 📡 EVENT: "${eventName}"`, JSON.stringify(args).substring(0, 500));
+    });
+
+    newSocket.io.on('reconnect_attempt', (attempt) => {
+      console.log(`[Socket] 🔄 Reconnect attempt #${attempt}`);
+    });
+
+    newSocket.io.on('reconnect_failed', () => {
+      console.error('[Socket] ❌ All reconnection attempts failed');
     });
 
     socketRef.current = newSocket;
@@ -84,15 +109,13 @@ export const SocketProvider = ({ children }) => {
     }
   }, []);
 
-  // ── AUTO-CONNECT: connect immediately if token exists ──
+  // Auto-connect on mount if token exists
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      connect();
-    }
+    console.log('[Socket] SocketProvider mounted. Token exists:', !!token);
+    if (token) connect();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (socketRef.current) {
