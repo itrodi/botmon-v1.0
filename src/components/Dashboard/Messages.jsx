@@ -59,40 +59,25 @@ const Messages = () => {
     if (messages.length > 0 && !loadingOlderMessages) setTimeout(() => scrollToBottom(), 100);
   }, [messages, scrollToBottom, loadingOlderMessages]);
 
-  // ──────────────────────────────────────────────
-  // DEBUG: Log socket state on every render cycle
-  // ──────────────────────────────────────────────
+  // ── Socket listeners ──
   useEffect(() => {
-    console.log('[Messages] Component mounted');
-    console.log('[Messages] socket object:', socket ? 'exists' : 'null');
-    console.log('[Messages] socketConnected:', socketConnected);
-  }, []);
-
-  useEffect(() => {
-    console.log('[Messages] Socket state changed — socket:', socket ? `exists (id: ${socket.id})` : 'null', '| connected:', socketConnected);
-  }, [socket, socketConnected]);
-
-  // ──────────────────────────────────────────────
-  // Socket listeners with debug logging
-  // ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!socket) {
-      console.log('[Messages] ⏳ No socket yet — waiting for connection...');
-      return;
-    }
-
-    console.log('[Messages] 🔗 Attaching socket listeners. Socket ID:', socket.id, '| Connected:', socket.connected);
+    if (!socket) return;
 
     const handleNewMessage = (messageData) => {
-      console.log('═══════════════════════════════════════════');
-      console.log('[Messages] 📩 new_chat_message RECEIVED');
-      console.log('[Messages] Raw data:', JSON.stringify(messageData));
-      console.log('═══════════════════════════════════════════');
+      // Determine direction: if sender_id is present and non-empty, it's from the customer (incoming)
+      // If sender_id is empty/missing, it's from the bot (outgoing)
+      let direction = messageData.direction;
+      if (!direction || direction === undefined) {
+        // Fallback: use sender_id to determine direction
+        // Messages WITH a sender_id are from the customer (incoming)
+        // Messages WITHOUT a sender_id are from the bot (outgoing)
+        direction = messageData.sender_id ? 'incoming' : 'outgoing';
+      }
 
       const newMessage = {
         _id: messageData._id || messageData.id || '',
         message: messageData.message || messageData.text || '',
-        direction: messageData.direction || 'incoming',
+        direction: direction,
         timestamp: messageData.timestamp || new Date().toISOString(),
         type: messageData.type || messageData.message_type || 'text',
         sender_id: messageData.sender_id || '',
@@ -100,8 +85,6 @@ const Messages = () => {
 
       const msgUsername = messageData.username || messageData.chat_with;
       const msgConversationId = messageData.conversation_id || messageData.chat_id;
-
-      console.log('[Messages] Parsed — username:', msgUsername, '| conversation_id:', msgConversationId);
 
       setConversations(prev => {
         const updated = prev.map(conv => {
@@ -126,9 +109,6 @@ const Messages = () => {
       if (current) {
         const isCurrentChat = (msgConversationId && current._id === msgConversationId)
           || (msgUsername && current.username === msgUsername);
-
-        console.log('[Messages] Is current chat?', isCurrentChat, '| Current:', current.username, '| Message for:', msgUsername);
-
         if (isCurrentChat) {
           setMessages(prev => {
             if (newMessage._id && prev.some(m => m._id === newMessage._id)) return prev;
@@ -140,12 +120,7 @@ const Messages = () => {
     };
 
     socket.on('new_chat_message', handleNewMessage);
-    console.log('[Messages] ✅ Listener attached for "new_chat_message"');
-
-    return () => {
-      socket.off('new_chat_message', handleNewMessage);
-      console.log('[Messages] 🔌 Listener removed for "new_chat_message"');
-    };
+    return () => { socket.off('new_chat_message', handleNewMessage); };
   }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch conversations ──
@@ -160,14 +135,11 @@ const Messages = () => {
       let url = `${API_BASE}/conversations?limit=20`;
       if (cursor) url += `&cursor=${cursor}`;
 
-      console.log('[Messages] Fetching conversations:', url);
-
       const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch conversations (${response.status})`);
 
       const result = await response.json();
-      console.log('[Messages] Conversations response:', result);
 
       if (result.status === 'success' && result.data) {
         const newConversations = result.data.conversations || [];
@@ -178,7 +150,6 @@ const Messages = () => {
         setHasMoreConversations(pagination.has_next || false);
       }
     } catch (err) {
-      console.error('[Messages] Error fetching conversations:', err);
       if (!silent) setError(err.message);
     } finally { setLoadingConversations(false); setIsRefreshing(false); }
   };
@@ -192,15 +163,11 @@ const Messages = () => {
       let url = `${API_BASE}/get_messages?conversation_id=${conversationId}`;
       if (cursor) url += `&cursor=${cursor}`;
 
-      console.log('[Messages] Fetching messages:', url);
-
       const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch messages (${response.status})`);
 
       const result = await response.json();
-      console.log('[Messages] Messages response:', result);
-
       const newMessages = (result.messages || []).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       const pagination = result.pagination || {};
 
@@ -213,14 +180,12 @@ const Messages = () => {
       if (!cursor && result.profile_picture) {
         setSelectedChat(prev => prev ? { ...prev, avatar: result.profile_picture } : prev);
       }
-    } catch (err) { console.error('[Messages] Error fetching messages:', err); }
+    } catch (err) { /* silent */ }
     finally { setLoadingMessages(false); setLoadingOlderMessages(false); }
   };
 
   // ── Select conversation ──
   const handleChatSelect = (conversation) => {
-    console.log('[Messages] Selected conversation:', conversation.username, '| _id:', conversation._id);
-
     const chat = {
       _id: conversation._id,
       username: conversation.username,
@@ -277,7 +242,6 @@ const Messages = () => {
         return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
     } catch (err) {
-      console.error('[Messages] Send error:', err);
       setMessages(prev => prev.filter(m => m._id !== temp._id));
       setMessageInput(msg);
       alert('Failed to send message.');
@@ -297,7 +261,7 @@ const Messages = () => {
       if (response.status === 401) { handleAuthError(); return; }
       let result = {}; try { result = await response.json(); } catch (e) {}
       if (!response.ok) { setChatPaused(false); setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; }); throw new Error(result.error || `Failed (${response.status})`); }
-    } catch (err) { console.error('Pause error:', err); alert(`Failed to pause: ${err.message}`); }
+    } catch (err) { alert(`Failed to pause: ${err.message}`); }
     finally { setTogglingPause(false); }
   };
 
@@ -313,7 +277,7 @@ const Messages = () => {
       if (response.status === 401) { handleAuthError(); return; }
       let result = {}; try { result = await response.json(); } catch (e) {}
       if (!response.ok) { setChatPaused(true); setPausedChats(prev => new Set([...prev, selectedChat._id])); throw new Error(result.error || `Failed (${response.status})`); }
-    } catch (err) { console.error('Resume error:', err); alert(`Failed to resume: ${err.message}`); }
+    } catch (err) { alert(`Failed to resume: ${err.message}`); }
     finally { setTogglingPause(false); }
   };
 
@@ -366,7 +330,6 @@ const Messages = () => {
                     <h2 className="text-2xl font-semibold">Messages</h2>
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`} title={socketConnected ? 'Real-time connected' : 'Disconnected'} />
-                      <span className="text-xs text-gray-400">{socketConnected ? 'Live' : 'Offline'}</span>
                       <button onClick={handleRefresh} disabled={isRefreshing} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                         <RefreshCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
                       </button>
