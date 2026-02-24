@@ -124,13 +124,30 @@ const Messages = () => {
   }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch conversations ──
-  useEffect(() => { fetchConversations(); }, []);
+  useEffect(() => {
+    // Small delay to ensure token is in localStorage after login/redirect
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchConversations();
+    } else {
+      const timer = setTimeout(() => {
+        if (localStorage.getItem('token')) fetchConversations();
+        else setLoadingConversations(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const fetchConversations = async (cursor = null, silent = false) => {
     try {
       if (!silent) setLoadingConversations(true); else setIsRefreshing(true);
       setError(null);
-      const token = getToken(); if (!token) return;
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoadingConversations(false);
+        return;
+      }
 
       let url = `${API_BASE}/conversations?limit=20`;
       if (cursor) url += `&cursor=${cursor}`;
@@ -141,14 +158,17 @@ const Messages = () => {
 
       const result = await response.json();
 
-      if (result.status === 'success' && result.data) {
-        const newConversations = result.data.conversations || [];
-        const pagination = result.data.pagination || {};
-        if (cursor) setConversations(prev => [...prev, ...newConversations]);
-        else setConversations(newConversations);
-        setConversationsCursor(pagination.next_cursor || null);
-        setHasMoreConversations(pagination.has_next || false);
-      }
+      // Handle both possible response shapes:
+      // Shape 1: { status: 'success', data: { conversations: [...], pagination: {...} } }
+      // Shape 2: { conversations: [...], pagination: {...} }
+      const conversationsData = result.data || result;
+      const newConversations = conversationsData.conversations || [];
+      const pagination = conversationsData.pagination || {};
+
+      if (cursor) setConversations(prev => [...prev, ...newConversations]);
+      else setConversations(newConversations);
+      setConversationsCursor(pagination.next_cursor || null);
+      setHasMoreConversations(pagination.has_next || false);
     } catch (err) {
       if (!silent) setError(err.message);
     } finally { setLoadingConversations(false); setIsRefreshing(false); }
@@ -158,7 +178,9 @@ const Messages = () => {
   const fetchMessages = async (conversationId, cursor = null) => {
     try {
       if (cursor) setLoadingOlderMessages(true); else setLoadingMessages(true);
-      const token = getToken(); if (!token) return;
+
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
       let url = `${API_BASE}/get_messages?conversation_id=${conversationId}`;
       if (cursor) url += `&cursor=${cursor}`;
@@ -168,8 +190,11 @@ const Messages = () => {
       if (!response.ok) throw new Error(`Failed to fetch messages (${response.status})`);
 
       const result = await response.json();
-      const newMessages = (result.messages || []).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      const pagination = result.pagination || {};
+
+      // Handle both shapes: { messages: [...] } or { data: { messages: [...] } }
+      const messagesData = result.data || result;
+      const newMessages = (messagesData.messages || []).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      const pagination = messagesData.pagination || {};
 
       if (cursor) setMessages(prev => [...newMessages, ...prev]);
       else setMessages(newMessages);
@@ -177,8 +202,11 @@ const Messages = () => {
       setMessagesCursor(pagination.next_cursor || null);
       setHasMoreMessages(pagination.has_next || false);
 
-      if (!cursor && result.profile_picture) {
-        setSelectedChat(prev => prev ? { ...prev, avatar: result.profile_picture } : prev);
+      if (!cursor) {
+        const profilePic = messagesData.profile_picture || result.profile_picture;
+        if (profilePic) {
+          setSelectedChat(prev => prev ? { ...prev, avatar: profilePic } : prev);
+        }
       }
     } catch (err) { /* silent */ }
     finally { setLoadingMessages(false); setLoadingOlderMessages(false); }
