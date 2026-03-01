@@ -73,7 +73,9 @@ const Messages = () => {
       setError(null);
 
       const token = getToken();
+      console.log('[DEBUG] fetchConversations called. Token exists:', !!token);
       if (!token) {
+        console.log('[DEBUG] No token — redirecting to login');
         setLoadingConversations(false);
         window.location.href = '/login';
         return;
@@ -82,19 +84,30 @@ const Messages = () => {
       let url = `${API_BASE}/conversations?limit=20`;
       if (cursor) url += `&cursor=${cursor}`;
 
+      console.log('[DEBUG] Fetching:', url);
+
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      console.log('[DEBUG] Response status:', response.status);
 
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch conversations (${response.status})`);
 
       const result = await response.json();
+      console.log('[DEBUG] Raw API response:', JSON.stringify(result).substring(0, 500));
 
       // Handle all possible response shapes
       const payload = result.data || result;
       const newConversations = payload.conversations || [];
       const pagination = payload.pagination || {};
+
+      console.log('[DEBUG] Parsed conversations count:', newConversations.length);
+      console.log('[DEBUG] Pagination:', JSON.stringify(pagination));
+      if (newConversations.length > 0) {
+        console.log('[DEBUG] First conversation:', JSON.stringify(newConversations[0]).substring(0, 300));
+      }
 
       if (cursor) {
         setConversations(prev => [...prev, ...newConversations]);
@@ -104,6 +117,7 @@ const Messages = () => {
       setConversationsCursor(pagination.next_cursor || null);
       setHasMoreConversations(pagination.has_next || false);
     } catch (err) {
+      console.error('[DEBUG] fetchConversations ERROR:', err.message);
       if (!silent) setError(err.message);
     } finally {
       setLoadingConversations(false);
@@ -113,6 +127,7 @@ const Messages = () => {
 
   // Call fetchConversations on mount — always
   useEffect(() => {
+    console.log('[DEBUG] Messages component MOUNTED — calling fetchConversations');
     fetchConversations();
   }, [fetchConversations]);
 
@@ -120,32 +135,46 @@ const Messages = () => {
   // FETCH MESSAGES for a conversation
   // ──────────────────────────────────────────────
   const fetchMessages = useCallback(async (conversationId, cursor = null) => {
-    if (!conversationId) return;
+    if (!conversationId) {
+      console.log('[DEBUG] fetchMessages called with NO conversationId — skipping');
+      return;
+    }
 
     try {
       if (cursor) setLoadingOlderMessages(true);
       else setLoadingMessages(true);
 
       const token = getToken();
+      console.log('[DEBUG] fetchMessages called. ID:', conversationId, '| Token:', !!token);
       if (!token) return;
 
       let url = `${API_BASE}/get_messages?conversation_id=${conversationId}`;
       if (cursor) url += `&cursor=${cursor}`;
 
+      console.log('[DEBUG] Fetching messages:', url);
+
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      console.log('[DEBUG] Messages response status:', response.status);
 
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch messages (${response.status})`);
 
       const result = await response.json();
+      console.log('[DEBUG] Raw messages response:', JSON.stringify(result).substring(0, 500));
 
       // Handle: { messages, pagination } OR { data: { messages, pagination } }
       const payload = result.data || result;
       const rawMessages = payload.messages || [];
       const newMessages = rawMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       const pagination = payload.pagination || {};
+
+      console.log('[DEBUG] Parsed messages count:', newMessages.length);
+      if (newMessages.length > 0) {
+        console.log('[DEBUG] First message:', JSON.stringify(newMessages[0]).substring(0, 300));
+      }
 
       if (cursor) {
         setMessages(prev => [...newMessages, ...prev]);
@@ -163,6 +192,7 @@ const Messages = () => {
         }
       }
     } catch (err) {
+      console.error('[DEBUG] fetchMessages ERROR:', err.message);
       if (!cursor) setMessages([]);
     } finally {
       setLoadingMessages(false);
@@ -253,6 +283,8 @@ const Messages = () => {
   // ──────────────────────────────────────────────
   const handleChatSelect = (conversation) => {
     const chatId = conversation._id || conversation.id || '';
+    console.log('[DEBUG] handleChatSelect — username:', conversation.username, '| _id:', chatId, '| full conv:', JSON.stringify(conversation).substring(0, 300));
+
     const chat = {
       _id: chatId,
       username: conversation.username,
