@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw, CheckCheck, Check, ChevronUp } from 'lucide-react';
+import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause, Play, ArrowLeft, MessageCircle, AlertCircle, RefreshCw, CheckCheck, Check, ChevronUp, PauseCircle, PlayCircle } from 'lucide-react';
 import { useSocket } from '../../context/SocketContext';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
@@ -29,9 +29,15 @@ const Messages = () => {
   const [messageInput, setMessageInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Per-chat pause
   const [chatPaused, setChatPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const [pausedChats, setPausedChats] = useState(new Set());
+
+  // General pause/play all chats
+  const [allChatsPaused, setAllChatsPaused] = useState(false);
+  const [togglingGeneralPause, setTogglingGeneralPause] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -39,14 +45,12 @@ const Messages = () => {
 
   useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
 
-  const getToken = () => {
-    const token = localStorage.getItem('token');
-    if (!token) { window.location.href = '/login'; return null; }
-    return token;
-  };
+  const getToken = () => localStorage.getItem('token');
 
   const handleAuthError = () => {
-    localStorage.clear(); sessionStorage.clear(); window.location.href = '/login';
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = '/login';
   };
 
   const scrollToBottom = useCallback(() => {
@@ -59,18 +63,15 @@ const Messages = () => {
     if (messages.length > 0 && !loadingOlderMessages) setTimeout(() => scrollToBottom(), 100);
   }, [messages, scrollToBottom, loadingOlderMessages]);
 
-  // ── Socket listeners ──
+  // ──────────────────────────────────────────────
+  // Socket listeners
+  // ──────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
 
     const handleNewMessage = (messageData) => {
-      // Determine direction: if sender_id is present and non-empty, it's from the customer (incoming)
-      // If sender_id is empty/missing, it's from the bot (outgoing)
       let direction = messageData.direction;
-      if (!direction || direction === undefined) {
-        // Fallback: use sender_id to determine direction
-        // Messages WITH a sender_id are from the customer (incoming)
-        // Messages WITHOUT a sender_id are from the bot (outgoing)
+      if (!direction) {
         direction = messageData.sender_id ? 'incoming' : 'outgoing';
       }
 
@@ -123,99 +124,127 @@ const Messages = () => {
     return () => { socket.off('new_chat_message', handleNewMessage); };
   }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fetch conversations ──
+  // ──────────────────────────────────────────────
+  // Fetch conversations on mount
+  // ──────────────────────────────────────────────
   useEffect(() => {
-    // Small delay to ensure token is in localStorage after login/redirect
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (token) {
       fetchConversations();
     } else {
       const timer = setTimeout(() => {
-        if (localStorage.getItem('token')) fetchConversations();
-        else setLoadingConversations(false);
+        if (getToken()) fetchConversations();
+        else {
+          setLoadingConversations(false);
+          window.location.href = '/login';
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchConversations = async (cursor = null, silent = false) => {
     try {
-      if (!silent) setLoadingConversations(true); else setIsRefreshing(true);
+      if (!silent) setLoadingConversations(true);
+      else setIsRefreshing(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setLoadingConversations(false);
-        return;
-      }
+      const token = getToken();
+      if (!token) { setLoadingConversations(false); return; }
 
       let url = `${API_BASE}/conversations?limit=20`;
       if (cursor) url += `&cursor=${cursor}`;
 
-      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch conversations (${response.status})`);
 
       const result = await response.json();
 
-      // Handle both possible response shapes:
-      // Shape 1: { status: 'success', data: { conversations: [...], pagination: {...} } }
-      // Shape 2: { conversations: [...], pagination: {...} }
-      const conversationsData = result.data || result;
-      const newConversations = conversationsData.conversations || [];
-      const pagination = conversationsData.pagination || {};
+      // Handle both: { status, data: { conversations, pagination } } OR { conversations, pagination }
+      const payload = result.data || result;
+      const newConversations = payload.conversations || [];
+      const pagination = payload.pagination || {};
 
-      if (cursor) setConversations(prev => [...prev, ...newConversations]);
-      else setConversations(newConversations);
+      if (cursor) {
+        setConversations(prev => [...prev, ...newConversations]);
+      } else {
+        setConversations(newConversations);
+      }
       setConversationsCursor(pagination.next_cursor || null);
       setHasMoreConversations(pagination.has_next || false);
     } catch (err) {
       if (!silent) setError(err.message);
-    } finally { setLoadingConversations(false); setIsRefreshing(false); }
+    } finally {
+      setLoadingConversations(false);
+      setIsRefreshing(false);
+    }
   };
 
-  // ── Fetch messages ──
+  // ──────────────────────────────────────────────
+  // Fetch messages for a conversation
+  // ──────────────────────────────────────────────
   const fetchMessages = async (conversationId, cursor = null) => {
-    try {
-      if (cursor) setLoadingOlderMessages(true); else setLoadingMessages(true);
+    if (!conversationId) return;
 
-      const token = localStorage.getItem('token');
+    try {
+      if (cursor) setLoadingOlderMessages(true);
+      else setLoadingMessages(true);
+
+      const token = getToken();
       if (!token) return;
 
       let url = `${API_BASE}/get_messages?conversation_id=${conversationId}`;
       if (cursor) url += `&cursor=${cursor}`;
 
-      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to fetch messages (${response.status})`);
 
       const result = await response.json();
 
-      // Handle both shapes: { messages: [...] } or { data: { messages: [...] } }
-      const messagesData = result.data || result;
-      const newMessages = (messagesData.messages || []).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      const pagination = messagesData.pagination || {};
+      // Handle both: { messages, pagination } OR { data: { messages, pagination } }
+      const payload = result.data || result;
+      const rawMessages = payload.messages || [];
+      const newMessages = rawMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      const pagination = payload.pagination || {};
 
-      if (cursor) setMessages(prev => [...newMessages, ...prev]);
-      else setMessages(newMessages);
+      if (cursor) {
+        setMessages(prev => [...newMessages, ...prev]);
+      } else {
+        setMessages(newMessages);
+      }
 
       setMessagesCursor(pagination.next_cursor || null);
       setHasMoreMessages(pagination.has_next || false);
 
       if (!cursor) {
-        const profilePic = messagesData.profile_picture || result.profile_picture;
+        const profilePic = payload.profile_picture || result.profile_picture;
         if (profilePic) {
           setSelectedChat(prev => prev ? { ...prev, avatar: profilePic } : prev);
         }
       }
-    } catch (err) { /* silent */ }
-    finally { setLoadingMessages(false); setLoadingOlderMessages(false); }
+    } catch (err) {
+      if (!cursor) setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+      setLoadingOlderMessages(false);
+    }
   };
 
-  // ── Select conversation ──
+  // ──────────────────────────────────────────────
+  // Select a conversation
+  // ──────────────────────────────────────────────
   const handleChatSelect = (conversation) => {
+    const chatId = conversation._id || conversation.id || '';
     const chat = {
-      _id: conversation._id,
+      _id: chatId,
       username: conversation.username,
       name: conversation.username,
       avatar: conversation.profile_picture || '/default-avatar.png',
@@ -228,9 +257,19 @@ const Messages = () => {
     setMessages([]);
     setMessagesCursor(null);
     setHasMoreMessages(false);
-    setChatPaused(pausedChats.has(conversation._id));
-    setConversations(prev => prev.map(c => c._id === conversation._id ? { ...c, unread_count: 0 } : c));
-    fetchMessages(conversation._id);
+    setChatPaused(pausedChats.has(chatId));
+
+    // Reset unread count
+    setConversations(prev =>
+      prev.map(c => (c._id === chatId || c.username === conversation.username)
+        ? { ...c, unread_count: 0 } : c)
+    );
+
+    // Fetch messages
+    if (chatId) {
+      fetchMessages(chatId);
+    }
+
     if (window.innerWidth <= 768) setShowChatList(false);
   };
 
@@ -239,23 +278,39 @@ const Messages = () => {
     const container = messagesContainerRef.current;
     const prevHeight = container?.scrollHeight || 0;
     fetchMessages(selectedChat._id, messagesCursor).then(() => {
-      if (container) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight - prevHeight; });
+      if (container) {
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight - prevHeight;
+        });
+      }
     });
   };
 
-  // ── Send message ──
+  // ──────────────────────────────────────────────
+  // Send message
+  // ──────────────────────────────────────────────
   const handleSendMessage = async () => {
     if (!messageInput.trim() || sendingMessage || !selectedChat) return;
     setSendingMessage(true);
     const msg = messageInput.trim();
-    const temp = { _id: `temp_${Date.now()}`, message: msg, direction: 'outgoing', timestamp: new Date().toISOString(), type: 'text', sender_id: '', temp: true };
+    const temp = {
+      _id: `temp_${Date.now()}`,
+      message: msg,
+      direction: 'outgoing',
+      timestamp: new Date().toISOString(),
+      type: 'text',
+      sender_id: '',
+      temp: true,
+    };
 
     setMessages(prev => [...prev, temp]);
     setMessageInput('');
     setTimeout(() => scrollToBottom(), 100);
 
     try {
-      const token = getToken(); if (!token) return;
+      const token = getToken();
+      if (!token) return;
+
       const response = await fetch(`${API_BASE}/send-message`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -264,55 +319,136 @@ const Messages = () => {
       if (response.status === 401) { handleAuthError(); return; }
       if (!response.ok) throw new Error(`Failed to send (${response.status})`);
 
-      setMessages(prev => prev.map(m => m._id === temp._id ? { ...m, temp: false, _id: '' } : m));
+      setMessages(prev => prev.map(m =>
+        m._id === temp._id ? { ...m, temp: false, _id: '' } : m
+      ));
       setConversations(prev => {
-        const updated = prev.map(c => c._id === selectedChat._id ? { ...c, last_message: msg, timestamp: new Date().toISOString() } : c);
+        const updated = prev.map(c =>
+          c._id === selectedChat._id
+            ? { ...c, last_message: msg, timestamp: new Date().toISOString() }
+            : c
+        );
         return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
     } catch (err) {
       setMessages(prev => prev.filter(m => m._id !== temp._id));
       setMessageInput(msg);
       alert('Failed to send message.');
-    } finally { setSendingMessage(false); }
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
-  // ── Pause/Play ──
+  // ──────────────────────────────────────────────
+  // Per-chat Pause/Play
+  // ──────────────────────────────────────────────
   const pauseChat = async () => {
     if (!selectedChat || togglingPause) return;
-    setTogglingPause(true); setChatPaused(true); setPausedChats(prev => new Set([...prev, selectedChat._id]));
+    setTogglingPause(true);
+    setChatPaused(true);
+    setPausedChats(prev => new Set([...prev, selectedChat._id]));
+
     try {
-      const token = getToken(); if (!token) return;
+      const token = getToken();
+      if (!token) return;
+
       const response = await fetch(`${INSTAGRAM_API}/pause-chat`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: selectedChat.username, sender_id: selectedChat.sender_id || null })
       });
+
       if (response.status === 401) { handleAuthError(); return; }
       let result = {}; try { result = await response.json(); } catch (e) {}
-      if (!response.ok) { setChatPaused(false); setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; }); throw new Error(result.error || `Failed (${response.status})`); }
-    } catch (err) { alert(`Failed to pause: ${err.message}`); }
-    finally { setTogglingPause(false); }
+      if (!response.ok) {
+        setChatPaused(false);
+        setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; });
+        throw new Error(result.error || `Failed (${response.status})`);
+      }
+    } catch (err) {
+      alert(`Failed to pause: ${err.message}`);
+    } finally {
+      setTogglingPause(false);
+    }
   };
 
   const playChat = async () => {
     if (!selectedChat || togglingPause) return;
-    setTogglingPause(true); setChatPaused(false); setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; });
+    setTogglingPause(true);
+    setChatPaused(false);
+    setPausedChats(prev => { const s = new Set(prev); s.delete(selectedChat._id); return s; });
+
     try {
-      const token = getToken(); if (!token) return;
+      const token = getToken();
+      if (!token) return;
+
       const response = await fetch(`${INSTAGRAM_API}/play-chat`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: selectedChat.username, sender_id: selectedChat.sender_id || null })
       });
+
       if (response.status === 401) { handleAuthError(); return; }
       let result = {}; try { result = await response.json(); } catch (e) {}
-      if (!response.ok) { setChatPaused(true); setPausedChats(prev => new Set([...prev, selectedChat._id])); throw new Error(result.error || `Failed (${response.status})`); }
-    } catch (err) { alert(`Failed to resume: ${err.message}`); }
-    finally { setTogglingPause(false); }
+      if (!response.ok) {
+        setChatPaused(true);
+        setPausedChats(prev => new Set([...prev, selectedChat._id]));
+        throw new Error(result.error || `Failed (${response.status})`);
+      }
+    } catch (err) {
+      alert(`Failed to resume: ${err.message}`);
+    } finally {
+      setTogglingPause(false);
+    }
   };
 
-  const handleTogglePause = () => { if (togglingPause) return; chatPaused ? playChat() : pauseChat(); };
+  const handleTogglePause = () => {
+    if (togglingPause) return;
+    chatPaused ? playChat() : pauseChat();
+  };
 
+  // ──────────────────────────────────────────────
+  // General Pause/Play ALL chats
+  // ──────────────────────────────────────────────
+  const handleGeneralPause = async () => {
+    if (togglingGeneralPause) return;
+    setTogglingGeneralPause(true);
+
+    const wasPaused = allChatsPaused;
+    const endpoint = wasPaused ? '/general-play-chat' : '/general-pause-chat';
+
+    // Optimistic
+    setAllChatsPaused(!wasPaused);
+
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch(`${INSTAGRAM_API}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+
+      if (response.status === 401) { handleAuthError(); return; }
+      let result = {}; try { result = await response.json(); } catch (e) {}
+
+      if (!response.ok) {
+        setAllChatsPaused(wasPaused);
+        throw new Error(result.error || result.message || `Failed (${response.status})`);
+      }
+    } catch (err) {
+      alert(`Failed to ${wasPaused ? 'resume' : 'pause'} all chats: ${err.message}`);
+    } finally {
+      setTogglingGeneralPause(false);
+    }
+  };
+
+  // ── Filtering ──
   const filteredConversations = searchQuery.trim()
-    ? conversations.filter(c => c.username?.toLowerCase().includes(searchQuery.toLowerCase()) || c.last_message?.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? conversations.filter(c =>
+        c.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.last_message?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     : conversations;
 
   const formatTime = (timestamp) => {
@@ -325,7 +461,13 @@ const Messages = () => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const handleBackToList = () => { setShowChatList(true); setShowChat(false); setSelectedChat(null); setMessages([]); };
+  const handleBackToList = () => {
+    setShowChatList(true);
+    setShowChat(false);
+    setSelectedChat(null);
+    setMessages([]);
+  };
+
   const handleRefresh = () => fetchConversations(null, true);
 
   return (
@@ -346,26 +488,67 @@ const Messages = () => {
               <div className="text-center">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <p className="text-red-500 mb-4">{error}</p>
-                <button onClick={() => fetchConversations()} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Try Again</button>
+                <button onClick={() => fetchConversations()} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                  Try Again
+                </button>
               </div>
             </div>
           ) : (
             <div className="flex h-full overflow-hidden">
-              {/* Conversation List */}
+              {/* ── Conversation List ── */}
               <div className={`${showChatList ? 'flex' : 'hidden'} md:flex w-full md:w-1/3 border-r h-full flex-col overflow-hidden`}>
                 <div className="p-4 border-b flex-shrink-0">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-semibold">Messages</h2>
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`} title={socketConnected ? 'Real-time connected' : 'Disconnected'} />
+                      {/* General Pause/Play All */}
+                      <button
+                        onClick={handleGeneralPause}
+                        disabled={togglingGeneralPause}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors ${
+                          allChatsPaused
+                            ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+                            : 'bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100'
+                        } ${togglingGeneralPause ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        title={allChatsPaused ? 'Resume all automations' : 'Pause all automations'}
+                      >
+                        {togglingGeneralPause ? (
+                          <div className="w-3.5 h-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                        ) : allChatsPaused ? (
+                          <PlayCircle className="w-3.5 h-3.5" />
+                        ) : (
+                          <PauseCircle className="w-3.5 h-3.5" />
+                        )}
+                        <span>{togglingGeneralPause ? '...' : allChatsPaused ? 'Resume All' : 'Pause All'}</span>
+                      </button>
+
+                      <span
+                        className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`}
+                        title={socketConnected ? 'Real-time connected' : 'Disconnected'}
+                      />
                       <button onClick={handleRefresh} disabled={isRefreshing} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                         <RefreshCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
                       </button>
                     </div>
                   </div>
+
+                  {/* General pause banner */}
+                  {allChatsPaused && (
+                    <div className="mb-3 px-3 py-2 bg-yellow-100 text-yellow-800 text-xs rounded-lg flex items-center gap-2">
+                      <PauseCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>All automations paused. Click "Resume All" to re-enable.</span>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input type="text" placeholder="Search chats..." className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-purple-600" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <input
+                      type="text"
+                      placeholder="Search chats..."
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-purple-600"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
                 </div>
 
@@ -379,113 +562,215 @@ const Messages = () => {
                     <>
                       {filteredConversations.map(conv => (
                         <div key={conv._id || conv.username} onClick={() => handleChatSelect(conv)} className="cursor-pointer">
-                          <div className={`flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${selectedChat?.username === conv.username ? 'bg-purple-50' : ''}`}>
+                          <div className={`flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${
+                            selectedChat?.username === conv.username ? 'bg-purple-50' : ''
+                          }`}>
                             <div className="relative flex-shrink-0">
-                              <img src={conv.profile_picture || '/default-avatar.png'} alt={conv.username} className="w-12 h-12 rounded-full object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />
+                              <img
+                                src={conv.profile_picture || '/default-avatar.png'}
+                                alt={conv.username}
+                                className="w-12 h-12 rounded-full object-cover"
+                                onError={(e) => { e.target.src = '/default-avatar.png'; }}
+                              />
                               <span className="absolute -bottom-1 -right-1"><Instagram className="w-4 h-4" /></span>
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1 gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <h3 className={`font-medium truncate ${conv.unread_count > 0 ? 'font-semibold' : ''}`}>{conv.username}</h3>
-                                  {pausedChats.has(conv._id) && <span className="flex-shrink-0 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Paused</span>}
+                                  <h3 className={`font-medium truncate ${conv.unread_count > 0 ? 'font-semibold' : ''}`}>
+                                    {conv.username}
+                                  </h3>
+                                  {pausedChats.has(conv._id) && (
+                                    <span className="flex-shrink-0 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Paused</span>
+                                  )}
                                 </div>
                                 <span className="text-xs text-gray-400 flex-shrink-0">{formatTime(conv.timestamp)}</span>
                               </div>
-                              <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{conv.last_message || 'No messages'}</p>
+                              <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
+                                {conv.last_message || 'No messages'}
+                              </p>
                             </div>
-                            {conv.unread_count > 0 && <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center flex-shrink-0">{conv.unread_count}</span>}
+                            {conv.unread_count > 0 && (
+                              <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center flex-shrink-0">
+                                {conv.unread_count}
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}
-                      {hasMoreConversations && <button onClick={() => fetchConversations(conversationsCursor)} className="w-full p-3 text-sm text-purple-600 hover:bg-gray-50">Load more conversations</button>}
+                      {hasMoreConversations && (
+                        <button onClick={() => fetchConversations(conversationsCursor)} className="w-full p-3 text-sm text-purple-600 hover:bg-gray-50">
+                          Load more conversations
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Chat Area */}
+              {/* ── Chat Area ── */}
               <div className={`${showChat ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full overflow-hidden`}>
                 {selectedChat ? (
                   <>
+                    {/* Chat header */}
                     <div className="border-b flex-shrink-0">
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <button onClick={handleBackToList} className="md:hidden p-2 hover:bg-gray-100 rounded-lg -ml-2"><ArrowLeft className="w-5 h-5" /></button>
+                            <button onClick={handleBackToList} className="md:hidden p-2 hover:bg-gray-100 rounded-lg -ml-2">
+                              <ArrowLeft className="w-5 h-5" />
+                            </button>
                             <div className="relative">
-                              <img src={selectedChat.avatar} alt={selectedChat.name} className="w-10 h-10 rounded-full object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />
+                              <img
+                                src={selectedChat.avatar}
+                                alt={selectedChat.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => { e.target.src = '/default-avatar.png'; }}
+                              />
                               <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
                             </div>
                             <div>
                               <h3 className="font-medium">{selectedChat.name}</h3>
-                              <div className="flex items-center gap-1 text-green-500 text-sm"><span>Active now</span><Instagram className="w-3 h-3" /></div>
+                              <div className="flex items-center gap-1 text-green-500 text-sm">
+                                <span>Active now</span><Instagram className="w-3 h-3" />
+                              </div>
                             </div>
                           </div>
-                          <button className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${chatPaused ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700' : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'} ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`} onClick={handleTogglePause} disabled={togglingPause}>
-                            {togglingPause ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div> : chatPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-                            <span className="hidden sm:inline">{togglingPause ? 'Loading...' : chatPaused ? 'Resume' : 'Pause'}</span>
+                          {/* Per-chat pause */}
+                          <button
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm ${
+                              chatPaused
+                                ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-700'
+                                : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100 text-yellow-700'
+                            } ${togglingPause ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            onClick={handleTogglePause}
+                            disabled={togglingPause}
+                          >
+                            {togglingPause ? (
+                              <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                            ) : chatPaused ? (
+                              <Play className="w-4 h-4" />
+                            ) : (
+                              <Pause className="w-4 h-4" />
+                            )}
+                            <span className="hidden sm:inline">
+                              {togglingPause ? 'Loading...' : chatPaused ? 'Resume' : 'Pause'}
+                            </span>
                           </button>
                         </div>
-                        {chatPaused && <div className="mt-2 px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" /><span>Automation paused.</span></div>}
+                        {chatPaused && (
+                          <div className="mt-2 px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-lg flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <span>Automation paused for this chat.</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
+                    {/* Messages */}
                     <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                       {hasMoreMessages && (
                         <div className="text-center">
-                          <button onClick={loadOlderMessages} disabled={loadingOlderMessages} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50">
-                            {loadingOlderMessages ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div> : <ChevronUp className="w-4 h-4" />}
+                          <button
+                            onClick={loadOlderMessages}
+                            disabled={loadingOlderMessages}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50"
+                          >
+                            {loadingOlderMessages ? (
+                              <div className="w-4 h-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div>
+                            ) : (
+                              <ChevronUp className="w-4 h-4" />
+                            )}
                             Load older messages
                           </button>
                         </div>
                       )}
 
                       {loadingMessages ? (
-                        <div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div></div>
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        </div>
                       ) : messages.length > 0 ? (
                         messages.map((msg, i) => {
                           const isOutgoing = msg.direction === 'outgoing';
                           const isIncoming = msg.direction === 'incoming';
 
                           return (
-                            <div key={msg._id || `${msg.timestamp}_${i}`} className={`flex gap-3 ${isIncoming ? 'justify-end' : 'justify-start'} ${msg.temp ? 'opacity-70' : ''}`}>
+                            <div
+                              key={msg._id || `${msg.timestamp}_${i}`}
+                              className={`flex gap-3 ${isIncoming ? 'justify-end' : 'justify-start'} ${msg.temp ? 'opacity-70' : ''}`}
+                            >
                               {isOutgoing && (
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
                                   <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                                 </div>
                               )}
-                              <div className={`rounded-lg p-3 max-w-[80%] sm:max-w-md ${isIncoming ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
+
+                              <div className={`rounded-lg p-3 max-w-[80%] sm:max-w-md ${
+                                isIncoming ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-900'
+                              }`}>
                                 <p className={`text-xs font-medium mb-1 ${isIncoming ? 'text-purple-200' : 'text-gray-500'}`}>
                                   {isIncoming ? selectedChat.name : 'Bot'}
                                 </p>
                                 {msg.type === 'image' && msg.metadata?.image_url ? (
-                                  <><img src={msg.metadata.image_url} alt="Image" className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
+                                  <>
+                                    <img src={msg.metadata.image_url} alt="Image" className="max-w-full rounded-lg mb-2" />
+                                    {msg.message && <p>{msg.message}</p>}
+                                  </>
                                 ) : msg.type === 'video' && msg.metadata?.video_url ? (
-                                  <><video src={msg.metadata.video_url} controls className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
+                                  <>
+                                    <video src={msg.metadata.video_url} controls className="max-w-full rounded-lg mb-2" />
+                                    {msg.message && <p>{msg.message}</p>}
+                                  </>
                                 ) : (
                                   <p>{msg.message}</p>
                                 )}
                                 <div className={`flex items-center justify-between mt-1 ${isIncoming ? 'text-purple-200' : 'text-gray-500'}`}>
-                                  <p className="text-xs">{formatTime(msg.timestamp)}{msg.temp && <span className="ml-1">(Sending...)</span>}</p>
-                                  {isOutgoing && !msg.temp && <span className="ml-2">{msg.metadata?.read ? <CheckCheck className="w-4 h-4" /> : <Check className="w-4 h-4" />}</span>}
+                                  <p className="text-xs">
+                                    {formatTime(msg.timestamp)}
+                                    {msg.temp && <span className="ml-1">(Sending...)</span>}
+                                  </p>
+                                  {isOutgoing && !msg.temp && (
+                                    <span className="ml-2">
+                                      {msg.metadata?.read ? <CheckCheck className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
-                              {isIncoming && <img src={selectedChat.avatar} alt={selectedChat.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />}
+
+                              {isIncoming && (
+                                <img
+                                  src={selectedChat.avatar}
+                                  alt={selectedChat.name}
+                                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover"
+                                  onError={(e) => { e.target.src = '/default-avatar.png'; }}
+                                />
+                              )}
                             </div>
                           );
                         })
                       ) : (
-                        <div className="text-center py-8"><MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No messages yet</p></div>
+                        <div className="text-center py-8">
+                          <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500">No messages yet</p>
+                        </div>
                       )}
                       <div ref={messagesEndRef} />
                     </div>
 
+                    {/* Input */}
                     <div className="p-4 border-t flex-shrink-0">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
                           <Mic className="w-5 h-5 text-gray-400 hidden sm:block cursor-pointer hover:text-gray-600" />
-                          <input placeholder="Type a message..." className="flex-1 bg-transparent outline-none min-w-0" value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()} disabled={sendingMessage} />
+                          <input
+                            placeholder="Type a message..."
+                            className="flex-1 bg-transparent outline-none min-w-0"
+                            value={messageInput}
+                            onChange={(e) => setMessageInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                            disabled={sendingMessage}
+                          />
                           <div className="flex items-center gap-2 text-gray-400 flex-shrink-0">
                             <button className="hover:text-gray-600"><Paperclip className="w-5 h-5" /></button>
                             <button className="hover:text-gray-600 hidden sm:block"><Image className="w-5 h-5" /></button>
@@ -493,8 +778,16 @@ const Messages = () => {
                             <button className="hover:text-gray-600 hidden sm:block"><Calendar className="w-5 h-5" /></button>
                           </div>
                         </div>
-                        <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 rounded-lg disabled:opacity-50 flex-shrink-0" onClick={handleSendMessage} disabled={sendingMessage || !messageInput.trim()}>
-                          {sendingMessage ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div> : <Send className="w-4 h-4" />}
+                        <button
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 rounded-lg disabled:opacity-50 flex-shrink-0"
+                          onClick={handleSendMessage}
+                          disabled={sendingMessage || !messageInput.trim()}
+                        >
+                          {sendingMessage ? (
+                            <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </div>
