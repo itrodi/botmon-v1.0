@@ -44,6 +44,7 @@ const Customers = () => {
           Authorization: `Bearer ${token}`
         }
       });
+      console.log('Customers API response:', response.data);
 
       // Process the response data - flatten all platforms into a single array
       const data = response.data;
