@@ -126,6 +126,7 @@ const NotificationPage = () => {
       if (!response.ok) throw new Error(`Failed to fetch notifications (${response.status})`);
 
       const result = await response.json();
+      console.log('[Notifications] API response:', result);
       if (result.status === 'success' && result.data) {
         setNotifications(result.data.map(processNotification).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
       } else { setNotifications([]); }
