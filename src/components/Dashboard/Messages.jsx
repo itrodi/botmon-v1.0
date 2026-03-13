@@ -3,12 +3,14 @@ import { Search, Instagram, Send, Paperclip, Smile, Image, Calendar, Mic, Pause,
 import { useSocket } from '../../context/SocketContext';
 import Sidebar from '../Sidebar';
 import Header from '../Header';
+import { useLocation } from 'react-router-dom';
 
 const API_BASE = 'https://api.automation365.io';
 const INSTAGRAM_API = 'https://instagram.automation365.io';
 
 const Messages = () => {
   const { socket, connected: socketConnected } = useSocket();
+  const location = useLocation();
 
   const [conversations, setConversations] = useState([]);
   const [conversationsCursor, setConversationsCursor] = useState(null);
@@ -29,6 +31,7 @@ const Messages = () => {
   const [messageInput, setMessageInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pendingDeepLink, setPendingDeepLink] = useState(null);
 
   // Per-chat pause
   const [chatPaused, setChatPaused] = useState(false);
@@ -44,6 +47,15 @@ const Messages = () => {
   const selectedChatRef = useRef(null);
 
   useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
+
+  useEffect(() => {
+    const state = location.state || {};
+    const username = state.username || state.user || null;
+    const conversationId = state.conversationId || state.conversation_id || state.chatId || null;
+    if (username || conversationId) {
+      setPendingDeepLink({ username, conversationId });
+    }
+  }, [location.state]);
 
   const getToken = () => localStorage.getItem('token');
 
@@ -130,6 +142,34 @@ const Messages = () => {
     console.log('[DEBUG] Messages component MOUNTED — calling fetchConversations');
     fetchConversations();
   }, [fetchConversations]);
+
+  useEffect(() => {
+    if (!pendingDeepLink) return;
+    if (loadingConversations) return;
+
+    const match = conversations.find(c => {
+      const cId = c._id || c.id;
+      if (pendingDeepLink.conversationId && cId === pendingDeepLink.conversationId) return true;
+      if (pendingDeepLink.username && c.username === pendingDeepLink.username) return true;
+      return false;
+    });
+
+    if (match) {
+      handleChatSelect(match);
+      setPendingDeepLink(null);
+      return;
+    }
+
+    if (pendingDeepLink.conversationId || pendingDeepLink.username) {
+      const stub = {
+        _id: pendingDeepLink.conversationId || pendingDeepLink.username,
+        username: pendingDeepLink.username || 'Customer',
+        profile_picture: '/default-avatar.png',
+      };
+      handleChatSelect(stub);
+      setPendingDeepLink(null);
+    }
+  }, [pendingDeepLink, conversations, loadingConversations]);
 
   // ──────────────────────────────────────────────
   // FETCH MESSAGES for a conversation

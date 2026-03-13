@@ -18,11 +18,12 @@ import Sidebar from '../Sidebar';
 import Header from '../Header';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 
 const Orders = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [date, setDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -36,6 +37,7 @@ const Orders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const searchTimeoutRef = useRef(null);
   const ordersPerPage = 8;
+  const [pendingOrderId, setPendingOrderId] = useState(null);
 
   const tabs = [
     { id: 'all', label: 'All' },
@@ -48,6 +50,12 @@ const Orders = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    const state = location.state || {};
+    const orderId = state.orderId || state.ids || state.id || null;
+    if (orderId) setPendingOrderId(orderId);
+  }, [location.state]);
 
   // Filter orders when tab, search term, or orders change (with debouncing for search)
   useEffect(() => {
@@ -146,6 +154,16 @@ const Orders = () => {
 
       console.log('Processed orders:', processedOrders); // Debug log
       setOrders(processedOrders);
+
+      if (pendingOrderId) {
+        const match = processedOrders.find(order => (
+          order.ids === pendingOrderId || order.id === pendingOrderId || order._id === pendingOrderId
+        ));
+        if (match) {
+          handleOrderClick(match);
+          setPendingOrderId(null);
+        }
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
       if (error.response?.status === 401) {

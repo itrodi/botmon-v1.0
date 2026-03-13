@@ -47,11 +47,12 @@ const NotificationPage = () => {
   };
 
   const getNotificationTitle = (notification) => {
-    const customerName = notification.name || notification.username || 'Customer';
-    const platform = notification.platform || '';
-    const type = notification.Type || notification.type || '';
-    if (type === 'Product') return `New Order from ${customerName}${platform ? ` via ${platform}` : ''}`;
-    return notification.title || notification.subject || `${type || 'Update'} from ${customerName}`;
+    if (notification.title || notification.subject) return notification.title || notification.subject;
+    const customerName = notification.username || notification.name || 'Customer';
+    if ((notification.Type || notification.type) === 'Product') {
+      return customerName;
+    }
+    return customerName;
   };
 
   const getNotificationMessage = (notification) => {
@@ -67,10 +68,24 @@ const NotificationPage = () => {
     return 'New activity recorded';
   };
 
+  const getObjectIdTimestamp = (value) => {
+    if (typeof value !== 'string' || value.length < 8) return null;
+    const ts = parseInt(value.slice(0, 8), 16);
+    if (Number.isNaN(ts)) return null;
+    return new Date(ts * 1000).toISOString();
+  };
+
   const processNotification = (notif) => ({
     ...notif,
-    timestamp: notif.timestamp || notif.created_at || notif.time || new Date().toISOString(),
+    timestamp:
+      notif.timestamp ||
+      notif.created_at ||
+      notif.time ||
+      notif.date ||
+      getObjectIdTimestamp(notif._id || notif.id) ||
+      new Date().toISOString(),
     id: notif._id || notif.ids || notif.id,
+    mongoId: notif._id || null,
     marked: Boolean(notif.marked ?? notif.read ?? false),
     notificationType: getNotificationType(notif),
     title: getNotificationTitle(notif),
@@ -225,10 +240,45 @@ const NotificationPage = () => {
         body: JSON.stringify({ _id: notificationId })
       });
       if (!response.ok) { if (response.status === 401) { toast.error('Session expired.'); localStorage.removeItem('token'); navigate('/login'); return; } throw new Error('Failed'); }
-      setNotifications(prev => prev.map(n => (n.id === notificationId || n.ids === notificationId) ? { ...n, marked: true } : n));
+      setNotifications(prev => prev.map(n => (n.mongoId === notificationId || n._id === notificationId || n.id === notificationId || n.ids === notificationId) ? { ...n, marked: true } : n));
       toast.success('Marked as read');
     } catch (err) { console.error(err); toast.error('Failed to mark as read'); }
     finally { setMarkingAsRead(prev => ({ ...prev, [notificationId]: false })); }
+  };
+
+  const getNotificationAction = (notification) => {
+    const action = notification.action || {};
+    if (action.type) return { type: action.type, ...action };
+    const type = (notification.Type || notification.type || '').toLowerCase();
+    if (type === 'product' || notification.notificationType === 'order' || notification.pname || notification.price) {
+      return { type: 'order' };
+    }
+    if (notification.username || notification.platform) {
+      return { type: 'chat' };
+    }
+    return { type: 'none' };
+  };
+
+  const handleNotificationClick = (notification) => {
+    const action = getNotificationAction(notification);
+    const mongoId = notification.mongoId || notification._id || notification.id;
+    if (!notification.marked && mongoId) markAsRead(mongoId);
+
+    if (action.type === 'chat') {
+      const username = action.username || notification.username || notification.name;
+      const conversationId = action.conversation_id || action.conversationId || notification.conversation_id || notification.chat_id || null;
+      if (username || conversationId) {
+        navigate('/Messages', { state: { username, conversationId } });
+      }
+      return;
+    }
+
+    if (action.type === 'order') {
+      const orderId = action.order_id || action.orderId || notification.ids || notification.id || notification._id;
+      if (orderId) {
+        navigate('/Orders', { state: { orderId } });
+      }
+    }
   };
 
   const getNotificationIcon = (notification) => {
@@ -266,7 +316,11 @@ const NotificationPage = () => {
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return '';
-    try { const d = new Date(timestamp); if (isToday(d)) return formatDistanceToNow(d, { addSuffix: true }); if (isYesterday(d)) return `Yesterday at ${format(d, 'h:mm a')}`; return format(d, 'MMM d, yyyy h:mm a'); } catch { return 'Invalid date'; }
+    try {
+      const d = new Date(timestamp);
+      if (Number.isNaN(d.getTime())) return 'Invalid date';
+      return formatDistanceToNow(d, { addSuffix: true });
+    } catch { return 'Invalid date'; }
   };
 
   const filterNotifications = () => {
@@ -328,7 +382,7 @@ const NotificationPage = () => {
                     <h3 className="text-sm font-medium text-gray-500 mb-2">{dateGroup}</h3>
                     <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
                       {notifs.map(notification => (
-                        <div key={notification.id || notification.ids || Math.random()} className={`flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer ${!notification.marked ? 'bg-purple-50 hover:bg-purple-100' : ''}`} onClick={() => !notification.marked && markAsRead(notification.id || notification.ids)}>
+                        <div key={notification.id || notification.ids || Math.random()} className={`flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer ${!notification.marked ? 'bg-purple-50 hover:bg-purple-100' : ''}`} onClick={() => handleNotificationClick(notification)}>
                           <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0"><img src={getNotificationAvatar(notification)} alt="" className="w-full h-full object-cover" /></div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium truncate">{getNotificationTitle(notification)}{!notification.marked && <span className="ml-2 text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">New</span>}</h3>
