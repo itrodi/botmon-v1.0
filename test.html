@@ -1,1437 +1,2462 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>H-Maze Evolved</title>
-    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            touch-action: manipulation;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
-        body {
-            overflow: hidden;
-            background-color: #1a1a1a;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Press Start 2P', monospace;
-            color: #e0e0e0;
-        }
-
-        #game-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            max-width: 500px;
-            max-height: 800px;
-            overflow: hidden;
-            background-color: #121212;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
-            touch-action: none; /* Enable custom touch handling */
-        }
-
-        #game-ui {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background-color: rgba(0,0,0,0.7);
-            border-radius: 5px;
-        }
-
-        #score-display, #level-display {
-            font-size: 14px;
-            color: #b4ff00;
-            text-shadow: 2px 2px 0 #000;
-        }
-
-        #health-display {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 10px;
-            background-color: rgba(0,0,0,0.7);
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-
-        .health-unit {
-            width: 20px;
-            height: 20px;
-            background-color: #ff5555;
-            border: 2px solid #000;
-            border-radius: 3px;
-            transition: all 0.3s;
-        }
-
-        .health-unit.empty {
-            background-color: #444;
-        }
-
-        #shield-display {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background-color: rgba(0,0,0,0.7);
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-
-        .shield-icon {
-            width: 24px;
-            height: 24px;
-            background-color: #00bfff;
-            border: 2px solid #000;
-            border-radius: 50%;
-            position: relative;
-            cursor: pointer;
-            pointer-events: auto;
-            transition: all 0.3s;
-        }
-
-        .shield-icon.used {
-            background-color: #444;
-            cursor: default;
-        }
-
-        .shield-icon.active {
-            background-color: #00ff00;
-            box-shadow: 0 0 15px #00ff00;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        .shield-timer {
-            font-size: 10px;
-            color: #00bfff;
-        }
-
-        #controls-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 15px;
-            pointer-events: auto;
-            gap: 5px;
-        }
-
-        .control-hint {
-            font-size: 10px;
-            color: #999;
-            font-family: 'Press Start 2P', monospace;
-            text-align: center;
-            margin-top: 5px;
-        }
-
-        .shield-btn {
-            width: 60px;
-            height: 60px;
-            background-color: rgba(0, 191, 255, 0.2);
-            border: 3px solid #00bfff;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #00bfff;
-            font-size: 24px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(0, 191, 255, 0.3);
-        }
-
-        .shield-btn:active {
-            background-color: rgba(0, 191, 255, 0.5);
-            transform: scale(0.95);
-        }
-
-        .shield-btn.disabled {
-            background-color: rgba(68, 68, 68, 0.2);
-            border-color: #444;
-            color: #444;
-            cursor: not-allowed;
-        }
-
-        .screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(18, 18, 18, 0.98), rgba(30, 30, 30, 0.98));
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-            z-index: 100;
-        }
-
-        .screen.active {
-            display: flex;
-        }
-
-        .screen-title {
-            font-size: 24px;
-            margin-bottom: 30px;
-            color: #b4ff00;
-            text-shadow: 3px 3px 0 #000;
-        }
-
-        .screen-text {
-            font-size: 12px;
-            margin-bottom: 30px;
-            line-height: 1.8;
-            color: #ccc;
-            max-width: 80%;
-        }
-
-        .btn {
-            background-color: #b4ff00;
-            color: #121212;
-            border: none;
-            padding: 15px 30px;
-            font-size: 14px;
-            font-family: 'Press Start 2P', monospace;
-            border-radius: 5px;
-            cursor: pointer;
-            pointer-events: auto;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            box-shadow: 0 4px 0 #8bc300;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 0 #8bc300;
-        }
-
-        .btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 0 #8bc300;
-        }
-
-        .player-preview {
-            width: 80px;
-            height: 80px;
-            background-color: #b4ff00;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 48px;
-            font-weight: bold;
-            color: #121212;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(180, 255, 0, 0.5);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }
-
-        #loading-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #121212;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 200;
-        }
-
-        .loader {
-            width: 60px;
-            height: 60px;
-            border: 6px solid #444;
-            border-top-color: #b4ff00;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .instruction-text {
-            font-size: 10px;
-            color: #888;
-            margin-top: 10px;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0" />
+  <title>Portal Pulse</title>
+  <script src="https://cdn.jsdelivr.net/npm/@remix-gg/sdk@latest/dist/index.min.js"></script>
+  <style>
+    :root {
+      --bg: #f6cfa7;
+      --frame: #2b2b2b;
+      --text: #2b2b2b;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 20% 10%, #ffe6c7, var(--bg));
+      color: var(--text);
+      font-family: "Trebuchet MS", Tahoma, sans-serif;
+    }
+    #wrap {
+      position: relative;
+      padding: 10px;
+      border: 3px solid var(--frame);
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    }
+    canvas {
+      display: block;
+      background: var(--bg);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: none;
+    }
+    #touch-controls {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+    }
+    .touch-zone {
+      position: absolute;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #zone-left {
+      left: 0; bottom: 0; width: 35%; height: 55%;
+    }
+    #zone-right {
+      right: 0; bottom: 0; width: 35%; height: 55%;
+    }
+    #zone-jump {
+      left: 15%; right: 15%; bottom: 0; height: 55%;
+    }
+    .touch-hint {
+      position: absolute;
+      bottom: 8px;
+      color: rgba(255,255,255,0.35);
+      font: bold 11px monospace;
+      pointer-events: none;
+      text-align: center;
+    }
+    #hint-left { left: 8px; }
+    #hint-right { right: 8px; }
+    #hint-jump { left: 50%; transform: translateX(-50%); bottom: 46px; }
+    #hint-dash { left: 50%; transform: translateX(-50%); bottom: 28px; font-size: 9px; }
+    @media (pointer: coarse) {
+      #touch-controls { display: block; }
+    }
+  </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="game-canvas"></canvas>
-
-        <div id="game-ui">
-            <div style="display: flex; justify-content: flex-end; width: 100%;">
-                <div class="stats-bar">
-                    <div class="stat-group">
-                        <div id="score-display">0</div>
-                        <div id="level-display">LV 1</div>
-                    </div>
-                    <span style="color: #444; margin: 0 2px;">|</span>
-                    <div class="stat-group">
-                        <span style="color: #ff5555; font-size: 10px; font-family: 'Press Start 2P', monospace;">HP:</span>
-                        <div class="health-unit"></div>
-                        <div class="health-unit"></div>
-                        <div class="health-unit"></div>
-                    </div>
-                    <span style="color: #444; margin: 0 2px;">|</span>
-                    <div class="stat-group">
-                        <span style="color: #00bfff; font-size: 10px; font-family: 'Press Start 2P', monospace;">SH:</span>
-                        <div class="shield-icon" data-shield="0"></div>
-                        <div class="shield-icon" data-shield="1"></div>
-                        <div class="shield-icon" data-shield="2"></div>
-                        <span class="shield-timer" id="shield-timer"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="controls-container">
-                <div class="shield-btn" id="shield-btn">🛡</div>
-                <div class="control-hint" id="control-hint">Arrow keys to move</div>
-            </div>
-        </div>
-
-        <div id="start-screen" class="screen active">
-            <div class="player-preview" id="player-preview">H</div>
-            <h1 class="screen-title">H-MAZE EVOLVED</h1>
-            <p class="screen-text">
-                Navigate through endless mazes!<br>
-                Collect coins and avoid enemies!<br>
-                Use shields for protection (30s)!
-            </p>
-            <button class="btn" id="start-btn">START GAME</button>
-            <p class="instruction-text">Swipe to move on mobile • Arrow keys/WASD on PC • Press SPACE or tap 🛡 for shield</p>
-        </div>
-
-        <div id="level-complete-screen" class="screen">
-            <h1 class="screen-title">LEVEL CLEARED!</h1>
-            <p class="screen-text" id="level-stats"></p>
-            <button class="btn" id="next-level-btn">NEXT LEVEL</button>
-        </div>
-
-        <div id="loading-screen">
-            <div class="loader"></div>
-            <p style="font-size: 12px;">LOADING...</p>
-        </div>
+  <div id="wrap">
+    <canvas id="game" width="320" height="480"></canvas>
+    <div id="touch-controls">
+      <div class="touch-zone" id="zone-left"></div>
+      <div class="touch-zone" id="zone-jump"></div>
+      <div class="touch-zone" id="zone-right"></div>
+      <div class="touch-hint" id="hint-left">&larr; HOLD</div>
+      <div class="touch-hint" id="hint-right">HOLD &rarr;</div>
+      <div class="touch-hint" id="hint-jump">TAP = JUMP</div>
+      <div class="touch-hint" id="hint-dash">SWIPE = DASH</div>
     </div>
+  </div>
 
-    <script>
-        // Game configuration
-        const config = {
-            tileSize: 32,
-            mazeWidth: 17,
-            mazeHeight: 17,
-            playerSpeed: 4,
-            coinValue: 10,
-            exitBonus: 50,
-            levelBonus: 100,
-            maxHealth: 3,
-            maxShields: 3,
-            shieldDuration: 30000, // 30 seconds
-            enemyDamage: 1,
-            soundEnabled: true,
-            pathComplexity: 0.3 // Chance to create additional paths
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+
+      const TILE_SIZE = 16;
+      const GRID_H = 30;
+
+      // === TILE CONSTANTS ===
+      // Ground
+      const TILE_GROUND_FILL = 17;
+      const TILE_GROUND_TOP_ORANGE = 34;
+      const TILE_GROUND_TOP_PINK = 41;
+      const TILE_GROUND_TOP_PURPLE = 35;
+      const TILE_GROUND_TOP_LAVENDER = 42;
+      const TILE_GROUND_FILL_CAVE = 36;
+      const TILE_GROUND_TOP_LAVA_A = 45;
+      const TILE_GROUND_TOP_LAVA_B = 48;
+      const TILE_GROUND_FILL_LAVA = 46;
+
+      // Hazards
+      const TILE_SPIKE = 110;
+      const TILE_SAW = 111;
+
+      // Collectibles
+      const TILE_COIN = 88;
+      const TILE_GEM_BLUE = 83;
+      const TILE_GEM_PINK = 84;
+      const TILE_GEM_RED = 85;
+
+      // Characters
+      const TILE_PLAYER = 105;
+      const CHARACTERS = [105, 106, 107, 108];
+      const CHAR_NAMES = ["Blaze", "Frost", "Wave", "Leaf"];
+      const CHAR_ABILITIES = [
+        { desc: "Quick Dash", jumpMod: 1.0, speedMod: 1.0, fallMod: 1.0, doubleJump: false, dashRecharge: true },
+        { desc: "Float", jumpMod: 1.0, speedMod: 0.95, fallMod: 0.65, doubleJump: false, dashRecharge: false },
+        { desc: "High Jump", jumpMod: 1.18, speedMod: 1.0, fallMod: 1.0, doubleJump: false, dashRecharge: false },
+        { desc: "Double Jump", jumpMod: 0.95, speedMod: 1.0, fallMod: 1.0, doubleJump: true, dashRecharge: false },
+      ];
+
+      // Enemies
+      const TILE_ENEMY = 109;
+      const TILE_ENEMY_FLY = 91;
+      const TILE_ENEMY_FAST = 97;
+
+      // Structures
+      const TILE_PORTAL = 120;
+      const TILE_PORTAL_LOCK = 67;
+      const TILE_FLAG = 73;
+      const TILE_SPRING = 15;
+
+      // UI
+      const TILE_HEART_FULL = 132;
+      const TILE_HEART_EMPTY = 134;
+      const TILE_STAR = 147;
+      const TILE_STAR_EMPTY = 149;
+
+      // Decorations
+      const TILE_CLOUD = 81;
+      const TILE_CLOUD_SMALL = 82;
+      const TILE_TREE_ORANGE = 31;
+      const TILE_TREE_PINK = 38;
+      const TILE_BUSH = 80;
+      const TILE_CRYSTAL_A = 98;
+      const TILE_CRYSTAL_B = 100;
+      const TILE_MUSHROOM = 89;
+      const TILE_TORCH = 99;
+
+      // Water/Lava
+      const TILE_WATER_LEFT = 116;
+      const TILE_WATER_MID = 117;
+      const TILE_WATER_EDGE = 118;
+      const TILE_WATER_EDGE_RIGHT = 119;
+
+      // Moving platform tile
+      const TILE_PLATFORM_BLOCK = 47;
+
+      const DIGIT_TILES = [135, 136, 137, 138, 139, 140, 141, 142, 143, 144];
+
+      // === PHYSICS ===
+      const GRAVITY = 1100;
+      const MOVE_ACCEL = 900;
+      const MAX_SPEED = 180;
+      const FRICTION = 0.85;
+      const JUMP_SPEED = 480;
+      const COYOTE_TIME = 0.12;
+      const JUMP_BUFFER = 0.14;
+      const DASH_SPEED = 420;
+      const DASH_TIME = 0.14;
+      const SPRING_BOOST = 620;
+
+      // === WORLD THEMES ===
+      const WORLDS = [
+        {
+          name: "Grasslands",
+          bg: "#f6cfa7",
+          groundTops: [TILE_GROUND_TOP_ORANGE, TILE_GROUND_TOP_PINK],
+          groundFill: TILE_GROUND_FILL,
+          trees: [TILE_TREE_ORANGE, TILE_TREE_PINK],
+          bush: TILE_BUSH,
+          gemTile: TILE_GEM_BLUE,
+        },
+        {
+          name: "Crystal Caves",
+          bg: "#c4b5e3",
+          groundTops: [TILE_GROUND_TOP_PURPLE, TILE_GROUND_TOP_LAVENDER],
+          groundFill: TILE_GROUND_FILL_CAVE,
+          trees: [TILE_CRYSTAL_A, TILE_CRYSTAL_B],
+          bush: TILE_GEM_PINK,
+          gemTile: TILE_GEM_PINK,
+        },
+        {
+          name: "Lava Realm",
+          bg: "#e8a88c",
+          groundTops: [TILE_GROUND_TOP_LAVA_A, TILE_GROUND_TOP_LAVA_B],
+          groundFill: TILE_GROUND_FILL_LAVA,
+          trees: [TILE_MUSHROOM, TILE_TORCH],
+          bush: TILE_MUSHROOM,
+          gemTile: TILE_GEM_RED,
+        },
+      ];
+
+      // === 30 LEVELS ===
+      const LEVELS = Array.from({ length: 30 }, (_, i) => {
+        const world = Math.floor(i / 10);
+        const lvlInWorld = i % 10;
+        return {
+          length: 360 + lvlInWorld * 45 + world * 30,
+          seed: 1200 + i * 97,
+          difficulty: 0.85 + i * 0.07,
+          world: world,
+        };
+      });
+
+      // === INPUT ===
+      const keys = {};
+      const pressed = {};
+
+      // === GAME STATE ===
+      let muted = false;
+      let levelW = 0;
+      let worldW = 0;
+      let worldH = GRID_H * TILE_SIZE;
+
+      let solid = [];
+      let groundTop = [];
+      let coins = [];
+      let hazards = [];
+      let enemies = [];
+      let springs = [];
+      let checkpoints = [];
+      let hearts = [];
+      let stars = [];
+      let decorBack = [];
+      let decorFront = [];
+      let portal = null;
+      let saws = [];
+      let gems = [];
+      let movingPlatforms = [];
+
+      let player = null;
+      let respawn = { x: 0, y: 0 };
+      let cameraX = 0;
+      let cameraY = 0;
+      let shakeTime = 0;
+      let shakeStrength = 0;
+
+      let score = 0;
+      let dashCharge = 0;
+      let levelIndex = 0;
+      let state = "loading";
+      let levelTimer = 0;
+      let levelElapsed = 0;
+      let gameOverSent = false;
+      let coinsCollected = 0;
+      let coinsTotal = 0;
+      let coinsNeeded = 0;
+      let gameTime = 0;
+
+      const maxHp = 3;
+      let hp = maxHp;
+      let invuln = 0;
+
+      let manualAdvance = false;
+      let selectedChar = 0;
+      let charSelectBlink = 0;
+
+      // Boss state
+      let boss = null;
+      let bossProjectiles = [];
+
+      // Wall slide state
+      let wallSliding = false;
+      let wallDir = 0;
+      let wallSlideTimer = 0;
+
+      // Combo system
+      let comboCount = 0;
+      let comboTimer = 0;
+      let comboPopups = []; // {x, y, text, life}
+
+      // Screen transition
+      let transition = { active: false, phase: "none", progress: 0, duration: 0.35, onMidpoint: null };
+
+      // === UTILITY ===
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function mulberry32(seed) {
+        let t = seed >>> 0;
+        return () => {
+          t += 0x6d2b79f5;
+          let r = Math.imul(t ^ (t >>> 15), 1 | t);
+          r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+          return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function rectsOverlap(a, b) {
+        return (
+          a.x < b.x + b.w &&
+          a.x + a.w > b.x &&
+          a.y < b.y + b.h &&
+          a.y + a.h > b.y
+        );
+      }
+
+      function haptic() {
+        if (window.RemixSDK && window.RemixSDK.hapticFeedback) {
+          window.RemixSDK.hapticFeedback();
+        }
+      }
+
+      // === AUDIO SYSTEM ===
+      let audioCtx = null;
+      let musicPlaying = false;
+      let musicTimerId = null;
+      let musicWorld = -1;
+
+      function getAudioCtx() {
+        if (muted) return null;
+        if (!audioCtx) {
+          try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
+        }
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        return audioCtx;
+      }
+
+      function playSfx(name) {
+        const ac = getAudioCtx();
+        if (!ac) return;
+        const t = ac.currentTime;
+        const o = (freq, type, start, dur, vol) => {
+          const osc = ac.createOscillator();
+          const g = ac.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, t + start);
+          osc.connect(g);
+          g.connect(ac.destination);
+          g.gain.setValueAtTime(vol || 0.08, t + start);
+          g.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
+          osc.start(t + start);
+          osc.stop(t + start + dur + 0.01);
+        };
+        const sfx = {
+          jump:       () => { o(300, "square", 0, 0.08, 0.06); o(500, "square", 0.03, 0.06, 0.05); },
+          coin:       () => { o(880, "square", 0, 0.06, 0.06); o(1175, "square", 0.06, 0.08, 0.06); },
+          gem:        () => { o(660, "square", 0, 0.06, 0.07); o(880, "square", 0.06, 0.06, 0.06); o(1320, "square", 0.12, 0.1, 0.06); },
+          stomp:      () => { o(200, "triangle", 0, 0.05, 0.1); o(600, "square", 0.02, 0.08, 0.06); },
+          damage:     () => { o(200, "sawtooth", 0, 0.15, 0.08); o(120, "sawtooth", 0.05, 0.15, 0.06); },
+          spring:     () => { o(300, "sine", 0, 0.05, 0.07); o(500, "sine", 0.04, 0.05, 0.06); o(800, "sine", 0.08, 0.06, 0.05); },
+          dash:       () => { o(150, "sawtooth", 0, 0.1, 0.06); o(250, "sawtooth", 0.02, 0.08, 0.04); },
+          checkpoint: () => { o(523, "square", 0, 0.1, 0.06); o(659, "square", 0.1, 0.1, 0.06); o(784, "square", 0.2, 0.15, 0.06); },
+          portal:     () => { o(440, "sine", 0, 0.1, 0.07); o(660, "sine", 0.08, 0.1, 0.06); o(880, "sine", 0.16, 0.1, 0.06); o(1320, "sine", 0.24, 0.2, 0.05); },
+          death:      () => { o(400, "sawtooth", 0, 0.12, 0.08); o(300, "sawtooth", 0.1, 0.12, 0.07); o(200, "sawtooth", 0.2, 0.15, 0.06); o(100, "sawtooth", 0.3, 0.25, 0.05); },
+          powerup:    () => { o(523, "square", 0, 0.08, 0.06); o(659, "square", 0.07, 0.08, 0.06); o(784, "square", 0.14, 0.08, 0.06); o(1047, "square", 0.21, 0.12, 0.06); },
+          levelComplete: () => { o(523, "square", 0, 0.12, 0.07); o(659, "square", 0.1, 0.12, 0.07); o(784, "square", 0.2, 0.12, 0.07); o(1047, "square", 0.3, 0.2, 0.07); o(1319, "square", 0.45, 0.3, 0.06); },
+          bossHit:    () => { o(150, "square", 0, 0.08, 0.1); o(80, "triangle", 0.03, 0.1, 0.08); },
+          bossDeath:  () => { for(let i=0;i<8;i++) o(200+i*50,"sawtooth",i*0.08,0.12,0.06); },
+          wallSlide:  () => { o(100, "triangle", 0, 0.04, 0.03); },
+        };
+        if (sfx[name]) sfx[name]();
+      }
+
+      function playMusicNote(ac, freq, time, dur) {
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = "square";
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        gain.gain.setValueAtTime(0.035, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+        osc.start(time);
+        osc.stop(time + dur + 0.01);
+      }
+
+      function startMusic(worldIdx) {
+        stopMusic();
+        if (muted) return;
+        const ac = getAudioCtx();
+        if (!ac) return;
+        const melodies = [
+          [523,587,659,784,880,784,659,587,523,659,784,880,784,659,587,523],
+          [440,523,587,659,784,659,587,523,440,392,440,523,587,523,440,392],
+          [659,784,880,988,1175,988,880,784,659,587,659,784,880,784,659,587],
+        ];
+        const bossMusic = [330,349,392,415,440,466,494,523,494,466,440,415,392,349,330,311];
+        const melody = worldIdx >= 3 ? bossMusic : (melodies[worldIdx] || melodies[0]);
+        const bpm = worldIdx === 2 ? 160 : worldIdx === 1 ? 120 : worldIdx >= 3 ? 170 : 140;
+        const noteLen = 60 / bpm;
+        let nextNote = ac.currentTime + 0.1;
+        let noteIdx = 0;
+        musicPlaying = true;
+        musicWorld = worldIdx;
+        function schedule() {
+          if (!musicPlaying) return;
+          while (nextNote < ac.currentTime + 0.2) {
+            playMusicNote(ac, melody[noteIdx], nextNote, noteLen * 0.8);
+            noteIdx = (noteIdx + 1) % melody.length;
+            nextNote += noteLen;
+          }
+          musicTimerId = setTimeout(schedule, 100);
+        }
+        schedule();
+      }
+
+      function stopMusic() {
+        musicPlaying = false;
+        if (musicTimerId) { clearTimeout(musicTimerId); musicTimerId = null; }
+        musicWorld = -1;
+      }
+
+      // === PARTICLE SYSTEM ===
+      let particles = [];
+
+      function spawnParticles(x, y, count, color, speed, life) {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = speed * (0.3 + Math.random() * 0.7);
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd - speed * 0.3,
+            life: life * (0.5 + Math.random() * 0.5),
+            maxLife: life,
+            color,
+            size: 1.5 + Math.random() * 2,
+          });
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 180 * dt;
+          p.life -= dt;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+      }
+
+      function drawParticles(ox, oy) {
+        for (const p of particles) {
+          const alpha = p.life / p.maxLife;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x - ox, p.y - oy, p.size, p.size);
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // === SAVE SYSTEM ===
+      function defaultSave() {
+        return { highestLevel: 0, totalScore: 0, levelStars: Array(30).fill(0), levelTimes: Array(30).fill(99999) };
+      }
+      function writeSave(data) {
+        try {
+          const sdk = window.FarcadeSDK || window.RemixSDK;
+          if (sdk && sdk.singlePlayer && sdk.singlePlayer.actions) {
+            sdk.singlePlayer.actions.saveGameState({ gameState: data });
+          }
+        } catch(e) {}
+      }
+      function loadSaveFromSDK() {
+        try {
+          const sdk = window.FarcadeSDK || window.RemixSDK;
+          if (sdk && sdk.singlePlayer && sdk.singlePlayer.getGameState) {
+            const result = sdk.singlePlayer.getGameState();
+            if (result && result.gameState) {
+              return Object.assign(defaultSave(), result.gameState);
+            }
+          }
+        } catch(e) {}
+        return defaultSave();
+      }
+      let saveData = defaultSave();
+
+      function sendGameOver() {
+        if (gameOverSent) return;
+        gameOverSent = true;
+        if (window.RemixSDK && window.RemixSDK.singlePlayer && window.RemixSDK.singlePlayer.actions) {
+          window.RemixSDK.singlePlayer.actions.gameOver({ score });
+        }
+      }
+
+      function setupSDK() {
+        if (window.RemixSDK && window.RemixSDK.onPlayAgain) {
+          window.RemixSDK.onPlayAgain(() => {
+            resetGame();
+          });
+        }
+        if (window.RemixSDK && window.RemixSDK.onToggleMute) {
+          window.RemixSDK.onToggleMute((data) => {
+            muted = !!(data && data.isMuted);
+          });
+        }
+        if (window.FarcadeSDK && window.FarcadeSDK.onToggleMute) {
+          window.FarcadeSDK.onToggleMute((data) => {
+            muted = !!(data && data.isMuted);
+          });
+        }
+      }
+
+      function setCanvasScale() {
+        const scale = Math.min(
+          window.innerWidth / canvas.width,
+          window.innerHeight / canvas.height
+        );
+        canvas.style.width = Math.floor(canvas.width * scale) + "px";
+        canvas.style.height = Math.floor(canvas.height * scale) + "px";
+      }
+
+      // === LEVEL GENERATION ===
+      function generateLevel(config) {
+        const rng = mulberry32(config.seed);
+        const difficulty = config.difficulty;
+        const worldIdx = config.world;
+        const world = WORLDS[worldIdx];
+
+        const gapChance = 0.06 + difficulty * 0.015;
+        const spikeChance = 0.10 + difficulty * 0.02;
+        const enemyChance = 0.05 + difficulty * 0.015;
+        const platformChance = 0.32 + difficulty * 0.04;
+        const springChance = 0.03 + difficulty * 0.01;
+        const heartChance = 0.015;
+        const starChance = 0.04;
+        const sawChance = worldIdx >= 1 ? 0.02 + difficulty * 0.01 : 0.005;
+        const flyEnemyChance = worldIdx >= 1 ? 0.03 + difficulty * 0.01 : 0;
+        const fastEnemyChance = worldIdx >= 2 ? 0.03 + difficulty * 0.01 : 0.005;
+        const gemChance = 0.02 + worldIdx * 0.015;
+        const movPlatChance = 0.015 + worldIdx * 0.01;
+
+        levelW = config.length;
+        worldW = levelW * TILE_SIZE;
+        worldH = GRID_H * TILE_SIZE;
+
+        solid = Array.from({ length: GRID_H }, () => Array(levelW).fill(false));
+        groundTop = Array(levelW).fill(world.groundTops[0]);
+        coins = [];
+        hazards = [];
+        enemies = [];
+        springs = [];
+        checkpoints = [];
+        hearts = [];
+        stars = [];
+        decorBack = [];
+        decorFront = [];
+        portal = null;
+        saws = [];
+        gems = [];
+        movingPlatforms = [];
+
+        const baseY = 24;
+        const minY = 18;
+        const maxY = 25;
+        const floorHeights = Array(levelW).fill(baseY);
+        const gaps = [];
+        const starterCoins = [];
+
+        // Generate floor terrain
+        let x = 0;
+        let floorY = baseY;
+        while (x < levelW) {
+          if (x < 10 || x > levelW - 12) {
+            floorHeights[x] = baseY;
+            x++;
+            continue;
+          }
+          const roll = rng();
+          if (roll < gapChance) {
+            const gapLen = 2 + Math.floor(rng() * 3);
+            for (let i = 0; i < gapLen && x + i < levelW; i++) {
+              floorHeights[x + i] = null;
+            }
+            gaps.push({ x, len: gapLen });
+            x += gapLen;
+            continue;
+          }
+          if (roll < gapChance + 0.15) {
+            floorY += rng() < 0.5 ? -1 : 1;
+            floorY = clamp(floorY, minY, maxY);
+          }
+          floorHeights[x] = floorY;
+          x++;
+        }
+
+        // Starter gap for teaching
+        const starterX = 18;
+        if (starterX + 2 < levelW && floorHeights[starterX] !== null) {
+          floorHeights[starterX] = null;
+          floorHeights[starterX + 1] = null;
+          gaps.push({ x: starterX, len: 2 });
+          if (floorHeights[starterX - 1] !== null) {
+            starterCoins.push({ x: starterX - 1, y: floorHeights[starterX - 1] - 2, collected: false });
+          }
+        }
+
+        // Theme bands for ground tops
+        for (let i = 0; i < levelW; i++) {
+          const themeBand = Math.floor(i / 40) % 2;
+          groundTop[i] = world.groundTops[themeBand];
+        }
+
+        // Fill solid ground
+        for (let gx = 0; gx < levelW; gx++) {
+          const fy = floorHeights[gx];
+          if (fy === null) continue;
+          for (let y = fy; y < GRID_H; y++) {
+            solid[y][gx] = true;
+          }
+        }
+
+        // Generate floating platforms with coins
+        for (let gx = 12; gx < levelW - 20; gx += 8 + Math.floor(rng() * 10)) {
+          if (rng() > platformChance) continue;
+          const base = floorHeights[gx] ?? baseY;
+          const height = 3 + Math.floor(rng() * 3);
+          const py = clamp(base - height, 6, baseY - 2);
+          const len = 4 + Math.floor(rng() * 6);
+          for (let px = gx; px < gx + len && px < levelW; px++) {
+            solid[py][px] = true;
+            if (rng() < 0.55) {
+              coins.push({ x: px, y: py - 1, collected: false });
+            }
+          }
+          if (rng() < starChance) {
+            stars.push({ x: gx + Math.floor(len / 2), y: py - 2, collected: false });
+          }
+          // Gems on platforms
+          if (rng() < gemChance) {
+            gems.push({ x: gx + Math.floor(len / 2), y: py - 1, collected: false, tile: world.gemTile });
+          }
+        }
+
+        // Ground-level entities with overlap prevention
+        const usedTiles = new Set();
+        for (let gx = 8; gx < levelW - 8; gx++) {
+          const fy = floorHeights[gx];
+          if (fy === null) continue;
+          const tileKey = `${gx},${fy - 1}`;
+
+          if (gx > 12 && gx < levelW - 12 && rng() < spikeChance && !usedTiles.has(tileKey)) {
+            hazards.push({ x: gx, y: fy - 1 });
+            usedTiles.add(tileKey);
+          } else if (rng() < sawChance && !usedTiles.has(tileKey)) {
+            // Saw blade - moves horizontally
+            const sawMinX = Math.max(0, (gx - 4)) * TILE_SIZE;
+            const sawMaxX = Math.min(levelW - 1, (gx + 4)) * TILE_SIZE;
+            saws.push({
+              x: gx * TILE_SIZE,
+              y: (fy - 1) * TILE_SIZE,
+              dir: rng() > 0.5 ? 1 : -1,
+              speed: 50 + difficulty * 15,
+              minX: sawMinX,
+              maxX: sawMaxX,
+              angle: 0,
+            });
+            usedTiles.add(tileKey);
+          } else if (rng() < springChance && !usedTiles.has(tileKey)) {
+            springs.push({ x: gx, y: fy - 1 });
+            usedTiles.add(tileKey);
+          } else if (rng() < flyEnemyChance && !usedTiles.has(tileKey)) {
+            // Flying enemy - sine wave vertical movement
+            enemies.push({
+              x: gx * TILE_SIZE + 1,
+              y: (fy - 3) * TILE_SIZE + 2,
+              w: TILE_SIZE - 2,
+              h: TILE_SIZE - 2,
+              dir: rng() > 0.5 ? 1 : -1,
+              speed: 35 + difficulty * 6,
+              minX: (gx - 5) * TILE_SIZE,
+              maxX: (gx + 5) * TILE_SIZE,
+              type: "fly",
+              baseY: (fy - 3) * TILE_SIZE + 2,
+              flyTimer: rng() * Math.PI * 2,
+              flyAmplitude: 24 + rng() * 16,
+            });
+            usedTiles.add(tileKey);
+          } else if (rng() < fastEnemyChance && !usedTiles.has(tileKey)) {
+            // Fast enemy - wider patrol, faster
+            enemies.push({
+              x: gx * TILE_SIZE + 1,
+              y: (fy - 1) * TILE_SIZE + 2,
+              w: TILE_SIZE - 2,
+              h: TILE_SIZE - 2,
+              dir: rng() > 0.5 ? 1 : -1,
+              speed: 75 + difficulty * 12,
+              minX: (gx - 7) * TILE_SIZE,
+              maxX: (gx + 7) * TILE_SIZE,
+              type: "fast",
+              baseY: 0,
+              flyTimer: 0,
+              flyAmplitude: 0,
+            });
+            usedTiles.add(tileKey);
+          } else if (rng() < enemyChance && !usedTiles.has(tileKey)) {
+            // Normal walking enemy
+            enemies.push({
+              x: gx * TILE_SIZE + 1,
+              y: (fy - 1) * TILE_SIZE + 2,
+              w: TILE_SIZE - 2,
+              h: TILE_SIZE - 2,
+              dir: rng() > 0.5 ? 1 : -1,
+              speed: 45 + difficulty * 8,
+              minX: (gx - 5) * TILE_SIZE,
+              maxX: (gx + 5) * TILE_SIZE,
+              type: "walk",
+              baseY: 0,
+              flyTimer: 0,
+              flyAmplitude: 0,
+            });
+            usedTiles.add(tileKey);
+          }
+          if (rng() < 0.3) {
+            coins.push({ x: gx, y: fy - 2, collected: false });
+          }
+          if (rng() < heartChance) {
+            hearts.push({ x: gx, y: fy - 3, collected: false });
+          }
+        }
+
+        // Moving platforms
+        for (let gx = 30; gx < levelW - 30; gx += 25 + Math.floor(rng() * 20)) {
+          if (rng() > movPlatChance) continue;
+          const base = floorHeights[gx] ?? baseY;
+          const py = clamp(base - 4 - Math.floor(rng() * 3), 8, baseY - 3);
+          const isVertical = rng() < 0.35;
+          movingPlatforms.push({
+            x: gx * TILE_SIZE,
+            y: py * TILE_SIZE,
+            w: 3 * TILE_SIZE,
+            h: TILE_SIZE,
+            dir: 1,
+            speed: 40 + difficulty * 10,
+            vertical: isVertical,
+            minX: (gx - 4) * TILE_SIZE,
+            maxX: (gx + 4) * TILE_SIZE,
+            minY: (py - 3) * TILE_SIZE,
+            maxY: (py + 3) * TILE_SIZE,
+            prevX: gx * TILE_SIZE,
+            prevY: py * TILE_SIZE,
+          });
+          // Coins above moving platforms
+          coins.push({ x: gx + 1, y: py - 1, collected: false });
+        }
+
+        // Water/lava in gaps
+        for (const gap of gaps) {
+          for (let i = 0; i < gap.len && gap.x + i < levelW; i++) {
+            const wx = gap.x + i;
+            const tile = i === 0 ? TILE_WATER_LEFT : i === gap.len - 1 ? TILE_WATER_EDGE_RIGHT : TILE_WATER_MID;
+            decorBack.push({ x: wx, y: GRID_H - 2, tile });
+            decorBack.push({ x: wx, y: GRID_H - 1, tile: TILE_WATER_EDGE });
+          }
+        }
+
+        // Checkpoints
+        for (let cx = 50; cx < levelW - 40; cx += 55) {
+          let gx = cx;
+          while (gx < levelW && floorHeights[gx] === null) gx++;
+          if (gx >= levelW) break;
+          checkpoints.push({ x: gx, y: floorHeights[gx] - 1, active: false });
+        }
+
+        // Trees/decorations (world-themed)
+        for (let dx = 12; dx < levelW; dx += 20 + Math.floor(rng() * 8)) {
+          const fy = floorHeights[dx];
+          if (fy === null) continue;
+          const treeTile = rng() > 0.5 ? world.trees[0] : world.trees[1];
+          decorFront.push({ x: dx, y: fy - 2, tile: treeTile });
+          if (rng() < 0.4) {
+            decorFront.push({ x: dx + 2, y: fy - 1, tile: world.bush });
+          }
+        }
+
+        // Clouds (all worlds, but different density)
+        const cloudSpacing = worldIdx === 1 ? 28 : 18;
+        for (let sx = 8; sx < levelW; sx += cloudSpacing + Math.floor(rng() * 10)) {
+          const cloudTile = rng() > 0.5 ? TILE_CLOUD : TILE_CLOUD_SMALL;
+          decorBack.push({ x: sx, y: 2 + Math.floor(rng() * 4), tile: cloudTile });
+        }
+
+        // Portal
+        let portalX = levelW - 6;
+        while (portalX > 10 && floorHeights[portalX] === null) portalX--;
+        portal = { x: portalX, y: floorHeights[portalX] - 1 };
+
+        // Spawn point
+        const spawnX = 4;
+        const spawnY = (floorHeights[spawnX] ?? baseY) - 1;
+        respawn = { x: spawnX * TILE_SIZE + 1, y: spawnY * TILE_SIZE + 1 };
+
+        for (const starterCoin of starterCoins) {
+          coins.push(starterCoin);
+        }
+
+        coinsTotal = coins.length + gems.length;
+        coinsCollected = 0;
+        coinsNeeded = Math.max(1, Math.floor(coinsTotal * 0.75));
+      }
+
+      // === BOSS LEVEL GENERATION ===
+      function isBossLevel(idx) { return idx === 9 || idx === 19 || idx === 29; }
+
+      function generateBossLevel(worldIdx) {
+        const arenaW = 35;
+        levelW = arenaW;
+        worldW = levelW * TILE_SIZE;
+        worldH = GRID_H * TILE_SIZE;
+        const world = WORLDS[worldIdx];
+
+        solid = Array.from({ length: GRID_H }, () => Array(levelW).fill(false));
+        groundTop = Array(levelW).fill(world.groundTops[0]);
+        coins = []; hazards = []; enemies = []; springs = [];
+        checkpoints = []; hearts = []; stars = [];
+        decorBack = []; decorFront = [];
+        portal = null; saws = []; gems = []; movingPlatforms = [];
+        bossProjectiles = [];
+
+        const floorY = 24;
+        // Flat floor + walls
+        for (let gx = 0; gx < arenaW; gx++) {
+          for (let y = floorY; y < GRID_H; y++) solid[y][gx] = true;
+          // Side walls
+          if (gx === 0 || gx === arenaW - 1) {
+            for (let y = 0; y < floorY; y++) solid[y][gx] = true;
+          }
+          groundTop[gx] = world.groundTops[gx % 2];
+        }
+        // Two mid platforms for player to use
+        for (let px = 8; px < 13; px++) solid[floorY - 6][px] = true;
+        for (let px = 22; px < 27; px++) solid[floorY - 6][px] = true;
+
+        // Boss entity
+        const bossHp = [5, 7, 10][worldIdx];
+        boss = {
+          x: (arenaW / 2) * TILE_SIZE - 16,
+          y: (floorY - 2) * TILE_SIZE,
+          w: 32, h: 32,
+          hp: bossHp, maxHp: bossHp,
+          phase: "idle", timer: 2.0,
+          dir: 1, speed: 80 + worldIdx * 25,
+          invuln: 0, worldIdx: worldIdx,
+          stunned: false, stunTimer: 0,
+          chargeSpeed: 160 + worldIdx * 40,
+          jumpTimer: 0, attacking: false,
         };
 
-        // Game state
-        const game = {
-            canvas: null,
-            ctx: null,
-            width: 0,
-            height: 0,
-            maze: [],
-            player: {
-                x: 1,
-                y: 1,
-                pixelX: 0,
-                pixelY: 0,
-                health: config.maxHealth,
-                shields: config.maxShields,
-                shieldActive: false,
-                shieldEndTime: 0,
-                invulnerable: false,
-                invulnerableTime: 0
-            },
-            exit: { x: 0, y: 0 },
-            coins: [],
-            enemies: [],
-            bullets: [],
-            score: 0,
-            level: 1,
-            state: 'loading',
-            keys: { up: false, down: false, left: false, right: false },
-            lastMoveTime: 0,
-            moveDelay: 150,
-            farcadeInitialized: false
+        coinsTotal = 0; coinsCollected = 0; coinsNeeded = 0;
+        respawn = { x: 3 * TILE_SIZE, y: (floorY - 1) * TILE_SIZE + 1 };
+      }
+
+      function updateBoss(dt) {
+        if (!boss || boss.hp <= 0) return;
+        const b = boss;
+
+        if (b.invuln > 0) b.invuln -= dt;
+
+        // Phase state machine
+        b.timer -= dt;
+        if (b.stunned) {
+          b.stunTimer -= dt;
+          if (b.stunTimer <= 0) { b.stunned = false; b.phase = "idle"; b.timer = 1.0; }
+        } else if (b.phase === "idle") {
+          // Move toward player slowly
+          const dx = (player.x + player.w/2) - (b.x + b.w/2);
+          b.dir = dx > 0 ? 1 : -1;
+          b.x += b.dir * b.speed * 0.4 * dt;
+          if (b.timer <= 0) {
+            // Choose attack
+            const roll = Math.random();
+            if (roll < 0.5) { b.phase = "charge"; b.timer = 1.5; b.attacking = true; }
+            else if (b.worldIdx >= 1 && roll < 0.7) { b.phase = "shoot"; b.timer = 0.6; }
+            else { b.phase = "jump"; b.timer = 0.8; b.vy = -500; }
+          }
+        } else if (b.phase === "charge") {
+          b.x += b.dir * b.chargeSpeed * dt;
+          // Hit wall -> stunned
+          if (b.x <= TILE_SIZE || b.x + b.w >= (levelW - 1) * TILE_SIZE) {
+            b.x = clamp(b.x, TILE_SIZE + 1, (levelW - 1) * TILE_SIZE - b.w - 1);
+            b.stunned = true;
+            b.stunTimer = 2.0;
+            b.attacking = false;
+            shakeTime = 0.3; shakeStrength = 5;
+            playSfx("bossHit");
+          }
+          if (b.timer <= 0) { b.phase = "idle"; b.timer = 1.5; b.attacking = false; }
+        } else if (b.phase === "jump") {
+          if (!b.vy) b.vy = 0;
+          b.vy = (b.vy || 0) + GRAVITY * dt;
+          b.y += b.vy * dt;
+          // Land
+          const floorPx = 24 * TILE_SIZE - b.h;
+          if (b.y >= floorPx) {
+            b.y = floorPx;
+            b.vy = 0;
+            b.phase = "idle";
+            b.timer = 1.2;
+            shakeTime = 0.2; shakeStrength = 3;
+            // Shockwave projectiles
+            bossProjectiles.push({ x: b.x, y: floorPx + b.h - 8, vx: -120, vy: 0, life: 1.5 });
+            bossProjectiles.push({ x: b.x + b.w, y: floorPx + b.h - 8, vx: 120, vy: 0, life: 1.5 });
+          }
+        } else if (b.phase === "shoot") {
+          if (b.timer <= 0) {
+            // Shoot projectile toward player
+            const dx = (player.x + player.w/2) - (b.x + b.w/2);
+            const dy = (player.y + player.h/2) - (b.y + b.h/2);
+            const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+            const spd = 140;
+            bossProjectiles.push({
+              x: b.x + b.w/2, y: b.y + b.h/2,
+              vx: (dx/dist) * spd, vy: (dy/dist) * spd,
+              life: 3.0,
+            });
+            b.phase = "idle";
+            b.timer = 1.5;
+          }
+        }
+
+        // Keep boss in bounds
+        b.x = clamp(b.x, TILE_SIZE + 1, (levelW - 1) * TILE_SIZE - b.w - 1);
+
+        // Boss-player collision
+        const bossRect = { x: b.x, y: b.y, w: b.w, h: b.h };
+        if (rectsOverlap(player, bossRect)) {
+          // Stomp from above
+          if ((player.vy > 80 || player.dashing) && player.y + player.h < b.y + b.h/2) {
+            if (b.invuln <= 0) {
+              b.hp--;
+              b.invuln = 0.8;
+              player.vy = -JUMP_SPEED * 0.6;
+              playSfx("bossHit");
+              shakeTime = 0.2; shakeStrength = 4;
+              spawnParticles(b.x + b.w/2, b.y, 15, "#ffaa00", 120, 0.6);
+              if (b.hp <= 0) {
+                playSfx("bossDeath");
+                spawnParticles(b.x + b.w/2, b.y + b.h/2, 30, "#ff4400", 150, 1.0);
+                shakeTime = 0.5; shakeStrength = 6;
+                boss = null;
+                completeLevel();
+                return;
+              }
+            }
+          } else if (b.invuln <= 0) {
+            // Player takes damage from boss body
+            takeDamage();
+          }
+        }
+
+        // Update projectiles
+        for (let i = bossProjectiles.length - 1; i >= 0; i--) {
+          const p = bossProjectiles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          if (p.life <= 0) { bossProjectiles.splice(i, 1); continue; }
+          // Hit player
+          const pr = { x: p.x - 4, y: p.y - 4, w: 8, h: 8 };
+          if (rectsOverlap(player, pr)) {
+            takeDamage();
+            bossProjectiles.splice(i, 1);
+          }
+        }
+      }
+
+      // === LEVEL MANAGEMENT ===
+      function loadLevel(index) {
+        const config = LEVELS[index % LEVELS.length];
+        boss = null;
+        bossProjectiles = [];
+        particles = [];
+        if (isBossLevel(index)) {
+          generateBossLevel(config.world);
+        } else {
+          generateLevel(config);
+        }
+
+        player = {
+          x: respawn.x,
+          y: respawn.y,
+          w: TILE_SIZE - 2,
+          h: TILE_SIZE - 2,
+          vx: 0,
+          vy: 0,
+          onGround: false,
+          coyote: 0,
+          jumpBuffer: 0,
+          dashTimer: 0,
+          dashing: false,
+          facing: 1,
+          onPlatform: null,
+          airJumps: 0,
+          dashRechargeTimer: 0,
         };
 
-   
+        dashCharge = 0;
+        levelElapsed = 0;
+        hp = maxHp;
+        invuln = 0;
+        cameraX = 0;
+        cameraY = 0;
+      }
 
-        // Simple sound system
-        const audio = {
-            sounds: {
-                
-            },
-            init() {
-                this.sounds.move = { play: () => console.log('Move sound') };
-                this.sounds.collect = { play: () => console.log('Collect sound') };
-                this.sounds.hit = { play: () => console.log('Hit sound') };
-                this.sounds.shield = { play: () => console.log('Shield sound') };
-                this.sounds.levelComplete = { play: () => console.log('Level complete sound') };
-                this.sounds.gameOver = { play: () => console.log('Game over sound') };
-            },
-            play(sound) {
-                if (config.soundEnabled && this.sounds[sound]) {
-                    try {
-                        this.sounds[sound].play();
-                    } catch (e) {
-                        console.log('Audio error:', e);
-                    }
-                }
-            },
-            setMuted(muted) {
-                config.soundEnabled = !muted;
+      function resetGame() {
+        score = 0;
+        levelIndex = 0;
+        gameOverSent = false;
+        loadLevel(levelIndex);
+        state = "title";
+      }
+
+      // === COLLISION ===
+      function isSolidAt(tx, ty) {
+        if (ty < 0 || ty >= GRID_H || tx < 0 || tx >= levelW) return false;
+        return solid[ty][tx];
+      }
+
+      function rectCollidesSolid(rect) {
+        const left = Math.floor(rect.x / TILE_SIZE);
+        const right = Math.floor((rect.x + rect.w - 1) / TILE_SIZE);
+        const top = Math.floor(rect.y / TILE_SIZE);
+        const bottom = Math.floor((rect.y + rect.h - 1) / TILE_SIZE);
+        for (let y = top; y <= bottom; y++) {
+          for (let x = left; x <= right; x++) {
+            if (isSolidAt(x, y)) return true;
+          }
+        }
+        return false;
+      }
+
+      function rectOnMovingPlatform(rect) {
+        const feetY = rect.y + rect.h;
+        for (const plat of movingPlatforms) {
+          if (
+            rect.x + rect.w > plat.x &&
+            rect.x < plat.x + plat.w &&
+            feetY >= plat.y &&
+            feetY <= plat.y + 6 &&
+            rect.y < plat.y
+          ) {
+            return plat;
+          }
+        }
+        return null;
+      }
+
+      function moveX(dx) {
+        if (!dx) return;
+        player.x += dx;
+        if (rectCollidesSolid(player)) {
+          if (dx > 0) {
+            const tx = Math.floor((player.x + player.w - 1) / TILE_SIZE);
+            player.x = tx * TILE_SIZE - player.w - 0.01;
+          } else {
+            const tx = Math.floor(player.x / TILE_SIZE);
+            player.x = (tx + 1) * TILE_SIZE + 0.01;
+          }
+          player.vx = 0;
+        }
+      }
+
+      function moveY(dy) {
+        if (!dy) return;
+        player.y += dy;
+        if (rectCollidesSolid(player)) {
+          if (dy > 0) {
+            const ty = Math.floor((player.y + player.h - 1) / TILE_SIZE);
+            player.y = ty * TILE_SIZE - player.h - 0.01;
+            player.onGround = true;
+          } else {
+            const ty = Math.floor(player.y / TILE_SIZE);
+            player.y = (ty + 1) * TILE_SIZE + 0.01;
+          }
+          player.vy = 0;
+        }
+        // Check moving platforms for landing
+        if (dy > 0 && !player.onGround) {
+          const plat = rectOnMovingPlatform(player);
+          if (plat) {
+            player.y = plat.y - player.h - 0.01;
+            player.vy = 0;
+            player.onGround = true;
+            player.onPlatform = plat;
+          }
+        }
+      }
+
+      // === ENTITY UPDATES ===
+      function updateEnemies(dt) {
+        for (const enemy of enemies) {
+          if (enemy.type === "fly") {
+            enemy.flyTimer += dt * 2.5;
+            enemy.y = enemy.baseY + Math.sin(enemy.flyTimer) * enemy.flyAmplitude;
+          }
+          enemy.x += enemy.dir * enemy.speed * dt;
+          if (enemy.x < enemy.minX) {
+            enemy.x = enemy.minX;
+            enemy.dir = 1;
+          }
+          if (enemy.x > enemy.maxX) {
+            enemy.x = enemy.maxX;
+            enemy.dir = -1;
+          }
+          // Terrain awareness: reverse at cliff edges and walls (ground enemies only)
+          if (enemy.type !== "fly") {
+            const ex = Math.floor((enemy.x + (enemy.dir > 0 ? enemy.w + 2 : -2)) / TILE_SIZE);
+            const ey = Math.floor((enemy.y + enemy.h) / TILE_SIZE);
+            // Check cliff ahead
+            if (!isSolidAt(ex, ey + 1) && !isSolidAt(ex, ey)) {
+              enemy.dir *= -1;
             }
+            // Check wall ahead
+            if (isSolidAt(ex, ey - 1)) {
+              enemy.dir *= -1;
+            }
+          }
+        }
+      }
+
+      function updateSaws(dt) {
+        for (const saw of saws) {
+          saw.angle += dt * 8;
+          saw.x += saw.dir * saw.speed * dt;
+          if (saw.x < saw.minX) {
+            saw.x = saw.minX;
+            saw.dir = 1;
+          }
+          if (saw.x > saw.maxX) {
+            saw.x = saw.maxX;
+            saw.dir = -1;
+          }
+        }
+      }
+
+      function updateMovingPlatforms(dt) {
+        for (const plat of movingPlatforms) {
+          plat.prevX = plat.x;
+          plat.prevY = plat.y;
+
+          if (plat.vertical) {
+            plat.y += plat.dir * plat.speed * dt;
+            if (plat.y < plat.minY) { plat.y = plat.minY; plat.dir = 1; }
+            if (plat.y > plat.maxY) { plat.y = plat.maxY; plat.dir = -1; }
+          } else {
+            plat.x += plat.dir * plat.speed * dt;
+            if (plat.x < plat.minX) { plat.x = plat.minX; plat.dir = 1; }
+            if (plat.x > plat.maxX) { plat.x = plat.maxX; plat.dir = -1; }
+          }
+        }
+      }
+
+      // === COLLECTIBLE CHECKS ===
+      function checkCoins() {
+        for (const coin of coins) {
+          if (coin.collected) continue;
+          const coinRect = {
+            x: coin.x * TILE_SIZE + 2,
+            y: coin.y * TILE_SIZE + 2,
+            w: TILE_SIZE - 4,
+            h: TILE_SIZE - 4,
+          };
+          if (rectsOverlap(player, coinRect)) {
+            coin.collected = true;
+            coinsCollected++;
+            score += 100;
+            dashCharge = 1;
+            playSfx("coin");
+            spawnParticles(coin.x * TILE_SIZE + 8, coin.y * TILE_SIZE + 8, 5, "#ffdd44", 60, 0.4);
+            haptic();
+          }
+        }
+      }
+
+      function checkGems() {
+        for (const gem of gems) {
+          if (gem.collected) continue;
+          const gemRect = {
+            x: gem.x * TILE_SIZE + 2,
+            y: gem.y * TILE_SIZE + 2,
+            w: TILE_SIZE - 4,
+            h: TILE_SIZE - 4,
+          };
+          if (rectsOverlap(player, gemRect)) {
+            gem.collected = true;
+            coinsCollected++;
+            score += 250;
+            dashCharge = 1;
+            playSfx("gem");
+            spawnParticles(gem.x * TILE_SIZE + 8, gem.y * TILE_SIZE + 8, 8, "#88ccff", 80, 0.5);
+            haptic();
+          }
+        }
+      }
+
+      function checkStars() {
+        for (const star of stars) {
+          if (star.collected) continue;
+          const starRect = {
+            x: star.x * TILE_SIZE + 2,
+            y: star.y * TILE_SIZE + 2,
+            w: TILE_SIZE - 4,
+            h: TILE_SIZE - 4,
+          };
+          if (rectsOverlap(player, starRect)) {
+            star.collected = true;
+            score += 250;
+            if (hp < maxHp) hp++;
+            dashCharge = 1;
+            playSfx("powerup");
+            spawnParticles(star.x * TILE_SIZE + 8, star.y * TILE_SIZE + 8, 10, "#ffff66", 90, 0.6);
+            haptic();
+          }
+        }
+      }
+
+      function checkHearts() {
+        for (const heart of hearts) {
+          if (heart.collected) continue;
+          const heartRect = {
+            x: heart.x * TILE_SIZE + 2,
+            y: heart.y * TILE_SIZE + 2,
+            w: TILE_SIZE - 4,
+            h: TILE_SIZE - 4,
+          };
+          if (rectsOverlap(player, heartRect)) {
+            heart.collected = true;
+            if (hp < maxHp) hp++;
+            score += 150;
+            playSfx("powerup");
+            spawnParticles(heart.x * TILE_SIZE + 8, heart.y * TILE_SIZE + 8, 6, "#ff6688", 70, 0.5);
+            haptic();
+          }
+        }
+      }
+
+      function checkSprings() {
+        for (const spring of springs) {
+          const springRect = {
+            x: spring.x * TILE_SIZE + 2,
+            y: spring.y * TILE_SIZE + 4,
+            w: TILE_SIZE - 4,
+            h: TILE_SIZE - 6,
+          };
+          if (rectsOverlap(player, springRect) && player.vy >= 0) {
+            player.vy = -SPRING_BOOST;
+            player.onGround = false;
+            dashCharge = 1;
+            playSfx("spring");
+            spawnParticles(spring.x * TILE_SIZE + 8, spring.y * TILE_SIZE, 6, "#44ff88", 80, 0.4);
+            haptic();
+          }
+        }
+      }
+
+      function checkCheckpoints() {
+        for (const flag of checkpoints) {
+          const flagRect = {
+            x: flag.x * TILE_SIZE,
+            y: flag.y * TILE_SIZE,
+            w: TILE_SIZE,
+            h: TILE_SIZE,
+          };
+          if (rectsOverlap(player, flagRect)) {
+            if (!flag.active) {
+              flag.active = true;
+              respawn = { x: flag.x * TILE_SIZE + 1, y: (flag.y - 1) * TILE_SIZE + 1 };
+              score += 100;
+              playSfx("checkpoint");
+              spawnParticles(flag.x * TILE_SIZE + 8, flag.y * TILE_SIZE, 8, "#ffaa33", 70, 0.6);
+              haptic();
+            }
+          }
+        }
+      }
+
+      // === DAMAGE ===
+      function takeDamage() {
+        if (invuln > 0 || state !== "playing") return;
+        hp -= 1;
+        invuln = 1.1;
+        shakeTime = 0.25;
+        shakeStrength = 4;
+        spawnParticles(player.x + player.w/2, player.y + player.h/2, 12, "#ff4444", 100, 0.5);
+        haptic();
+        if (hp <= 0) {
+          playSfx("death");
+          state = "dead";
+          sendGameOver();
+        } else {
+          playSfx("damage");
+          player.x = respawn.x;
+          player.y = respawn.y;
+          player.vx = 0;
+          player.vy = 0;
+        }
+      }
+
+      function checkHazards() {
+        // Static spikes
+        for (const hazard of hazards) {
+          const hazardRect = {
+            x: hazard.x * TILE_SIZE,
+            y: hazard.y * TILE_SIZE,
+            w: TILE_SIZE,
+            h: TILE_SIZE,
+          };
+          if (rectsOverlap(player, hazardRect)) {
+            takeDamage();
+            return;
+          }
+        }
+        // Moving saw blades
+        for (const saw of saws) {
+          const sawRect = {
+            x: saw.x + 2,
+            y: saw.y + 2,
+            w: TILE_SIZE - 4,
+            h: TILE_SIZE - 4,
+          };
+          if (rectsOverlap(player, sawRect)) {
+            takeDamage();
+            return;
+          }
+        }
+        // Enemies
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          const enemy = enemies[i];
+          if (rectsOverlap(player, enemy)) {
+            if (player.dashing || player.vy > 120) {
+              spawnParticles(enemy.x + enemy.w/2, enemy.y + enemy.h/2, 10, "#ff8844", 90, 0.5);
+              enemies.splice(i, 1);
+              player.vy = -JUMP_SPEED * 0.45;
+              // Combo system
+              comboCount++;
+              comboTimer = 1.5;
+              const baseScore = enemy.type === "fast" ? 250 : enemy.type === "fly" ? 200 : 150;
+              const comboScore = baseScore * comboCount;
+              score += comboScore;
+              comboPopups.push({ x: enemy.x + enemy.w/2, y: enemy.y, text: comboCount > 1 ? comboScore + "x" + comboCount : "+" + comboScore, life: 1.0 });
+              playSfx("stomp");
+              haptic();
+            } else {
+              takeDamage();
+              return;
+            }
+          }
+        }
+        // Fall death
+        if (player.y > worldH + TILE_SIZE) {
+          takeDamage();
+        }
+      }
+
+      function checkPortal() {
+        if (!portal) return false;
+        const portalRect = {
+          x: portal.x * TILE_SIZE,
+          y: portal.y * TILE_SIZE,
+          w: TILE_SIZE,
+          h: TILE_SIZE,
         };
+        if (rectsOverlap(player, portalRect)) {
+          if (coinsCollected < coinsNeeded) {
+            shakeTime = 0.15;
+            shakeStrength = 2;
+            haptic();
+            return false;
+          }
+          haptic();
+          return true;
+        }
+        return false;
+      }
 
-        // Helper function to safely check maze bounds
-        function isValidPosition(x, y) {
-            return x >= 0 && x < config.mazeWidth && 
-                   y >= 0 && y < config.mazeHeight;
+      function completeLevel() {
+        playSfx("levelComplete");
+        // Save progress
+        if (levelIndex >= saveData.highestLevel) saveData.highestLevel = levelIndex + 1;
+        const starRating = coinsCollected >= coinsTotal ? 3 : coinsCollected >= coinsNeeded ? 2 : 1;
+        if (starRating > (saveData.levelStars[levelIndex] || 0)) saveData.levelStars[levelIndex] = starRating;
+        if (levelElapsed < (saveData.levelTimes[levelIndex] || 99999)) saveData.levelTimes[levelIndex] = Math.floor(levelElapsed);
+        saveData.totalScore = Math.max(saveData.totalScore, score);
+        writeSave(saveData);
+
+        if (levelIndex >= LEVELS.length - 1) {
+          state = "gameComplete";
+          haptic();
+          sendGameOver();
+          return;
+        }
+        state = "levelComplete";
+        levelTimer = 1.3;
+        score += 500;
+        score += hp * 100;
+      }
+
+      // === GAMEPAD ===
+      let prevGamepadButtons = {};
+      function pollGamepad() {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (const gp of gamepads) {
+          if (!gp) continue;
+          const ax = gp.axes[0] || 0;
+          keys["GamepadLeft"] = ax < -0.3;
+          keys["GamepadRight"] = ax > 0.3;
+          const btns = { A: 0, B: 1, X: 2, Start: 9 };
+          for (const [name, idx] of Object.entries(btns)) {
+            const p = gp.buttons[idx] && gp.buttons[idx].pressed;
+            const key = "Gamepad" + name;
+            if (p && !prevGamepadButtons[key]) pressed[key] = true;
+            keys[key] = p;
+            prevGamepadButtons[key] = p;
+          }
+          break;
+        }
+      }
+
+      // === MAIN UPDATE ===
+      function update(dt) {
+        gameTime += dt;
+        pollGamepad();
+
+        // Fade touch hints after a few seconds
+        if (touchHintTimer > 0) {
+          touchHintTimer -= dt;
+          if (touchHintTimer <= 0) {
+            const hints = document.querySelectorAll(".touch-hint");
+            hints.forEach(h => { h.style.transition = "opacity 1s"; h.style.opacity = "0"; });
+          }
         }
 
-        // Helper function to safely get maze value
-        function getMazeValue(x, y) {
-            if (!isValidPosition(x, y)) return 1;
-            if (!game.maze[y]) return 1;
-            if (game.maze[y][x] === undefined) return 1;
-            return game.maze[y][x];
+        if (state === "title") {
+          if (Object.keys(pressed).length > 0) {
+            state = "charSelect";
+          }
+          pressedClear();
+          return;
         }
 
-        // Helper function to safely set maze value
-        function setMazeValue(x, y, value) {
-            if (!isValidPosition(x, y)) return false;
-            if (!game.maze[y]) return false;
-            game.maze[y][x] = value;
-            return true;
+        if (state === "charSelect") {
+          charSelectBlink += dt;
+          if (pressed["ArrowLeft"] || pressed["KeyA"] || pressed["GamepadLeft"]) {
+            selectedChar = (selectedChar + CHARACTERS.length - 1) % CHARACTERS.length;
+            haptic();
+          }
+          if (pressed["ArrowRight"] || pressed["KeyD"] || pressed["GamepadRight"]) {
+            selectedChar = (selectedChar + 1) % CHARACTERS.length;
+            haptic();
+          }
+          if (pressed["ArrowUp"] || pressed["KeyW"] || pressed["Space"] || pressed["Enter"] || pressed["GamepadA"]) {
+            state = "playing";
+            haptic();
+          }
+          pressedClear();
+          return;
         }
 
-        // Initialize game
-        function init() {
-            game.canvas = document.getElementById('game-canvas');
-            game.ctx = game.canvas.getContext('2d');
-            
-            // Load character image
-            characterImage = new Image();
-            characterImage.crossOrigin = "anonymous"; // Handle CORS
-            characterImage.onload = () => {
-                imageLoaded = true;
-                console.log('Character image loaded');
-                // Update player preview on start screen
-                const preview = document.getElementById('player-preview');
-                if (preview) {
-                    preview.style.backgroundImage = `url(${characterImage.src})`;
-                    preview.style.backgroundSize = 'cover';
-                    preview.style.backgroundPosition = 'center';
-                    preview.textContent = '';
-                }
-            };
-            characterImage.onerror = () => {
-                console.error('Failed to load character image');
-                imageLoaded = false;
-            };
-            characterImage.src = 'https://lqy3lriiybxcejon.public.blob.vercel-storage.com/34cef9ac-7432-43f2-bd9e-fc0593236066/WhatsApp%20Image%202025-06-14%20at%2001.23.34-nmqgtFOtSs40ctrcRojyFpQsvVkYR6.jpg';
-            
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-            
-            audio.init();
-            setupControls();
-            initFarcade();
-            
-            setTimeout(() => {
-                document.getElementById('loading-screen').style.display = 'none';
-                game.state = 'start';
-            }, 1000);
-            
-            requestAnimationFrame(gameLoop);
+        // Pause toggle
+        if (pressed["Escape"] && state === "playing") {
+          state = "paused";
+          stopMusic();
+          pressedClear();
+          return;
+        }
+        if (pressed["Escape"] && state === "paused") {
+          state = "playing";
+          pressedClear();
+          return;
+        }
+        if (state === "paused") {
+          if (pressed["KeyR"]) { resetGame(); }
+          pressedClear();
+          return;
         }
 
-        function resizeCanvas() {
-            const container = document.getElementById('game-container');
-            const maxWidth = Math.min(container.clientWidth, 500);
-            const maxHeight = Math.min(container.clientHeight * 0.85, 700); // Even more space for game
-            
-            const tileWidth = Math.floor(maxWidth / config.mazeWidth);
-            const tileHeight = Math.floor(maxHeight / config.mazeHeight);
-            config.tileSize = Math.min(tileWidth, tileHeight, 32);
-            
-            game.width = config.mazeWidth * config.tileSize;
-            game.height = config.mazeHeight * config.tileSize;
-            
-            game.canvas.width = game.width;
-            game.canvas.height = game.height;
-        }
+        if (state === "playing") {
+          // Start music for current world if not playing
+          const wIdx = LEVELS[levelIndex % LEVELS.length].world;
+          if (musicWorld !== wIdx) startMusic(wIdx);
+          levelElapsed += dt;
+          if (invuln > 0) invuln -= dt;
+          if (shakeTime > 0) shakeTime -= dt;
 
-        function setupControls() {
-            // Keyboard controls for PC
-            document.addEventListener('keydown', (e) => {
-                if (game.state !== 'playing') return;
-                
-                switch(e.key.toLowerCase()) {
-                    case 'arrowup':
-                    case 'w':
-                        game.keys.up = true;
-                        e.preventDefault();
-                        break;
-                    case 'arrowdown':
-                    case 's':
-                        game.keys.down = true;
-                        e.preventDefault();
-                        break;
-                    case 'arrowleft':
-                    case 'a':
-                        game.keys.left = true;
-                        e.preventDefault();
-                        break;
-                    case 'arrowright':
-                    case 'd':
-                        game.keys.right = true;
-                        e.preventDefault();
-                        break;
-                    case ' ':
-                        activateShield();
-                        e.preventDefault();
-                        break;
-                }
-            });
+          const left = keys["ArrowLeft"] || keys["KeyA"] || keys["GamepadLeft"];
+          const right = keys["ArrowRight"] || keys["KeyD"] || keys["GamepadRight"];
+          const jumpPressed = pressed["ArrowUp"] || pressed["KeyW"] || pressed["Space"] || pressed["GamepadA"];
+          const dashPressed = pressed["ShiftLeft"] || pressed["ShiftRight"] || pressed["KeyX"] || pressed["GamepadB"] || pressed["GamepadX"];
 
-            document.addEventListener('keyup', (e) => {
-                switch(e.key.toLowerCase()) {
-                    case 'arrowup':
-                    case 'w':
-                        game.keys.up = false;
-                        break;
-                    case 'arrowdown':
-                    case 's':
-                        game.keys.down = false;
-                        break;
-                    case 'arrowleft':
-                    case 'a':
-                        game.keys.left = false;
-                        break;
-                    case 'arrowright':
-                    case 'd':
-                        game.keys.right = false;
-                        break;
-                }
-            });
+          if (left) player.facing = -1;
+          if (right) player.facing = 1;
 
-            // Shield button
-            const shieldBtn = document.getElementById('shield-btn');
-            shieldBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (game.state === 'playing') {
-                    activateShield();
-                }
-            });
+          const spdMod = CHAR_ABILITIES[selectedChar].speedMod;
+          if (left) player.vx -= MOVE_ACCEL * spdMod * dt;
+          if (right) player.vx += MOVE_ACCEL * spdMod * dt;
+          if (!left && !right) player.vx *= FRICTION;
+          player.vx = Math.max(-MAX_SPEED * spdMod, Math.min(MAX_SPEED * spdMod, player.vx));
 
-            // Shield icons (clickable)
-            document.querySelectorAll('.shield-icon').forEach(icon => {
-                icon.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (game.state === 'playing') {
-                        activateShield();
-                    }
-                });
-            });
+          if (player.onGround) {
+            player.coyote = COYOTE_TIME;
+          } else {
+            player.coyote -= dt;
+          }
 
-            // Swipe controls for mobile
-            let touchStartX = 0;
-            let touchStartY = 0;
-            let touchEndX = 0;
-            let touchEndY = 0;
-            let isSwiping = false;
+          if (jumpPressed) {
+            player.jumpBuffer = JUMP_BUFFER;
+          } else {
+            player.jumpBuffer -= dt;
+          }
 
-            game.canvas.addEventListener('touchstart', (e) => {
-                if (game.state !== 'playing') return;
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                isSwiping = true;
-                e.preventDefault();
-            });
-
-            game.canvas.addEventListener('touchmove', (e) => {
-                if (!isSwiping || game.state !== 'playing') return;
-                touchEndX = e.touches[0].clientX;
-                touchEndY = e.touches[0].clientY;
-                e.preventDefault();
-            });
-
-            game.canvas.addEventListener('touchend', (e) => {
-                if (!isSwiping || game.state !== 'playing') return;
-                
-                handleSwipe();
-                isSwiping = false;
-                e.preventDefault();
-            });
-
-            function handleSwipe() {
-                const diffX = touchEndX - touchStartX;
-                const diffY = touchEndY - touchStartY;
-                const minSwipeDistance = 30;
-
-                // Reset all keys first
-                game.keys.up = false;
-                game.keys.down = false;
-                game.keys.left = false;
-                game.keys.right = false;
-
-                // Determine swipe direction
-                if (Math.abs(diffX) > Math.abs(diffY)) {
-                    // Horizontal swipe
-                    if (Math.abs(diffX) > minSwipeDistance) {
-                        if (diffX > 0) {
-                            // Swipe right
-                            simulateKeyPress('right');
-                        } else {
-                            // Swipe left
-                            simulateKeyPress('left');
-                        }
-                    }
-                } else {
-                    // Vertical swipe
-                    if (Math.abs(diffY) > minSwipeDistance) {
-                        if (diffY > 0) {
-                            // Swipe down
-                            simulateKeyPress('down');
-                        } else {
-                            // Swipe up
-                            simulateKeyPress('up');
-                        }
-                    }
-                }
+          // Wall slide check
+          wallSliding = false;
+          if (!player.onGround && player.vy > 0) {
+            const midY = Math.floor((player.y + player.h / 2) / TILE_SIZE);
+            if (left) {
+              const leftTx = Math.floor((player.x - 1) / TILE_SIZE);
+              if (isSolidAt(leftTx, midY)) { wallSliding = true; wallDir = -1; }
             }
-
-            function simulateKeyPress(direction) {
-                game.keys[direction] = true;
-                setTimeout(() => {
-                    game.keys[direction] = false;
-                }, game.moveDelay);
+            if (right) {
+              const rightTx = Math.floor((player.x + player.w + 1) / TILE_SIZE);
+              if (isSolidAt(rightTx, midY)) { wallSliding = true; wallDir = 1; }
             }
-
-            // Update control hint based on device
-            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-            const controlHint = document.getElementById('control-hint');
-            if (controlHint) {
-                controlHint.textContent = isTouchDevice ? 'Swipe to move' : 'Arrow keys to move';
+            if (wallSliding) {
+              player.vy = Math.min(player.vy, 60); // Slow fall
+              wallSlideTimer += dt;
+              if (wallSlideTimer > 0.15) { wallSlideTimer = 0; }
             }
-            
-            // Button events
-            document.getElementById('start-btn').addEventListener('click', startGame);
-            document.getElementById('next-level-btn').addEventListener('click', nextLevel);
+          }
+          if (!wallSliding) wallSlideTimer = 0;
+
+          // Variable jump height: cut velocity on key release
+          const jumpHeld = keys["ArrowUp"] || keys["KeyW"] || keys["Space"] || keys["GamepadA"];
+          if (!jumpHeld && player.vy < -JUMP_SPEED * 0.4) {
+            player.vy = -JUMP_SPEED * 0.4;
+          }
+
+          const ability = CHAR_ABILITIES[selectedChar];
+          const jumpSpd = JUMP_SPEED * ability.jumpMod;
+
+          if (player.onGround) player.airJumps = ability.doubleJump ? 1 : 0;
+
+          if (player.jumpBuffer > 0 && player.coyote > 0) {
+            player.vy = -jumpSpd;
+            player.onGround = false;
+            player.jumpBuffer = 0;
+            player.coyote = 0;
+            playSfx("jump");
+            spawnParticles(player.x + player.w/2, player.y + player.h, 4, "#cccccc", 40, 0.3);
+            haptic();
+          } else if (player.jumpBuffer > 0 && player.airJumps > 0 && player.coyote <= 0 && !wallSliding) {
+            // Double jump
+            player.airJumps--;
+            player.vy = -jumpSpd * 0.85;
+            player.jumpBuffer = 0;
+            playSfx("jump");
+            spawnParticles(player.x + player.w/2, player.y + player.h, 6, "#aaddff", 50, 0.35);
+            haptic();
+          } else if (player.jumpBuffer > 0 && wallSliding) {
+            // Wall jump
+            player.vy = -JUMP_SPEED * 0.9;
+            player.vx = -wallDir * MAX_SPEED * 1.3;
+            player.facing = -wallDir;
+            player.jumpBuffer = 0;
+            wallSliding = false;
+            playSfx("jump");
+            spawnParticles(player.x + (wallDir > 0 ? player.w : 0), player.y + player.h/2, 6, "#aaaaaa", 50, 0.3);
+            haptic();
+          }
+
+          if (dashPressed && dashCharge > 0 && !player.dashing) {
+            const dir = left ? -1 : right ? 1 : player.facing;
+            player.dashing = true;
+            player.dashTimer = DASH_TIME;
+            player.vy = 0;
+            player.vx = dir * DASH_SPEED;
+            dashCharge = 0;
+            playSfx("dash");
+            haptic();
+          }
+
+          if (player.dashing) {
+            player.dashTimer -= dt;
+            if (player.dashTimer <= 0) {
+              player.dashing = false;
+            }
+          } else {
+            const fallMod = (player.vy > 0) ? CHAR_ABILITIES[selectedChar].fallMod : 1.0;
+            player.vy += GRAVITY * fallMod * dt;
+          }
+
+          // Dash auto-recharge (Blaze ability)
+          if (CHAR_ABILITIES[selectedChar].dashRecharge && dashCharge <= 0 && !player.dashing) {
+            player.dashRechargeTimer += dt;
+            if (player.dashRechargeTimer >= 2.0) {
+              dashCharge = 1;
+              player.dashRechargeTimer = 0;
+            }
+          } else {
+            player.dashRechargeTimer = 0;
+          }
+
+          // Moving platforms update (before player movement)
+          updateMovingPlatforms(dt);
+
+          // Apply platform carry
+          player.onPlatform = null;
+          const ridingPlat = rectOnMovingPlatform(player);
+          if (ridingPlat && player.vy >= 0) {
+            const dx = ridingPlat.x - ridingPlat.prevX;
+            const dy = ridingPlat.y - ridingPlat.prevY;
+            player.x += dx;
+            player.y += dy;
+            player.onPlatform = ridingPlat;
+          }
+
+          player.onGround = false;
+          moveX(player.vx * dt);
+          moveY(player.vy * dt);
+
+          // Combo timer
+          if (comboTimer > 0) {
+            comboTimer -= dt;
+            if (comboTimer <= 0) comboCount = 0;
+          }
+          // Combo popups
+          for (let i = comboPopups.length - 1; i >= 0; i--) {
+            comboPopups[i].life -= dt;
+            comboPopups[i].y -= 30 * dt;
+            if (comboPopups[i].life <= 0) comboPopups.splice(i, 1);
+          }
+
+          updateParticles(dt);
+          updateEnemies(dt);
+          updateSaws(dt);
+          checkCoins();
+          checkGems();
+          checkStars();
+          checkHearts();
+          checkSprings();
+          checkCheckpoints();
+          checkHazards();
+          if (boss) {
+            updateBoss(dt);
+          }
+          if (checkPortal()) {
+            completeLevel();
+          }
+        } else if (state === "levelComplete") {
+          updateParticles(dt);
+          levelTimer -= dt;
+          if (levelTimer <= 0 && !transition.active) {
+            startTransition(() => {
+              levelIndex++;
+              loadLevel(levelIndex);
+              state = "playing";
+            });
+          }
         }
 
-        function initFarcade() {
-            try {
-                if (window.FarcadeSDK) {
-                    window.FarcadeSDK.on('play_again', resetGame);
-                    window.FarcadeSDK.on('toggle_mute', (data) => {
-                        if (audio && typeof audio.setMuted === 'function') {
-                            audio.setMuted(data.isMuted);
-                        }
-                    });
-                    game.farcadeInitialized = true;
-                    window.FarcadeSDK.singlePlayer.actions.ready();
-                }
-            } catch (error) {
-                console.error('Farcade SDK error:', error);
-            }
+        if (pressed["KeyR"] && (state === "dead" || state === "gameComplete")) {
+          resetGame();
         }
 
-        function generateMaze() {
-            // Initialize maze with all walls
-            game.maze = [];
-            for (let y = 0; y < config.mazeHeight; y++) {
-                game.maze[y] = [];
-                for (let x = 0; x < config.mazeWidth; x++) {
-                    game.maze[y][x] = 1;
-                }
-            }
+        pressedClear();
+      }
 
-            // Create main path using recursive backtracking
-            const stack = [];
-            const visited = Array(config.mazeHeight).fill(null).map(() => 
-                Array(config.mazeWidth).fill(false)
+      function pressedClear() {
+        for (const key in pressed) {
+          if (Object.prototype.hasOwnProperty.call(pressed, key)) {
+            delete pressed[key];
+          }
+        }
+      }
+
+      // === CAMERA ===
+      function updateCamera() {
+        if (!player) return;
+        const targetX = player.x + player.w / 2 - canvas.width / 2;
+        const targetY = player.y + player.h / 2 - canvas.height / 2;
+        const maxX = Math.max(0, worldW - canvas.width);
+        const maxY = Math.max(0, worldH - canvas.height);
+        const smooth = 1 - Math.pow(0.001, 1/60);
+        cameraX += (clamp(targetX, 0, maxX) - cameraX) * smooth;
+        cameraY += (clamp(targetY, 0, maxY) - cameraY) * smooth;
+      }
+
+      // === RENDERING ===
+      function drawTile(index, x, y) {
+        const sx = (index % 15) * 8;
+        const sy = Math.floor(index / 15) * 8;
+        ctx.drawImage(tilemap, sx, sy, 8, 8, x, y, TILE_SIZE, TILE_SIZE);
+      }
+
+      function drawNumberTiles(value, x, y) {
+        const str = String(value);
+        for (let i = 0; i < str.length; i++) {
+          const digit = str.charCodeAt(i) - 48;
+          if (digit >= 0 && digit <= 9) {
+            drawTile(DIGIT_TILES[digit], x + i * TILE_SIZE, y);
+          }
+        }
+      }
+
+      function getCurrentWorld() {
+        const config = LEVELS[levelIndex % LEVELS.length];
+        return WORLDS[config.world];
+      }
+
+      function draw() {
+        const world = getCurrentWorld();
+        ctx.fillStyle = world.bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (!tilemap.complete) return;
+
+        updateCamera();
+        const shake = shakeTime > 0 ? Math.sin(shakeTime * 60) * shakeStrength : 0;
+
+        // Parallax backgrounds
+        const worldIdx = LEVELS[levelIndex % LEVELS.length].world;
+        const hillColors = [["#e8c898","#daa878"],["#b0a0d0","#9888b8"],["#d8a080","#c88868"]];
+        // Far hills (0.15x scroll)
+        ctx.fillStyle = hillColors[worldIdx][0];
+        for (let i = -1; i < canvas.width / 80 + 2; i++) {
+          const bx = i * 80 - ((cameraX * 0.15) % 80);
+          const by = canvas.height - 90;
+          ctx.beginPath();
+          ctx.moveTo(bx, by + 40);
+          ctx.quadraticCurveTo(bx + 40, by - 10, bx + 80, by + 40);
+          ctx.fill();
+        }
+        // Near hills (0.3x scroll)
+        ctx.fillStyle = hillColors[worldIdx][1];
+        for (let i = -1; i < canvas.width / 60 + 2; i++) {
+          const bx = i * 60 - ((cameraX * 0.3) % 60);
+          const by = canvas.height - 55;
+          ctx.beginPath();
+          ctx.moveTo(bx, by + 30);
+          ctx.quadraticCurveTo(bx + 30, by - 5, bx + 60, by + 30);
+          ctx.fill();
+        }
+
+        ctx.save();
+        ctx.translate(-cameraX + shake, -cameraY + shake);
+
+        // Background decorations
+        for (const deco of decorBack) {
+          drawTile(deco.tile, deco.x * TILE_SIZE, deco.y * TILE_SIZE);
+        }
+
+        // Visible tile range for ground
+        const visMinX = Math.max(0, Math.floor(cameraX / TILE_SIZE) - 1);
+        const visMaxX = Math.min(levelW - 1, Math.ceil((cameraX + canvas.width) / TILE_SIZE) + 1);
+        const visMinY = Math.max(0, Math.floor(cameraY / TILE_SIZE) - 1);
+        const visMaxY = Math.min(GRID_H - 1, Math.ceil((cameraY + canvas.height) / TILE_SIZE) + 1);
+
+        const config = LEVELS[levelIndex % LEVELS.length];
+        const fillTile = world.groundFill;
+
+        for (let y = visMinY; y <= visMaxY; y++) {
+          for (let x = visMinX; x <= visMaxX; x++) {
+            if (!solid[y][x]) continue;
+            const top = !isSolidAt(x, y - 1);
+            drawTile(top ? groundTop[x] : fillTile, x * TILE_SIZE, y * TILE_SIZE);
+          }
+        }
+
+        // Foreground decorations
+        for (const deco of decorFront) {
+          drawTile(deco.tile, deco.x * TILE_SIZE, deco.y * TILE_SIZE);
+        }
+
+        // Moving platforms
+        for (const plat of movingPlatforms) {
+          const tilesWide = Math.round(plat.w / TILE_SIZE);
+          for (let i = 0; i < tilesWide; i++) {
+            drawTile(TILE_PLATFORM_BLOCK, plat.x + i * TILE_SIZE, plat.y);
+          }
+        }
+
+        // Springs
+        for (const spring of springs) {
+          drawTile(TILE_SPRING, spring.x * TILE_SIZE, spring.y * TILE_SIZE);
+        }
+
+        // Hazards (spikes)
+        for (const hazard of hazards) {
+          drawTile(TILE_SPIKE, hazard.x * TILE_SIZE, hazard.y * TILE_SIZE);
+        }
+
+        // Saw blades (with rotation effect)
+        for (const saw of saws) {
+          ctx.save();
+          const cx = saw.x + TILE_SIZE / 2;
+          const cy = saw.y + TILE_SIZE / 2;
+          ctx.translate(cx, cy);
+          ctx.rotate(saw.angle);
+          drawTile(TILE_SAW, -TILE_SIZE / 2, -TILE_SIZE / 2);
+          ctx.restore();
+        }
+
+        // Coins
+        for (const coin of coins) {
+          if (coin.collected) continue;
+          drawTile(TILE_COIN, coin.x * TILE_SIZE, coin.y * TILE_SIZE);
+        }
+
+        // Gems (with subtle bob animation)
+        for (const gem of gems) {
+          if (gem.collected) continue;
+          const bob = Math.sin(gameTime * 3 + gem.x) * 2;
+          drawTile(gem.tile, gem.x * TILE_SIZE, gem.y * TILE_SIZE + bob);
+        }
+
+        // Stars
+        for (const star of stars) {
+          if (star.collected) continue;
+          drawTile(TILE_STAR, star.x * TILE_SIZE, star.y * TILE_SIZE);
+        }
+
+        // Hearts
+        for (const heart of hearts) {
+          if (heart.collected) continue;
+          drawTile(TILE_HEART_FULL, heart.x * TILE_SIZE, heart.y * TILE_SIZE);
+        }
+
+        // Checkpoints with glow for active ones
+        for (const flag of checkpoints) {
+          if (flag.active) {
+            ctx.fillStyle = "rgba(255, 180, 50, " + (0.15 + Math.sin(gameTime * 3) * 0.1) + ")";
+            ctx.beginPath();
+            ctx.arc(flag.x * TILE_SIZE + TILE_SIZE/2, flag.y * TILE_SIZE + TILE_SIZE/2, TILE_SIZE * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          drawTile(TILE_FLAG, flag.x * TILE_SIZE, flag.y * TILE_SIZE);
+        }
+
+        // Enemies
+        for (const enemy of enemies) {
+          let tile = TILE_ENEMY;
+          if (enemy.type === "fly") tile = TILE_ENEMY_FLY;
+          if (enemy.type === "fast") tile = TILE_ENEMY_FAST;
+          drawTile(tile, enemy.x, enemy.y);
+        }
+
+        // Portal
+        if (portal) {
+          drawTile(TILE_PORTAL, portal.x * TILE_SIZE, portal.y * TILE_SIZE);
+          if (coinsCollected < coinsNeeded) {
+            drawTile(TILE_PORTAL_LOCK, portal.x * TILE_SIZE, (portal.y - 1) * TILE_SIZE);
+          } else {
+            ctx.fillStyle = "rgba(80, 160, 255, 0.25)";
+            ctx.beginPath();
+            ctx.arc(
+              portal.x * TILE_SIZE + TILE_SIZE / 2,
+              portal.y * TILE_SIZE + TILE_SIZE / 2,
+              TILE_SIZE * 0.7 + Math.sin(gameTime * 4) * 2,
+              0,
+              Math.PI * 2
             );
-
-            let current = { x: 1, y: 1 };
-            setMazeValue(1, 1, 0);
-            visited[1][1] = true;
-            stack.push(current);
-
-            const directions = [
-                { dx: 0, dy: -2 },
-                { dx: 2, dy: 0 },
-                { dx: 0, dy: 2 },
-                { dx: -2, dy: 0 }
-            ];
-
-            while (stack.length > 0) {
-                const neighbors = [];
-
-                for (const dir of directions) {
-                    const nx = current.x + dir.dx;
-                    const ny = current.y + dir.dy;
-
-                    if (nx > 0 && nx < config.mazeWidth - 1 && 
-                        ny > 0 && ny < config.mazeHeight - 1 && 
-                        !visited[ny][nx]) {
-                        neighbors.push({ x: nx, y: ny, dx: dir.dx / 2, dy: dir.dy / 2 });
-                    }
-                }
-
-                if (neighbors.length > 0) {
-                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
-                    
-                    setMazeValue(current.x + next.dx, current.y + next.dy, 0);
-                    setMazeValue(next.x, next.y, 0);
-                    
-                    visited[next.y][next.x] = true;
-                    stack.push(current);
-                    current = { x: next.x, y: next.y };
-                } else {
-                    current = stack.pop();
-                }
-            }
-
-            // Create additional paths to make the maze more interesting
-            for (let i = 0; i < Math.floor(config.mazeWidth * config.mazeHeight * config.pathComplexity); i++) {
-                const x = 1 + Math.floor(Math.random() * (config.mazeWidth - 2));
-                const y = 1 + Math.floor(Math.random() * (config.mazeHeight - 2));
-                
-                // Create random corridors
-                if (Math.random() < 0.5) {
-                    // Horizontal corridor
-                    const length = 2 + Math.floor(Math.random() * 4);
-                    for (let dx = 0; dx < length; dx++) {
-                        if (x + dx < config.mazeWidth - 1) {
-                            setMazeValue(x + dx, y, 0);
-                        }
-                    }
-                } else {
-                    // Vertical corridor
-                    const length = 2 + Math.floor(Math.random() * 4);
-                    for (let dy = 0; dy < length; dy++) {
-                        if (y + dy < config.mazeHeight - 1) {
-                            setMazeValue(x, y + dy, 0);
-                        }
-                    }
-                }
-            }
-
-            // Ensure start and end positions are clear
-            setMazeValue(1, 1, 0);
-            setMazeValue(config.mazeWidth - 2, config.mazeHeight - 2, 0);
-
-            // Place exit
-            game.exit = { 
-                x: config.mazeWidth - 2, 
-                y: config.mazeHeight - 2 
-            };
-
-            // Place coins
-            game.coins = [];
-            const coinCount = 5 + Math.floor(game.level / 2);
-            let placed = 0;
-
-            for (let attempts = 0; attempts < 200 && placed < coinCount; attempts++) {
-                const x = 1 + Math.floor(Math.random() * (config.mazeWidth - 2));
-                const y = 1 + Math.floor(Math.random() * (config.mazeHeight - 2));
-
-                if (getMazeValue(x, y) === 0 && 
-                    !(x === 1 && y === 1) && 
-                    !(x === game.exit.x && y === game.exit.y) &&
-                    !game.coins.some(c => c.x === x && c.y === y)) {
-                    game.coins.push({ x, y, collected: false });
-                    placed++;
-                }
-            }
-
-            // Place more enemies
-            game.enemies = [];
-            game.bullets = [];
-            const baseEnemyCount = 4 + Math.floor(game.level / 2);
-            const enemyCount = Math.min(baseEnemyCount, 15);
-            placed = 0;
-
-            // Define enemy type distribution based on level
-            const enemyDistribution = [];
-            for (let i = 0; i < enemyCount; i++) {
-                if (i < enemyCount * 0.5) {
-                    enemyDistribution.push('basic');
-                } else if (i < enemyCount * 0.8) {
-                    enemyDistribution.push('chaser');
-                } else {
-                    enemyDistribution.push('shooter');
-                }
-            }
-
-            // Shuffle distribution
-            for (let i = enemyDistribution.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [enemyDistribution[i], enemyDistribution[j]] = [enemyDistribution[j], enemyDistribution[i]];
-            }
-
-            for (let attempts = 0; attempts < 200 && placed < enemyCount; attempts++) {
-                const x = 1 + Math.floor(Math.random() * (config.mazeWidth - 2));
-                const y = 1 + Math.floor(Math.random() * (config.mazeHeight - 2));
-
-                const distToPlayer = Math.abs(x - 1) + Math.abs(y - 1);
-                const distToExit = Math.abs(x - game.exit.x) + Math.abs(y - game.exit.y);
-
-                if (getMazeValue(x, y) === 0 && 
-                    distToPlayer > 3 &&
-                    distToExit > 2 &&
-                    !game.enemies.some(e => e.x === x && e.y === y)) {
-                    
-                    const type = enemyDistribution[placed];
-                    
-                    game.enemies.push({
-                        x, y,
-                        pixelX: x * config.tileSize,
-                        pixelY: y * config.tileSize,
-                        type,
-                        direction: Math.floor(Math.random() * 4),
-                        moveTime: 0,
-                        shootTime: 0,
-                        speed: type === 'chaser' ? 400 : 500
-                    });
-                    placed++;
-                }
-            }
+            ctx.fill();
+          }
         }
 
-        function activateShield() {
-            if (game.player.shields > 0 && !game.player.shieldActive) {
-                game.player.shields--;
-                game.player.shieldActive = true;
-                game.player.shieldEndTime = Date.now() + config.shieldDuration;
-                audio.play('shield');
-                updateShieldDisplay();
-                
-                if (game.farcadeInitialized) {
-                    try {
-                        window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
-                    } catch (e) {
-                        console.log('Haptic feedback error:', e);
-                    }
-                }
+        // Boss
+        if (boss && boss.hp > 0) {
+          ctx.save();
+          const b = boss;
+          if (b.invuln > 0 && Math.floor(b.invuln * 10) % 2 === 0) ctx.globalAlpha = 0.5;
+          const bTile = [TILE_ENEMY, TILE_ENEMY_FLY, TILE_ENEMY_FAST][b.worldIdx];
+          const bsx = (bTile % 15) * 8;
+          const bsy = Math.floor(bTile / 15) * 8;
+          if (b.stunned) { ctx.globalAlpha = 0.6; }
+          ctx.drawImage(tilemap, bsx, bsy, 8, 8, b.x, b.y, b.w, b.h);
+          ctx.globalAlpha = 1;
+          ctx.restore();
+          // Boss HP bar
+          const barW = 60; const barH = 5;
+          const barX = b.x + b.w/2 - barW/2;
+          const barY = b.y - 10;
+          ctx.fillStyle = "#333";
+          ctx.fillRect(barX, barY, barW, barH);
+          ctx.fillStyle = b.stunned ? "#88ff88" : "#ee4444";
+          ctx.fillRect(barX, barY, barW * (b.hp / b.maxHp), barH);
+          // Boss name
+          ctx.fillStyle = "#fff";
+          ctx.font = "7px monospace";
+          ctx.textAlign = "center";
+          const bossNames = ["Stone Golem", "Crystal Wraith", "Lava Lord"];
+          ctx.fillText(bossNames[b.worldIdx], b.x + b.w/2, barY - 3);
+          ctx.textAlign = "left";
+        }
+        // Boss projectiles
+        for (const p of bossProjectiles) {
+          ctx.fillStyle = "#ff6644";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Particles (camera already applied via ctx.translate)
+        drawParticles(0, 0);
+
+        // Player with squash & stretch
+        if (player) {
+          const blink = invuln > 0 && Math.floor(invuln * 10) % 2 === 0;
+          if (!blink) {
+            const charTile = CHARACTERS[selectedChar];
+            // Calculate squash/stretch
+            let sx = 1, sy = 1;
+            if (player.dashing) { sx = 1.3; sy = 0.75; }
+            else if (player.vy < -150) { sx = 0.85; sy = 1.2; }
+            else if (player.vy > 250) { sx = 0.85; sy = 1.15; }
+            // Wall slide visual
+            if (wallSliding) { sx = 0.9; sy = 1.05; }
+
+            ctx.save();
+            ctx.translate(player.x + player.w / 2, player.y + player.h);
+            if (player.facing < 0) ctx.scale(-sx, sy);
+            else ctx.scale(sx, sy);
+            drawTile(charTile, -player.w / 2, -player.h);
+            ctx.restore();
+
+            // Wall slide friction sparks
+            if (wallSliding) {
+              ctx.fillStyle = "#cccccc";
+              ctx.globalAlpha = 0.6;
+              const sparkX = player.x + (wallDir > 0 ? player.w : 0);
+              for (let i = 0; i < 2; i++) {
+                ctx.fillRect(sparkX + Math.random() * 3 - 1, player.y + Math.random() * player.h, 1.5, 1.5);
+              }
+              ctx.globalAlpha = 1;
             }
+          }
         }
 
-        function startGame() {
-            hideAllScreens();
-            game.state = 'playing';
-            game.level = 1;
-            game.score = 0;
-            game.player.health = config.maxHealth;
-            game.player.shields = config.maxShields;
-            
-            resetLevel();
-            updateUI();
-            
-            // Start background music if available (with user interaction)
-            if (audio && typeof audio.playBackground === 'function' && audio.backgroundMusic) {
-                // Ensure audio context is started with user interaction
-                const startAudioContext = () => {
-                    audio.playBackground();
-                    document.removeEventListener('click', startAudioContext);
-                    document.removeEventListener('touchstart', startAudioContext);
-                };
-                document.addEventListener('click', startAudioContext);
-                document.addEventListener('touchstart', startAudioContext);
-                
-                // Try to play immediately (might work depending on browser)
-                audio.playBackground();
-            }
+        // Combo popups
+        ctx.font = "bold 9px monospace";
+        ctx.textAlign = "center";
+        for (const cp of comboPopups) {
+          ctx.globalAlpha = Math.min(1, cp.life * 2);
+          ctx.fillStyle = "#ffee44";
+          ctx.fillText(cp.text, cp.x, cp.y);
+        }
+        ctx.globalAlpha = 1;
+        ctx.textAlign = "left";
+
+        // Tutorial prompts (Level 1 only)
+        if (levelIndex === 0 && state === "playing") {
+          const tutorials = [
+            { gx: 3, text: "Arrow Keys / WASD to Move" },
+            { gx: 12, text: "Space / W / Up to Jump" },
+            { gx: 22, text: "Collect coins to unlock portal!" },
+            { gx: 38, text: "Shift / X to Dash" },
+          ];
+          ctx.font = "8px monospace";
+          ctx.textAlign = "center";
+          for (const tut of tutorials) {
+            const tx = tut.gx * TILE_SIZE;
+            const ty = 20 * TILE_SIZE; // approximate floor area
+            ctx.fillStyle = "rgba(0,0,0,0.55)";
+            const tw = ctx.measureText(tut.text).width + 10;
+            ctx.fillRect(tx - tw/2, ty - 22, tw, 16);
+            ctx.fillStyle = "#fff";
+            ctx.fillText(tut.text, tx, ty - 10);
+          }
+          ctx.textAlign = "left";
         }
 
-        function resetGame() {
-            hideAllScreens();
-            
-            // Safely stop background music
-            if (audio && typeof audio.stopBackground === 'function') {
-                audio.stopBackground();
-            }
-            
-            startGame();
-        }
+        ctx.restore();
 
-        function nextLevel() {
-            hideAllScreens();
-            game.level++;
-            game.state = 'playing';
-            
-            // Restore one shield every 2 levels
-            if (game.level % 2 === 0 && game.player.shields < config.maxShields) {
-                game.player.shields++;
-            }
-            
-            resetLevel();
-            updateUI();
-            
-            // Resume background music
-            if (audio && typeof audio.playBackground === 'function') {
-                audio.playBackground();
-            }
-        }
+        drawHud();
 
-        function resetLevel() {
-            generateMaze();
-            
-            // Reset player position
-            game.player.x = 1;
-            game.player.y = 1;
-            game.player.pixelX = config.tileSize;
-            game.player.pixelY = config.tileSize;
-            game.player.invulnerable = false;
-            game.player.invulnerableTime = 0;
-            game.player.shieldActive = false;
-            game.player.shieldEndTime = 0;
-            
-            // Reset keys
-            game.keys = { up: false, down: false, left: false, right: false };
-            
-            updateHealthDisplay();
-            updateShieldDisplay();
+        // Overlays
+        if (state === "title") {
+          drawOverlay("PORTAL PULSE", "Press any key to start");
+        } else if (state === "charSelect") {
+          drawCharSelect();
+        } else if (state === "paused") {
+          ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          ctx.font = "20px monospace";
+          ctx.fillText("PAUSED", canvas.width / 2, 200);
+          ctx.font = "11px monospace";
+          ctx.fillText("ESC - Resume", canvas.width / 2, 240);
+          ctx.fillText("R - Restart", canvas.width / 2, 260);
+          ctx.textAlign = "left";
+        } else if (state === "dead") {
+          stopMusic();
+          drawOverlay("Game Over", "Press R or Play Again");
+        } else if (state === "gameComplete") {
+          drawOverlay("You Escaped!", "All 30 levels cleared!");
+        } else if (state === "levelComplete") {
+          const nextWorld = LEVELS[(levelIndex + 1) % LEVELS.length].world;
+          const currentWorld = LEVELS[levelIndex % LEVELS.length].world;
+          if (nextWorld !== currentWorld && levelIndex < LEVELS.length - 1) {
+            drawOverlay("World Clear!", WORLDS[nextWorld].name + " awaits...");
+          } else {
+            drawOverlay("Level Clear", "Get Ready...");
+          }
         }
+      }
 
-        function updatePlayer() {
-            const currentTime = Date.now();
-            
-            // Handle shield timer
-            if (game.player.shieldActive) {
-                if (currentTime >= game.player.shieldEndTime) {
-                    game.player.shieldActive = false;
-                    updateShieldDisplay();
-                } else {
-                    updateShieldTimer();
-                }
-            }
-            
-            // Handle invulnerability
-            if (game.player.invulnerable && !game.player.shieldActive) {
-                game.player.invulnerableTime -= 16;
-                if (game.player.invulnerableTime <= 0) {
-                    game.player.invulnerable = false;
-                }
-            }
-            
-            // Movement with delay
-            if (currentTime - game.lastMoveTime > game.moveDelay) {
-                let dx = 0, dy = 0;
-                
-                if (game.keys.up && !game.keys.down) dy = -1;
-                else if (game.keys.down && !game.keys.up) dy = 1;
-                
-                if (game.keys.left && !game.keys.right) dx = -1;
-                else if (game.keys.right && !game.keys.left) dx = 1;
-                
-                if (dx !== 0 || dy !== 0) {
-                    const newX = game.player.x + dx;
-                    const newY = game.player.y + dy;
-                    
-                    if (getMazeValue(newX, newY) === 0) {
-                        game.player.x = newX;
-                        game.player.y = newY;
-                        game.lastMoveTime = currentTime;
-                        audio.play('move');
-                    }
-                }
-            }
-            
-            // Smooth pixel position
-            const targetX = game.player.x * config.tileSize;
-            const targetY = game.player.y * config.tileSize;
-            game.player.pixelX += (targetX - game.player.pixelX) * 0.3;
-            game.player.pixelY += (targetY - game.player.pixelY) * 0.3;
-            
-            // Check collisions
-            checkCoinCollision();
-            checkExitCollision();
-            if (!game.player.invulnerable && !game.player.shieldActive) {
-                checkEnemyCollision();
-            }
-        }
+      function drawCharSelect() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        function checkCoinCollision() {
-            game.coins.forEach(coin => {
-                if (!coin.collected && coin.x === game.player.x && coin.y === game.player.y) {
-                    coin.collected = true;
-                    game.score += config.coinValue;
-                    audio.play('collect');
-                    audio.play('boxOnTarget'); // Play achievement sound
-                    updateUI();
-                    
-                    if (game.farcadeInitialized) {
-                        try {
-                            window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
-                        } catch (e) {
-                            console.log('Haptic feedback error:', e);
-                        }
-                    }
-                }
-            });
-        }
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.font = "16px monospace";
+        ctx.fillText("Choose Your Character", canvas.width / 2, 160);
 
-        function checkExitCollision() {
-            if (game.player.x === game.exit.x && game.player.y === game.exit.y) {
-                levelComplete();
-            }
-        }
+        // Draw 4 characters
+        const startX = (canvas.width - (4 * 40)) / 2 + 12;
+        const charY = 200;
 
-        function checkEnemyCollision() {
-            if (game.player.shieldActive) return;
-            
-            game.enemies.forEach(enemy => {
-                if (Math.abs(enemy.x - game.player.x) < 1 && 
-                    Math.abs(enemy.y - game.player.y) < 1) {
-                    playerHit();
-                }
-            });
-            
-            // Check bullet collisions
-            game.bullets = game.bullets.filter(bullet => {
-                if (Math.abs(bullet.x - game.player.pixelX) < config.tileSize/2 && 
-                    Math.abs(bullet.y - game.player.pixelY) < config.tileSize/2) {
-                    if (!game.player.shieldActive) {
-                        playerHit();
-                    }
-                    return false;
-                }
-                return true;
-            });
-        }
+        for (let i = 0; i < CHARACTERS.length; i++) {
+          const cx = startX + i * 40;
 
-        function playerHit() {
-            if (game.player.invulnerable || game.player.shieldActive) return;
-            
-            game.player.health--;
-            game.player.invulnerable = true;
-            game.player.invulnerableTime = 1500;
-            
-            audio.play('hit');
-            updateHealthDisplay();
-            
-            if (game.farcadeInitialized) {
-                try {
-                    window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
-                } catch (e) {
-                    console.log('Haptic feedback error:', e);
-                }
-            }
-            
-            if (game.player.health <= 0) {
-                gameOver();
-            }
-        }
-
-        function updateEnemies() {
-            const currentTime = Date.now();
-            
-            game.enemies.forEach(enemy => {
-                // Basic movement
-                if (currentTime - enemy.moveTime > enemy.speed) {
-                    enemy.moveTime = currentTime;
-                    
-                    if (enemy.type === 'basic') {
-                        // Random movement
-                        const dirs = [[0,-1], [1,0], [0,1], [-1,0]];
-                        const dir = dirs[enemy.direction];
-                        const newX = enemy.x + dir[0];
-                        const newY = enemy.y + dir[1];
-                        
-                        if (getMazeValue(newX, newY) === 0) {
-                            enemy.x = newX;
-                            enemy.y = newY;
-                        } else {
-                            enemy.direction = (enemy.direction + 1 + Math.floor(Math.random() * 2)) % 4;
-                        }
-                    } else if (enemy.type === 'chaser') {
-                        // Chase player if close
-                        const dist = Math.abs(enemy.x - game.player.x) + Math.abs(enemy.y - game.player.y);
-                        if (dist < 6) {
-                            const dx = Math.sign(game.player.x - enemy.x);
-                            const dy = Math.sign(game.player.y - enemy.y);
-                            
-                            // Try to move towards player
-                            let moved = false;
-                            if (dx !== 0 && getMazeValue(enemy.x + dx, enemy.y) === 0) {
-                                enemy.x += dx;
-                                moved = true;
-                            } else if (dy !== 0 && getMazeValue(enemy.x, enemy.y + dy) === 0) {
-                                enemy.y += dy;
-                                moved = true;
-                            }
-                            
-                            // If stuck, try random direction
-                            if (!moved) {
-                                const dirs = [[0,-1], [1,0], [0,1], [-1,0]];
-                                const validDirs = dirs.filter(d => 
-                                    getMazeValue(enemy.x + d[0], enemy.y + d[1]) === 0
-                                );
-                                if (validDirs.length > 0) {
-                                    const dir = validDirs[Math.floor(Math.random() * validDirs.length)];
-                                    enemy.x += dir[0];
-                                    enemy.y += dir[1];
-                                }
-                            }
-                        } else {
-                            // Random movement when not chasing
-                            const dirs = [[0,-1], [1,0], [0,1], [-1,0]];
-                            const dir = dirs[enemy.direction];
-                            const newX = enemy.x + dir[0];
-                            const newY = enemy.y + dir[1];
-                            
-                            if (getMazeValue(newX, newY) === 0) {
-                                enemy.x = newX;
-                                enemy.y = newY;
-                            } else {
-                                enemy.direction = Math.floor(Math.random() * 4);
-                            }
-                        }
-                    } else if (enemy.type === 'shooter') {
-                        // Shoot at player if in line of sight
-                        if (currentTime - enemy.shootTime > 2000) {
-                            if (enemy.x === game.player.x || enemy.y === game.player.y) {
-                                // Check line of sight
-                                let clear = true;
-                                if (enemy.x === game.player.x) {
-                                    const dir = Math.sign(game.player.y - enemy.y);
-                                    for (let y = enemy.y + dir; y !== game.player.y; y += dir) {
-                                        if (getMazeValue(enemy.x, y) === 1) {
-                                            clear = false;
-                                            break;
-                                        }
-                                    }
-                                } else {
-                                    const dir = Math.sign(game.player.x - enemy.x);
-                                    for (let x = enemy.x + dir; x !== game.player.x; x += dir) {
-                                        if (getMazeValue(x, enemy.y) === 1) {
-                                            clear = false;
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                if (clear) {
-                                    enemy.shootTime = currentTime;
-                                    
-                                    const dx = Math.sign(game.player.x - enemy.x);
-                                    const dy = Math.sign(game.player.y - enemy.y);
-                                    
-                                    game.bullets.push({
-                                        x: enemy.pixelX + config.tileSize/2,
-                                        y: enemy.pixelY + config.tileSize/2,
-                                        dx: dx * 4,
-                                        dy: dy * 4
-                                    });
-                                    
-                                    // Play shoot sound
-                                    audio.play('shoot');
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Update pixel position
-                const targetX = enemy.x * config.tileSize;
-                const targetY = enemy.y * config.tileSize;
-                enemy.pixelX += (targetX - enemy.pixelX) * 0.2;
-                enemy.pixelY += (targetY - enemy.pixelY) * 0.2;
-            });
-            
-            // Update bullets
-            game.bullets = game.bullets.filter(bullet => {
-                bullet.x += bullet.dx;
-                bullet.y += bullet.dy;
-                
-                const tileX = Math.floor(bullet.x / config.tileSize);
-                const tileY = Math.floor(bullet.y / config.tileSize);
-                
-                return isValidPosition(tileX, tileY) && getMazeValue(tileX, tileY) === 0;
-            });
-        }
-
-        function levelComplete() {
-            game.state = 'levelComplete';
-            game.score += config.exitBonus + config.levelBonus * game.level;
-            audio.play('levelComplete');
-            audio.play('boxOnTarget'); // Achievement sound
-            
-            // Safely stop background music
-            if (audio && typeof audio.stopBackground === 'function') {
-                audio.stopBackground();
-            }
-            
-            document.getElementById('level-stats').innerHTML = 
-                `Level ${game.level} cleared!<br>` +
-                `Score: ${game.score}<br>` +
-                `Shields: ${game.player.shields}/${config.maxShields}`;
-            
-            showScreen('level-complete-screen');
-            
-            if (game.farcadeInitialized) {
-                try {
-                    window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
-                } catch (e) {
-                    console.log('Haptic feedback error:', e);
-                }
-            }
-        }
-
-        function gameOver() {
-            game.state = 'gameOver';
-            audio.play('gameOver');
-            
-            // Safely stop background music
-            if (audio && typeof audio.stopBackground === 'function') {
-                audio.stopBackground();
-            }
-            
-            if (game.farcadeInitialized) {
-                try {
-                    window.FarcadeSDK.singlePlayer.actions.gameOver({ score: game.score });
-                } catch (e) {
-                    console.log('Farcade SDK error:', e);
-                }
-            } else {
-                // Fallback for non-Farcade environments - just reset the game
-                console.log('Game Over! Final Score:', game.score, 'Level:', game.level);
-                setTimeout(() => {
-                    resetGame();
-                }, 1000);
-            }
-        }
-
-        function updateUI() {
-            document.getElementById('score-display').textContent = `${game.score}`;
-            document.getElementById('level-display').textContent = `LV ${game.level}`;
-        }
-
-        function updateHealthDisplay() {
-            const units = document.querySelectorAll('.health-unit');
-            units.forEach((unit, i) => {
-                if (i < game.player.health) {
-                    unit.classList.remove('empty');
-                } else {
-                    unit.classList.add('empty');
-                }
-            });
-        }
-
-        function updateShieldDisplay() {
-            const icons = document.querySelectorAll('.shield-icon');
-            const shieldBtn = document.getElementById('shield-btn');
-            
-            icons.forEach((icon, i) => {
-                icon.classList.remove('active', 'used');
-                if (i >= game.player.shields) {
-                    icon.classList.add('used');
-                } else if (game.player.shieldActive && i === game.player.shields) {
-                    icon.classList.add('active');
-                }
-            });
-            
-            if (game.player.shields === 0 || game.player.shieldActive) {
-                shieldBtn.classList.add('disabled');
-            } else {
-                shieldBtn.classList.remove('disabled');
-            }
-        }
-
-        function updateShieldTimer() {
-            const timer = document.getElementById('shield-timer');
-            const remaining = Math.ceil((game.player.shieldEndTime - Date.now()) / 1000);
-            timer.textContent = remaining > 0 ? `${remaining}` : '';
-        }
-
-        function hideAllScreens() {
-            document.querySelectorAll('.screen').forEach(screen => {
-                screen.classList.remove('active');
-            });
-        }
-
-        function showScreen(id) {
-            hideAllScreens();
-            document.getElementById(id).classList.add('active');
-        }
-
-        function render() {
-            if (!game.ctx) return;
-            
-            const ctx = game.ctx;
-            const ts = config.tileSize;
-            
-            // Clear canvas
-            ctx.fillStyle = '#121212';
-            ctx.fillRect(0, 0, game.width, game.height);
-            
-            // Draw maze
-            for (let y = 0; y < config.mazeHeight; y++) {
-                for (let x = 0; x < config.mazeWidth; x++) {
-                    if (getMazeValue(x, y) === 1) {
-                        // Wall
-                        ctx.fillStyle = '#3a3a3a';
-                        ctx.fillRect(x * ts, y * ts, ts, ts);
-                        ctx.strokeStyle = '#222';
-                        ctx.strokeRect(x * ts, y * ts, ts, ts);
-                    } else {
-                        // Floor
-                        ctx.fillStyle = '#1a1a1a';
-                        ctx.fillRect(x * ts, y * ts, ts, ts);
-                    }
-                }
-            }
-            
-            // Draw exit
-            ctx.fillStyle = '#00ffff';
-            ctx.fillRect(game.exit.x * ts + ts/4, game.exit.y * ts + ts/4, ts/2, ts/2);
-            ctx.strokeStyle = '#00ffff';
+          // Selection highlight
+          if (i === selectedChar) {
+            ctx.fillStyle = "rgba(255, 255, 100, 0.3)";
+            ctx.fillRect(cx - 6, charY - 6, 28, 44);
+            ctx.strokeStyle = "#fff";
             ctx.lineWidth = 2;
-            ctx.strokeRect(game.exit.x * ts + ts/8, game.exit.y * ts + ts/8, ts*3/4, ts*3/4);
-            
-            // Draw coins
-            ctx.fillStyle = '#ffd700';
-            game.coins.forEach(coin => {
-                if (!coin.collected) {
-                    ctx.beginPath();
-                    ctx.arc(coin.x * ts + ts/2, coin.y * ts + ts/2, ts/4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            });
-            
-            // Draw enemies
-            game.enemies.forEach(enemy => {
-                if (enemy.type === 'basic') {
-                    ctx.fillStyle = '#ff4136';
-                } else if (enemy.type === 'chaser') {
-                    ctx.fillStyle = '#ff851b';
-                } else if (enemy.type === 'shooter') {
-                    ctx.fillStyle = '#f012be';
-                }
-                
-                ctx.fillRect(enemy.pixelX + ts/4, enemy.pixelY + ts/4, ts/2, ts/2);
-            });
-            
-            // Draw bullets
-            ctx.fillStyle = '#ff5555';
-            game.bullets.forEach(bullet => {
-                ctx.fillRect(bullet.x - 2, bullet.y - 2, 4, 4);
-            });
-            
-            // Draw player
-            if (!game.player.invulnerable || game.player.shieldActive || Math.floor(Date.now() / 150) % 2 === 0) {
-                // Shield effect
-                if (game.player.shieldActive) {
-                    ctx.fillStyle = 'rgba(0, 191, 255, 0.3)';
-                    ctx.strokeStyle = '#00bfff';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(game.player.pixelX + ts/2, game.player.pixelY + ts/2, ts*0.6, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                }
-                
-                // Player - use image if loaded, otherwise use colored square
-                if (imageLoaded && characterImage) {
-                    ctx.drawImage(
-                        characterImage, 
-                        game.player.pixelX + ts/6, 
-                        game.player.pixelY + ts/6, 
-                        ts*2/3, 
-                        ts*2/3
-                    );
-                } else {
-                    // Fallback to colored square with H
-                    ctx.fillStyle = '#b4ff00';
-                    ctx.fillRect(game.player.pixelX + ts/6, game.player.pixelY + ts/6, ts*2/3, ts*2/3);
-                    
-                    // Draw 'H' on player
-                    ctx.fillStyle = '#121212';
-                    ctx.font = `bold ${ts/2}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('H', game.player.pixelX + ts/2, game.player.pixelY + ts/2);
-                }
-            }
+            ctx.strokeRect(cx - 6, charY - 6, 28, 44);
+
+            // Arrow indicator
+            const arrowBob = Math.sin(charSelectBlink * 5) * 2;
+            ctx.fillStyle = "#fff";
+            ctx.font = "12px monospace";
+            ctx.textAlign = "center";
+            ctx.fillText("\u25BC", cx + 7, charY - 10 + arrowBob);
+          }
+
+          drawTile(CHARACTERS[i], cx, charY);
+
+          // Character name
+          ctx.fillStyle = i === selectedChar ? "#fff" : "#aaa";
+          ctx.font = "8px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(CHAR_NAMES[i], cx + 8, charY + 30);
         }
 
-        function gameLoop() {
-            if (game.state === 'playing') {
-                updatePlayer();
-                updateEnemies();
-            }
-            
-            if (game.state !== 'loading') {
-                render();
-            }
-            
-            requestAnimationFrame(gameLoop);
+        // Show selected ability
+        ctx.fillStyle = "#ffdd88";
+        ctx.font = "9px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("Ability: " + CHAR_ABILITIES[selectedChar].desc, canvas.width / 2, 260);
+
+        ctx.fillStyle = "#ccc";
+        ctx.font = "10px monospace";
+        ctx.fillText("<  Arrow Keys to Select  >", canvas.width / 2, 284);
+        ctx.fillText("Jump / Space to Confirm", canvas.width / 2, 300);
+        ctx.textAlign = "left";
+      }
+
+      function drawHud() {
+        // HUD background panels
+        ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+        ctx.fillRect(4, 4, 90, 60);
+        ctx.fillRect(canvas.width - 72, 4, 68, 44);
+
+        // Boss HP bar at top of screen
+        if (boss && boss.hp > 0) {
+          const barW = 140; const barH = 8;
+          const barX = canvas.width/2 - barW/2;
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.fillRect(barX - 2, 6, barW + 4, barH + 4);
+          ctx.fillStyle = "#333";
+          ctx.fillRect(barX, 8, barW, barH);
+          ctx.fillStyle = boss.stunned ? "#88ff88" : "#ee4444";
+          ctx.fillRect(barX, 8, barW * (boss.hp / boss.maxHp), barH);
+          ctx.fillStyle = "#fff";
+          ctx.font = "7px monospace";
+          ctx.textAlign = "center";
+          const bossNames = ["Stone Golem", "Crystal Wraith", "Lava Lord"];
+          ctx.fillText(bossNames[boss.worldIdx], canvas.width/2, 6);
+          ctx.textAlign = "left";
         }
 
-        // Start the game when page loads
-        window.addEventListener('load', init);
-    </script>
+        const hudX = 8;
+        const hudY = 8;
+        drawNumberTiles(score, hudX, hudY);
+
+        const coinsLeft = Math.max(0, coinsNeeded - coinsCollected);
+        drawTile(TILE_COIN, hudX, hudY + 20);
+        drawNumberTiles(coinsLeft, hudX + 18, hudY + 20);
+
+        const timeSec = Math.floor(levelElapsed);
+        const min = Math.floor(timeSec / 60);
+        const sec = timeSec % 60;
+        const minStr = String(min);
+        const secStr = (sec < 10 ? "0" : "") + sec;
+        let tx = hudX;
+        drawNumberTiles(minStr, tx, hudY + 40);
+        tx += minStr.length * TILE_SIZE;
+        ctx.fillStyle = "#2b2b2b";
+        ctx.fillRect(tx + 5, hudY + 44, 3, 3);
+        ctx.fillRect(tx + 5, hudY + 52, 3, 3);
+        tx += 12;
+        drawNumberTiles(secStr, tx, hudY + 40);
+
+        // Level + world indicator
+        const world = getCurrentWorld();
+        ctx.fillStyle = "#2b2b2b";
+        ctx.font = "9px monospace";
+        ctx.fillText(world.name, canvas.width - 80, hudY + 48);
+        ctx.font = "10px monospace";
+        ctx.fillText("Lv " + (levelIndex + 1) + "/30", canvas.width - 56, hudY + 60);
+
+        // Hearts
+        for (let i = 0; i < maxHp; i++) {
+          const tile = i < hp ? TILE_HEART_FULL : TILE_HEART_EMPTY;
+          drawTile(tile, canvas.width - (i + 1) * TILE_SIZE - 8, 8);
+        }
+
+        // Dash indicator
+        const dashTile = dashCharge > 0 ? TILE_STAR : TILE_STAR_EMPTY;
+        drawTile(dashTile, canvas.width - TILE_SIZE - 8, 28);
+
+        // Combo indicator
+        if (comboCount > 1) {
+          ctx.fillStyle = "#ffee44";
+          ctx.font = "bold 10px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText("COMBO x" + comboCount, canvas.width / 2, 22);
+          ctx.textAlign = "left";
+        }
+      }
+
+      function drawOverlay(title, subtitle) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.font = "20px monospace";
+        ctx.fillText(title, canvas.width / 2, 210);
+        ctx.font = "12px monospace";
+        ctx.fillText(subtitle, canvas.width / 2, 234);
+        ctx.font = "9px monospace";
+        ctx.fillText("Move: Arrows/A-D", canvas.width / 2, 258);
+        ctx.fillText("Jump: W/Up/Space | Dash: Shift/X", canvas.width / 2, 272);
+        ctx.textAlign = "left";
+      }
+
+      function startTransition(onMidpoint) {
+        transition = { active: true, phase: "close", progress: 0, duration: 0.35, onMidpoint };
+      }
+      function updateTransition(dt) {
+        if (!transition.active) return;
+        transition.progress += dt / transition.duration;
+        if (transition.progress >= 1) {
+          if (transition.phase === "close") {
+            if (transition.onMidpoint) transition.onMidpoint();
+            transition.phase = "open";
+            transition.progress = 0;
+          } else {
+            transition.active = false;
+            transition.phase = "none";
+          }
+        }
+      }
+      function drawTransition() {
+        if (!transition.active) return;
+        let t = transition.phase === "close" ? transition.progress : 1 - transition.progress;
+        const maxR = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height) / 2;
+        const r = maxR * (1 - t);
+        ctx.save();
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.rect(0, 0, canvas.width, canvas.height);
+        ctx.arc(canvas.width / 2, canvas.height / 2, Math.max(0.1, r), 0, Math.PI * 2, true);
+        ctx.fill("evenodd");
+        ctx.restore();
+      }
+
+      // === GAME LOOP ===
+      function step(dt) {
+        if (state !== "loading") {
+          updateTransition(dt);
+          update(dt);
+          draw();
+          drawTransition();
+        }
+      }
+
+      function gameLoop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const dt = Math.min(0.033, (timestamp - lastTime) / 1000);
+        lastTime = timestamp;
+        if (!manualAdvance) {
+          step(dt);
+        }
+        requestAnimationFrame(gameLoop);
+      }
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          canvas.requestFullscreen?.();
+        } else {
+          document.exitFullscreen?.();
+        }
+        setCanvasScale();
+      }
+
+      // === INPUT HANDLERS ===
+      function handleKeyDown(e) {
+        if (!audioCtx) getAudioCtx(); // init audio on first input
+        if (!keys[e.code]) {
+          pressed[e.code] = true;
+        }
+        keys[e.code] = true;
+
+        if (e.code === "KeyF") {
+          toggleFullscreen();
+        }
+        if (e.code === "Escape" && document.fullscreenElement) {
+          document.exitFullscreen?.();
+        }
+      }
+
+      function handleKeyUp(e) {
+        keys[e.code] = false;
+      }
+
+      window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("keyup", handleKeyUp);
+      window.addEventListener("resize", setCanvasScale);
+
+      // === GESTURE-BASED TOUCH CONTROLS ===
+      const activeTouches = {}; // id -> { startX, startY, zone, startTime }
+      let touchHintTimer = 5; // show hints for first 5 seconds
+
+      function getCanvasCoords(touch) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+          y: (touch.clientY - rect.top) * (canvas.height / rect.height),
+        };
+      }
+
+      // Zone touch handlers (hold to move)
+      const zoneLeft = document.getElementById("zone-left");
+      const zoneRight = document.getElementById("zone-right");
+      const zoneJump = document.getElementById("zone-jump");
+
+      if (zoneLeft) {
+        zoneLeft.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          if (!audioCtx) getAudioCtx();
+          keys["ArrowLeft"] = true;
+          for (const t of e.changedTouches) {
+            activeTouches[t.identifier] = { zone: "left", startX: t.clientX, startY: t.clientY, startTime: Date.now() };
+          }
+        }, { passive: false });
+        zoneLeft.addEventListener("touchend", (e) => {
+          e.preventDefault();
+          keys["ArrowLeft"] = false;
+          for (const t of e.changedTouches) delete activeTouches[t.identifier];
+        }, { passive: false });
+        zoneLeft.addEventListener("touchcancel", (e) => {
+          keys["ArrowLeft"] = false;
+          for (const t of e.changedTouches) delete activeTouches[t.identifier];
+        });
+      }
+
+      if (zoneRight) {
+        zoneRight.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          if (!audioCtx) getAudioCtx();
+          keys["ArrowRight"] = true;
+          for (const t of e.changedTouches) {
+            activeTouches[t.identifier] = { zone: "right", startX: t.clientX, startY: t.clientY, startTime: Date.now() };
+          }
+        }, { passive: false });
+        zoneRight.addEventListener("touchend", (e) => {
+          e.preventDefault();
+          keys["ArrowRight"] = false;
+          for (const t of e.changedTouches) delete activeTouches[t.identifier];
+        }, { passive: false });
+        zoneRight.addEventListener("touchcancel", (e) => {
+          keys["ArrowRight"] = false;
+          for (const t of e.changedTouches) delete activeTouches[t.identifier];
+        });
+      }
+
+      if (zoneJump) {
+        zoneJump.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          if (!audioCtx) getAudioCtx();
+          for (const t of e.changedTouches) {
+            activeTouches[t.identifier] = { zone: "jump", startX: t.clientX, startY: t.clientY, startTime: Date.now() };
+          }
+          // Tap = jump
+          pressed["Space"] = true;
+          keys["Space"] = true;
+        }, { passive: false });
+        zoneJump.addEventListener("touchmove", (e) => {
+          e.preventDefault();
+          for (const t of e.changedTouches) {
+            const info = activeTouches[t.identifier];
+            if (!info) continue;
+            const dx = t.clientX - info.startX;
+            const dy = t.clientY - info.startY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Swipe detection: >30px horizontal movement = dash
+            if (dist > 30 && Math.abs(dx) > Math.abs(dy) && !info.dashed) {
+              info.dashed = true;
+              pressed["ShiftLeft"] = true;
+              // Set facing based on swipe direction
+              if (dx > 0) { keys["ArrowRight"] = true; info.swipeDir = "right"; }
+              else { keys["ArrowLeft"] = true; info.swipeDir = "left"; }
+            }
+          }
+        }, { passive: false });
+        zoneJump.addEventListener("touchend", (e) => {
+          e.preventDefault();
+          keys["Space"] = false;
+          for (const t of e.changedTouches) {
+            const info = activeTouches[t.identifier];
+            if (info && info.swipeDir) {
+              if (info.swipeDir === "right") keys["ArrowRight"] = false;
+              else keys["ArrowLeft"] = false;
+            }
+            delete activeTouches[t.identifier];
+          }
+        }, { passive: false });
+        zoneJump.addEventListener("touchcancel", (e) => {
+          keys["Space"] = false;
+          for (const t of e.changedTouches) {
+            const info = activeTouches[t.identifier];
+            if (info && info.swipeDir) {
+              if (info.swipeDir === "right") keys["ArrowRight"] = false;
+              else keys["ArrowLeft"] = false;
+            }
+            delete activeTouches[t.identifier];
+          }
+        });
+      }
+
+      // Canvas-level touch for menu screens
+      canvas.addEventListener("touchstart", (e) => {
+        if (!audioCtx) getAudioCtx();
+        const { x: tx, y: ty } = getCanvasCoords(e.touches[0]);
+
+        if (state === "title") {
+          e.preventDefault();
+          pressed["Space"] = true;
+        } else if (state === "charSelect") {
+          e.preventDefault();
+          const startX = (canvas.width - (4 * 40)) / 2 + 12;
+          const charY = 200;
+          for (let i = 0; i < 4; i++) {
+            const cx = startX + i * 40;
+            if (tx >= cx - 10 && tx <= cx + 26 && ty >= charY - 15 && ty <= charY + 45) {
+              selectedChar = i;
+              haptic();
+            }
+          }
+          if (ty > 275 && ty < 330) {
+            pressed["Space"] = true;
+          }
+        } else if (state === "dead" || state === "gameComplete") {
+          e.preventDefault();
+          pressed["KeyR"] = true;
+        } else if (state === "paused") {
+          e.preventDefault();
+          // Top half = resume, bottom half = restart
+          if (ty < canvas.height / 2) pressed["Escape"] = true;
+          else pressed["KeyR"] = true;
+        }
+      }, { passive: false });
+
+      // === SDK ===
+      setupSDK();
+      window.addEventListener("load", setupSDK);
+
+      // === DEBUG/TEST HOOKS ===
+      window.advanceTime = (ms) => {
+        manualAdvance = true;
+        const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+        for (let i = 0; i < steps; i++) {
+          update(1 / 60);
+        }
+        draw();
+      };
+
+      window.render_game_to_text = () => {
+        const config = LEVELS[levelIndex % LEVELS.length];
+        const payload = {
+          mode: state,
+          level: levelIndex + 1,
+          levelCount: LEVELS.length,
+          world: WORLDS[config.world].name,
+          coords: "origin top-left, +x right, +y down (pixels)",
+          player: player
+            ? {
+                x: Math.round(player.x),
+                y: Math.round(player.y),
+                vx: Number(player.vx.toFixed(2)),
+                vy: Number(player.vy.toFixed(2)),
+                onGround: player.onGround,
+                character: CHAR_NAMES[selectedChar],
+              }
+            : null,
+          camera: { x: Math.round(cameraX), y: Math.round(cameraY) },
+          health: { current: hp, max: maxHp, invuln: Number(invuln.toFixed(2)) },
+          dash: { ready: dashCharge > 0, timer: Number(player?.dashTimer?.toFixed(2) ?? 0) },
+          coins: { collected: coinsCollected, needed: coinsNeeded, total: coinsTotal },
+          score,
+          portalLocked: coinsCollected < coinsNeeded,
+          time: Number(levelElapsed.toFixed(2)),
+          enemies: enemies.map((e) => ({ x: Math.round(e.x), y: Math.round(e.y), dir: e.dir, type: e.type })),
+          saws: saws.length,
+          movingPlatforms: movingPlatforms.length,
+          gems: gems.filter((g) => !g.collected).length,
+          boss: boss ? { hp: boss.hp, maxHp: boss.maxHp, phase: boss.phase, stunned: boss.stunned } : null,
+          wallSliding,
+          combo: comboCount,
+        };
+        return JSON.stringify(payload);
+      };
+
+      // === INIT ===
+      const tilemap = new Image();
+      tilemap.src = "https://remix.gg/blob/l8nDNl52fBh1/tilemap_packed-S2Ji99GXWp-ykLyQ6Lxb1TQDr9gQXfRkhwlTm3Lu5.webp?oaZK";
+
+      let lastTime = 0;
+
+      tilemap.onload = () => {
+        saveData = loadSaveFromSDK();
+        state = "title";
+        resetGame();
+        setCanvasScale();
+        requestAnimationFrame(gameLoop);
+      };
+    })();
+  </script>
 </body>
 </html>

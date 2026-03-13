@@ -24,6 +24,14 @@ const NotificationPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pagination, setPagination] = useState({
+    nextCursor: null,
+    prevCursor: null,
+    hasNext: false,
+    hasPrev: false,
+    limit: 20,
+  });
   const [markingAsRead, setMarkingAsRead] = useState({});
   const [filterType, setFilterType] = useState('all');
   const [notificationChannels, setNotificationChannels] = useState({
@@ -39,11 +47,11 @@ const NotificationPage = () => {
   };
 
   const getNotificationTitle = (notification) => {
-    const customerName = notification.name || 'Customer';
+    const customerName = notification.name || notification.username || 'Customer';
     const platform = notification.platform || '';
     const type = notification.Type || notification.type || '';
     if (type === 'Product') return `New Order from ${customerName}${platform ? ` via ${platform}` : ''}`;
-    return notification.title || notification.subject || `${type} from ${customerName}`;
+    return notification.title || notification.subject || `${type || 'Update'} from ${customerName}`;
   };
 
   const getNotificationMessage = (notification) => {
@@ -52,15 +60,18 @@ const NotificationPage = () => {
     const quantity = notification.quantity || '1';
     const price = notification.price || '0';
     const status = notification.status || 'Pending';
-    if (notification.Type === 'Product') return `Order for ${productName} (Qty: ${quantity}) - ₦${price} • Status: ${status}`;
+    if (notification.Type === 'Product') {
+      const formattedPrice = typeof price === 'string' && (price.includes('$') || price.includes('₦')) ? price : `₦${price}`;
+      return `Order for ${productName} (Qty: ${quantity}) - ${formattedPrice} • Status: ${status}`;
+    }
     return 'New activity recorded';
   };
 
   const processNotification = (notif) => ({
     ...notif,
-    timestamp: notif.timestamp || notif.created_at || new Date().toISOString(),
-    id: notif.ids || notif.id || notif._id,
-    marked: notif.marked || false,
+    timestamp: notif.timestamp || notif.created_at || notif.time || new Date().toISOString(),
+    id: notif._id || notif.ids || notif.id,
+    marked: Boolean(notif.marked ?? notif.read ?? false),
     notificationType: getNotificationType(notif),
     title: getNotificationTitle(notif),
     message: getNotificationMessage(notif),
@@ -112,14 +123,18 @@ const NotificationPage = () => {
 
   useEffect(() => { fetchNotifications(); }, []);
 
-  const fetchNotifications = async (silent = false) => {
+  const fetchNotifications = async ({ cursor = null, append = false, silent = false } = {}) => {
     try {
-      if (!silent) setLoading(true); else setIsRefreshing(true);
+      if (append) setIsLoadingMore(true);
+      else if (!silent) setLoading(true); else setIsRefreshing(true);
       setError(null);
       const token = localStorage.getItem('token');
       if (!token) { toast.error('Please login first'); navigate('/login'); return; }
+      const limit = pagination.limit || 20;
+      let url = `https://api.automation365.io/notifications?limit=${limit}`;
+      if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
 
-      const response = await fetch('https://api.automation365.io/notification-page', {
+      const response = await fetch(url, {
         method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (response.status === 401) { toast.error('Session expired.'); localStorage.removeItem('token'); navigate('/login'); return; }
@@ -127,13 +142,76 @@ const NotificationPage = () => {
 
       const result = await response.json();
       console.log('[Notifications] API response:', result);
-      if (result.status === 'success' && result.data) {
-        setNotifications(result.data.map(processNotification).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
-      } else { setNotifications([]); }
+
+      const list = Array.isArray(result?.notifications)
+        ? result.notifications
+        : Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result?.data?.notifications)
+        ? result.data.notifications
+        : [];
+
+      if (result.status === 'success') {
+        const processed = list
+          .map(processNotification)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (append) {
+          setNotifications(prev => {
+            const seen = new Set(prev.map(n => n.id || n._id));
+            const merged = [...prev];
+            processed.forEach(n => {
+              const key = n.id || n._id;
+              if (!key || seen.has(key)) return;
+              seen.add(key);
+              merged.push(n);
+            });
+            return merged;
+          });
+        } else {
+          setNotifications(processed);
+        }
+
+        const paginationRaw = result.pagination || result.data?.pagination || {};
+        const next =
+          paginationRaw.next_cursor ??
+          paginationRaw.nextCursor ??
+          paginationRaw.next ??
+          paginationRaw.cursor_next ??
+          null;
+        const prev =
+          paginationRaw.prev_cursor ??
+          paginationRaw.prevCursor ??
+          paginationRaw.prev ??
+          paginationRaw.cursor_prev ??
+          null;
+        const derivedNext = next ?? (processed.length === limit ? (processed[processed.length - 1]?.id || processed[processed.length - 1]?._id) : null);
+        const hasNext = typeof paginationRaw.has_next === 'boolean'
+          ? paginationRaw.has_next
+          : typeof paginationRaw.hasNext === 'boolean'
+          ? paginationRaw.hasNext
+          : Boolean(derivedNext);
+        const hasPrev = typeof paginationRaw.has_prev === 'boolean'
+          ? paginationRaw.has_prev
+          : typeof paginationRaw.hasPrev === 'boolean'
+          ? paginationRaw.hasPrev
+          : Boolean(prev);
+
+        setPagination(prevState => ({
+          ...prevState,
+          nextCursor: derivedNext,
+          prevCursor: prev,
+          hasNext,
+          hasPrev,
+          limit: paginationRaw.limit || prevState.limit || limit,
+        }));
+      } else {
+        setNotifications([]);
+      }
     } catch (err) {
       console.error('Error fetching notifications:', err);
       if (!silent) { toast.error('Failed to load notifications'); setError(err.message); }
-    } finally { setLoading(false); setIsRefreshing(false); }
+    } finally { setLoading(false); setIsRefreshing(false); setIsLoadingMore(false); }
   };
 
   const markAsRead = async (notificationId) => {
@@ -144,7 +222,7 @@ const NotificationPage = () => {
       if (!token) { toast.error('Please login first'); navigate('/login'); return; }
       const response = await fetch('https://api.automation365.io/mark-notifications', {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: notificationId })
+        body: JSON.stringify({ _id: notificationId })
       });
       if (!response.ok) { if (response.status === 401) { toast.error('Session expired.'); localStorage.removeItem('token'); navigate('/login'); return; } throw new Error('Failed'); }
       setNotifications(prev => prev.map(n => (n.id === notificationId || n.ids === notificationId) ? { ...n, marked: true } : n));
@@ -156,7 +234,8 @@ const NotificationPage = () => {
   const getNotificationIcon = (notification) => {
     const type = notification.Type?.toLowerCase() || notification.type?.toLowerCase();
     const platform = notification.platform?.toLowerCase();
-    if (platform === 'instagram') return <ShoppingBag className="w-4 h-4 text-pink-600" />;
+    if (type === 'product' || type === 'order') return <ShoppingBag className="w-4 h-4 text-orange-600" />;
+    if (platform === 'instagram') return <MessageCircle className="w-4 h-4 text-pink-600" />;
     if (platform === 'whatsapp') return <MessageCircle className="w-4 h-4 text-green-600" />;
     if (platform === 'facebook' || platform === 'messenger') return <MessageCircle className="w-4 h-4 text-blue-600" />;
     const icons = { 'product': <ShoppingBag className="w-4 h-4 text-orange-600" />, 'order': <ShoppingBag className="w-4 h-4 text-orange-600" />, 'new_customer': <User className="w-4 h-4 text-purple-600" />, 'successful_transaction': <BadgeCheck className="w-4 h-4 text-green-600" />, 'failed_transaction': <XCircle className="w-4 h-4 text-red-600" />, 'new_chat': <MessageCircle className="w-4 h-4 text-blue-600" />, 'payment_received': <DollarSign className="w-4 h-4 text-green-600" />, 'customer': <User className="w-4 h-4 text-purple-600" />, 'chat': <MessageCircle className="w-4 h-4 text-blue-600" /> };
@@ -171,6 +250,18 @@ const NotificationPage = () => {
     if (platform === 'facebook' || platform === 'messenger') return '1877F2';
     const colors = { 'product': 'f97316', 'order': 'f97316', 'new_customer': '6d28d9', 'successful_transaction': '22c55e', 'failed_transaction': 'ef4444', 'new_chat': '3b82f6', 'payment_received': '22c55e', 'customer': '6d28d9', 'chat': '3b82f6' };
     return colors[type] || '6b7280';
+  };
+
+  const getNotificationAvatar = (notification) => {
+    const direct =
+      notification.profile_image ||
+      notification['profile-image'] ||
+      notification.profileImage ||
+      notification.avatar ||
+      notification.image;
+    if (direct) return direct;
+    const name = notification.username || notification.name || getNotificationTitle(notification);
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${getAvatarColor(notification)}&color=fff`;
   };
 
   const formatTimestamp = (timestamp) => {
@@ -217,7 +308,7 @@ const NotificationPage = () => {
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-400'}`} title={socketConnected ? 'Real-time connected' : 'Disconnected'} />
                       <span className="text-xs text-gray-400">{socketConnected ? 'Live' : 'Offline'}</span>
-                      <button onClick={() => fetchNotifications()} disabled={isRefreshing} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                      <button onClick={() => fetchNotifications({ silent: true })} disabled={isRefreshing} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                         <RefreshCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
                       </button>
                     </div>
@@ -238,7 +329,7 @@ const NotificationPage = () => {
                     <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
                       {notifs.map(notification => (
                         <div key={notification.id || notification.ids || Math.random()} className={`flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer ${!notification.marked ? 'bg-purple-50 hover:bg-purple-100' : ''}`} onClick={() => !notification.marked && markAsRead(notification.id || notification.ids)}>
-                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0"><img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(getNotificationTitle(notification))}&background=${getAvatarColor(notification)}&color=fff`} alt="" className="w-full h-full object-cover" /></div>
+                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0"><img src={getNotificationAvatar(notification)} alt="" className="w-full h-full object-cover" /></div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium truncate">{getNotificationTitle(notification)}{!notification.marked && <span className="ml-2 text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">New</span>}</h3>
                             <p className="text-gray-500 text-sm truncate">{getNotificationMessage(notification)}</p>
@@ -256,6 +347,18 @@ const NotificationPage = () => {
                     </div>
                   </div>
                 ))}
+
+                {(pagination.hasNext || pagination.nextCursor) && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => fetchNotifications({ cursor: pagination.nextCursor, append: true, silent: true })}
+                      disabled={isLoadingMore}
+                    >
+                      {isLoadingMore ? 'Loading...' : 'Load more'}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="lg:col-span-1">
