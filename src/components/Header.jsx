@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Bell, Settings, HelpCircle, LogOut, Package, Briefcase, X, Menu, Grid, ShoppingBag, MessageSquare, CreditCard, Mail, Users, ClipboardList, BarChart } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -67,12 +67,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     return false;
   };
 
-  // ── Fetch unread notification count on mount ──
-  useEffect(() => {
-    fetchUnreadCount();
-  }, []);
-
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
@@ -84,14 +79,26 @@ const Header = ({ title = "Botmon Dashboard" }) => {
       if (!response.ok) return;
       const result = await response.json();
 
-      if (result.status === 'success' && result.data) {
-        const count = result.data.filter(n => !n.marked).length;
+      if (result.status === 'success') {
+        const list = Array.isArray(result?.notifications)
+          ? result.notifications
+          : Array.isArray(result?.data)
+          ? result.data
+          : Array.isArray(result?.data?.notifications)
+          ? result.data.notifications
+          : [];
+        const count = list.filter(n => !Boolean(n.marked ?? n.read ?? false)).length;
         setUnreadCount(count);
       }
     } catch (err) {
       // Silent fail
     }
-  };
+  }, []);
+
+  // ── Fetch unread notification count on mount ──
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [fetchUnreadCount]);
 
   // ── Listen for new notifications via socket — increment count ──
   useEffect(() => {
@@ -116,7 +123,18 @@ const Header = ({ title = "Botmon Dashboard" }) => {
 
     window.addEventListener('popstate', handleRouteChange);
     return () => window.removeEventListener('popstate', handleRouteChange);
-  }, []);
+  }, [fetchUnreadCount]);
+
+  // ── Sync unread count from notifications page updates ──
+  useEffect(() => {
+    const handleNotificationsUpdated = (event) => {
+      const nextCount = event?.detail?.unreadCount;
+      if (typeof nextCount === 'number') setUnreadCount(nextCount);
+      else fetchUnreadCount();
+    };
+    window.addEventListener('notifications-updated', handleNotificationsUpdated);
+    return () => window.removeEventListener('notifications-updated', handleNotificationsUpdated);
+  }, [fetchUnreadCount]);
 
   useEffect(() => {
     fetchBusinessData();

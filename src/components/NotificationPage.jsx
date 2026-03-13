@@ -181,10 +181,14 @@ const NotificationPage = () => {
               seen.add(key);
               merged.push(n);
             });
+            const unreadCount = merged.filter(n => !n.marked).length;
+            window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { unreadCount } }));
             return merged;
           });
         } else {
           setNotifications(processed);
+          const unreadCount = processed.filter(n => !n.marked).length;
+          window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { unreadCount } }));
         }
 
         const paginationRaw = result.pagination || result.data?.pagination || {};
@@ -240,7 +244,15 @@ const NotificationPage = () => {
         body: JSON.stringify({ _id: notificationId })
       });
       if (!response.ok) { if (response.status === 401) { toast.error('Session expired.'); localStorage.removeItem('token'); navigate('/login'); return; } throw new Error('Failed'); }
-      setNotifications(prev => prev.map(n => (n.mongoId === notificationId || n._id === notificationId || n.id === notificationId || n.ids === notificationId) ? { ...n, marked: true } : n));
+      setNotifications(prev => {
+        const next = prev.map(n => (n.mongoId === notificationId || n._id === notificationId || n.id === notificationId || n.ids === notificationId)
+          ? { ...n, marked: true }
+          : n
+        );
+        const unreadCount = next.filter(n => !n.marked).length;
+        window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { unreadCount } }));
+        return next;
+      });
       toast.success('Marked as read');
     } catch (err) { console.error(err); toast.error('Failed to mark as read'); }
     finally { setMarkingAsRead(prev => ({ ...prev, [notificationId]: false })); }
