@@ -46,36 +46,52 @@ const Customers = () => {
       });
       console.log('Customers API response:', response.data);
 
-      // Process the response data - flatten all platforms into a single array
-      const data = response.data;
-      const allCustomers = [];
+      // Process the response data
+      const payload = response.data?.data ?? response.data;
+      const list = Array.isArray(payload?.customers) ? payload.customers : [];
+      const allCustomers = list.map((customer, index) => {
+        const platform = customer.platform || 'Instagram';
+        const name = customer.name || customer.username || 'Unknown User';
+        const email = customer.email?.trim() || 'No email provided';
+        const phone = customer.phone?.trim() || 'No phone provided';
+        const address = customer.address?.trim() || 'No address provided';
+        const totalPrice =
+          typeof customer.total_price === 'number'
+            ? customer.total_price
+            : typeof customer.total_spent === 'number'
+            ? customer.total_spent
+            : null;
+        const totalOrders =
+          customer.total_items ??
+          customer.total_orders ??
+          null;
 
-      // Process each platform
-      ['Instagram', 'WhatsApp', 'Messenger'].forEach(platform => {
-        if (data[platform] && Array.isArray(data[platform])) {
-          data[platform].forEach(customer => {
-            // Create a unique customer object that preserves all original data
-            const customerData = {
-              ...customer, // Keep all original fields including transactions
-              platform,
-              id: `${platform}-${customer.username}`, // Create unique ID
-              name: customer.username || 'Unknown User',
-              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.username || 'U')}&background=${getPlatformColor(platform)}&color=fff`,
-              // Keep both formatted and raw values
-              transactionVolume: `$${customer.total_price.toFixed(2)}`,
-              total_price: customer.total_price, // Keep raw value for calculations
-              completedOrders: customer.total_items,
-              address: customer.address || 'No address provided',
-              email: customer.email || 'No email provided',
-              phone: customer.phone || 'No phone provided'
-            };
-            allCustomers.push(customerData);
-          });
-        }
+        return {
+          ...customer,
+          platform,
+          id: customer.instagram_id
+            ? `${platform}-${customer.instagram_id}`
+            : `${platform}-${name}-${index}`,
+          name,
+          avatar:
+            customer.profile_picture ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${getPlatformColor(platform)}&color=fff`,
+          transactionVolume: totalPrice !== null ? `$${totalPrice.toFixed(2)}` : '—',
+          total_price: totalPrice ?? 0,
+          completedOrders: totalOrders !== null ? totalOrders : '—',
+          address,
+          email,
+          phone
+        };
       });
 
-      // Sort by transaction volume (descending)
-      allCustomers.sort((a, b) => b.total_price - a.total_price);
+      // Sort by last interaction (most recent first), fallback to name
+      allCustomers.sort((a, b) => {
+        const aTime = a.last_interaction ? Date.parse(a.last_interaction) : 0;
+        const bTime = b.last_interaction ? Date.parse(b.last_interaction) : 0;
+        if (aTime !== bTime) return bTime - aTime;
+        return a.name.localeCompare(b.name);
+      });
 
       setCustomers(allCustomers);
       setFilteredCustomers(allCustomers);
