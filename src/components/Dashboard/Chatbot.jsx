@@ -348,6 +348,8 @@ const Chatbot = () => {
       });
 
       console.log('[Chatbot] Raw response:', response);
+      const rawText = await response.clone().text();
+      console.log('[Chatbot] Raw response text:', rawText);
       console.log('Response status:', response.status);
       
       if (response.status === 401) {
