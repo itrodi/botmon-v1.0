@@ -347,6 +347,7 @@ const Chatbot = () => {
         body: JSON.stringify(requestBody)
       });
 
+      console.log('[Chatbot] Raw response:', response);
       console.log('Response status:', response.status);
       
       if (response.status === 401) {
@@ -358,7 +359,7 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
+      console.log('[Chatbot] Response data:', data);
       
       // Process the response
       if (data && data.response) {
