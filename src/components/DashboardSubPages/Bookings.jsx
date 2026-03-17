@@ -96,6 +96,16 @@ const Bookings = () => {
       const bookingsData = response.data || [];
       
       // Process each booking to ensure proper structure
+      const normalizeStatus = (value) => {
+        if (!value || typeof value !== 'string') return 'Pending';
+        const v = value.trim().toLowerCase();
+        if (['pending', 'booked', 'booking', 'requested', 'request'].includes(v)) return 'Pending';
+        if (['accepted', 'accept', 'confirmed', 'confirm'].includes(v)) return 'Accepted';
+        if (['rejected', 'reject', 'declined', 'decline', 'canceled', 'cancelled'].includes(v)) return 'Rejected';
+        if (['rescheduled', 'reschedule'].includes(v)) return 'Rescheduled';
+        return value;
+      };
+
       const processedBookings = bookingsData.map((booking, index) => {
         console.log('[Bookings] Raw booking status:', booking?.status, '| ids:', booking?.ids || booking?.id || booking?._id || `booking_${index}`);
         // Since backend doesn't include platform info, we need to determine it
@@ -117,11 +127,7 @@ const Bookings = () => {
           }
         }
         
-        const rawStatus = booking.status || 'Pending';
-        const normalizedStatus =
-          typeof rawStatus === 'string'
-            ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()
-            : 'Pending';
+        const normalizedStatus = normalizeStatus(booking.status);
 
         return {
           ...booking,
@@ -131,7 +137,7 @@ const Bookings = () => {
           // Ensure all required fields exist with fallbacks
           ids: booking.ids || booking.id || booking._id || `booking_${index}`,
           email: booking.email || 'No email provided',
-          'service-name': booking['service-name'] || booking.service_name || booking.serviceName || 'Service',
+          'service-name': booking['service-name'] || booking.service_name || booking.serviceName || booking.service || 'Service',
           date: booking.date || 'Not scheduled',
           time: booking.time || 'Not scheduled',
           description: booking.description || booking.message || 'No description available',
