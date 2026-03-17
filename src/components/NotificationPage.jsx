@@ -262,6 +262,9 @@ const NotificationPage = () => {
     const action = notification.action || {};
     if (action.type) return { type: action.type, ...action };
     const type = (notification.Type || notification.type || '').toLowerCase();
+    if (type.includes('service') || type.includes('booking') || type.includes('appointment')) {
+      return { type: 'booking' };
+    }
     if (type === 'product' || notification.notificationType === 'order' || notification.pname || notification.price) {
       return { type: 'order' };
     }
@@ -290,6 +293,15 @@ const NotificationPage = () => {
       if (orderId) {
         navigate('/Orders', { state: { orderId } });
       }
+      return;
+    }
+
+    if (action.type === 'booking') {
+      const bookingId = action.booking_id || action.bookingId || notification.ids || notification.id || notification._id;
+      const search = notification['service-name'] || notification.service_name || notification.serviceName || null;
+      if (bookingId || search) {
+        navigate('/Bookings', { state: { bookingId, search } });
+      }
     }
   };
 
@@ -315,13 +327,22 @@ const NotificationPage = () => {
   };
 
   const getNotificationAvatar = (notification) => {
+    const normalizeImageUrl = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      if (value.startsWith('data:')) return value;
+      if (value.startsWith('http://') || value.startsWith('https://')) return value;
+      if (value.startsWith('//')) return `https:${value}`;
+      return `https://${value}`;
+    };
+
     const direct =
       notification.profile_image ||
       notification['profile-image'] ||
       notification.profileImage ||
       notification.avatar ||
       notification.image;
-    if (direct) return direct;
+    const normalized = normalizeImageUrl(direct);
+    if (normalized) return normalized;
     const name = notification.username || notification.name || getNotificationTitle(notification);
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${getAvatarColor(notification)}&color=fff`;
   };
@@ -395,7 +416,18 @@ const NotificationPage = () => {
                     <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
                       {notifs.map(notification => (
                         <div key={notification.id || notification.ids || Math.random()} className={`flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer ${!notification.marked ? 'bg-purple-50 hover:bg-purple-100' : ''}`} onClick={() => handleNotificationClick(notification)}>
-                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0"><img src={getNotificationAvatar(notification)} alt="" className="w-full h-full object-cover" /></div>
+                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                            <img
+                              src={getNotificationAvatar(notification)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                const fallbackName = notification.username || notification.name || 'User';
+                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=${getAvatarColor(notification)}&color=fff`;
+                              }}
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium truncate">{getNotificationTitle(notification)}{!notification.marked && <span className="ml-2 text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">New</span>}</h3>
                             <p className="text-gray-500 text-sm truncate">{getNotificationMessage(notification)}</p>

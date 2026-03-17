@@ -19,11 +19,12 @@ import Sidebar from '../Sidebar';
 import Header from '../Header';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 
 const Bookings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('all');
   const [date, setDate] = useState(new Date());
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -40,6 +41,7 @@ const Bookings = () => {
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [pendingBookingId, setPendingBookingId] = useState(null);
 
   const tabs = [
     { id: 'all', label: 'All' },
@@ -58,6 +60,15 @@ const Bookings = () => {
   useEffect(() => {
     fetchBookings();
   }, []);
+
+  useEffect(() => {
+    const state = location.state || {};
+    const bookingId = state.bookingId || state.ids || state.id || null;
+    if (bookingId) setPendingBookingId(bookingId);
+    if (typeof state.search === 'string' && state.search.trim()) {
+      setSearchTerm(state.search.trim());
+    }
+  }, [location.state]);
 
   // Filter bookings when activeTab, bookings, or searchTerm changes
   useEffect(() => {
@@ -81,10 +92,12 @@ const Bookings = () => {
       });
 
       // The backend returns a flat array combining all three collections
+      console.log('[Bookings] API response:', response.data);
       const bookingsData = response.data || [];
       
       // Process each booking to ensure proper structure
       const processedBookings = bookingsData.map((booking, index) => {
+        console.log('[Bookings] Raw booking status:', booking?.status, '| ids:', booking?.ids || booking?.id || booking?._id || `booking_${index}`);
         // Since backend doesn't include platform info, we need to determine it
         // This is a limitation - you might want to add platform info in backend
         // For now, we'll try to infer from available data or set default
@@ -104,11 +117,17 @@ const Bookings = () => {
           }
         }
         
+        const rawStatus = booking.status || 'Pending';
+        const normalizedStatus =
+          typeof rawStatus === 'string'
+            ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()
+            : 'Pending';
+
         return {
           ...booking,
           platform,
           // Normalize status field
-          status: booking.status || 'Pending',
+          status: normalizedStatus,
           // Ensure all required fields exist with fallbacks
           ids: booking.ids || booking.id || booking._id || `booking_${index}`,
           email: booking.email || 'No email provided',
@@ -123,6 +142,18 @@ const Bookings = () => {
       });
 
       setBookings(processedBookings);
+
+      if (pendingBookingId) {
+        const match = processedBookings.find(booking =>
+          booking.ids === pendingBookingId ||
+          booking.id === pendingBookingId ||
+          booking._id === pendingBookingId
+        );
+        if (match) {
+          handleScheduleClick(match);
+          setPendingBookingId(null);
+        }
+      }
     } catch (error) {
       console.error('Error fetching bookings:', error);
       if (error.response?.status === 401) {
@@ -592,7 +623,7 @@ const Bookings = () => {
                 </div>
               </div>
               
-              {(!selectedSchedule.status || selectedSchedule.status === 'Pending') && (
+              {(!selectedSchedule.status || selectedSchedule.status.toLowerCase().trim() === 'pending') && (
                 <div className="flex gap-2 justify-end">
                   <Button 
                     variant="outline" 

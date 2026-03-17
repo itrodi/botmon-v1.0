@@ -49,6 +49,14 @@ const Customers = () => {
       // Process the response data
       const payload = response.data?.data ?? response.data;
       const list = Array.isArray(payload?.customers) ? payload.customers : [];
+
+      const normalizeImageUrl = (value) => {
+        if (!value || typeof value !== 'string') return null;
+        if (value.startsWith('data:')) return value;
+        if (value.startsWith('http://') || value.startsWith('https://')) return value;
+        if (value.startsWith('//')) return `https:${value}`;
+        return `https://${value}`;
+      };
       const allCustomers = list.map((customer, index) => {
         const platform = customer.platform || 'Instagram';
         const name = customer.name || customer.username || 'Unknown User';
@@ -66,6 +74,14 @@ const Customers = () => {
           customer.total_orders ??
           null;
 
+        const avatarSource =
+          customer.profile_picture ||
+          customer.profile_image ||
+          customer['profile-image'] ||
+          customer.avatar ||
+          customer.image;
+        const normalizedAvatar = normalizeImageUrl(avatarSource);
+
         return {
           ...customer,
           platform,
@@ -74,7 +90,7 @@ const Customers = () => {
             : `${platform}-${name}-${index}`,
           name,
           avatar:
-            customer.profile_picture ||
+            normalizedAvatar ||
             `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${getPlatformColor(platform)}&color=fff`,
           transactionVolume: totalPrice !== null ? `$${totalPrice.toFixed(2)}` : '—',
           total_price: totalPrice ?? 0,
@@ -321,6 +337,10 @@ const Customers = () => {
                                     src={customer.avatar} 
                                     alt={customer.name}
                                     className="w-10 h-10 rounded-full"
+                                    referrerPolicy="no-referrer"
+                                    onError={(e) => {
+                                      e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.name || 'U')}&background=${getPlatformColor(customer.platform)}&color=fff`;
+                                    }}
                                   />
                                   <span className="font-medium">{customer.name}</span>
                                 </div>

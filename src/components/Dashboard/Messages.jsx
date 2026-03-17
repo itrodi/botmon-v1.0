@@ -46,6 +46,22 @@ const Messages = () => {
   const messagesContainerRef = useRef(null);
   const selectedChatRef = useRef(null);
 
+  const normalizeImageUrl = (value) => {
+    if (!value || typeof value !== 'string') return null;
+    if (value.startsWith('data:')) return value;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (value.startsWith('//')) return `https:${value}`;
+    return `https://${value}`;
+  };
+
+  const getProfileImage = (obj) => normalizeImageUrl(
+    obj?.profile_picture ||
+    obj?.profile_image ||
+    obj?.['profile-image'] ||
+    obj?.avatar ||
+    obj?.image
+  );
+
   useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
 
   useEffect(() => {
@@ -113,6 +129,10 @@ const Messages = () => {
       // Handle all possible response shapes
       const payload = result.data || result;
       const newConversations = payload.conversations || [];
+      const normalizedConversations = newConversations.map(conv => ({
+        ...conv,
+        profile_picture: getProfileImage(conv) || conv.profile_picture || '/default-avatar.png',
+      }));
       const pagination = payload.pagination || {};
 
       console.log('[DEBUG] Parsed conversations count:', newConversations.length);
@@ -122,9 +142,9 @@ const Messages = () => {
       }
 
       if (cursor) {
-        setConversations(prev => [...prev, ...newConversations]);
+        setConversations(prev => [...prev, ...normalizedConversations]);
       } else {
-        setConversations(newConversations);
+        setConversations(normalizedConversations);
       }
       setConversationsCursor(pagination.next_cursor || null);
       setHasMoreConversations(pagination.has_next || false);
@@ -226,7 +246,7 @@ const Messages = () => {
       setHasMoreMessages(pagination.has_next || false);
 
       if (!cursor) {
-        const profilePic = payload.profile_picture || result.profile_picture;
+        const profilePic = getProfileImage(payload) || getProfileImage(result) || payload.profile_picture || result.profile_picture;
         if (profilePic) {
           setSelectedChat(prev => prev ? { ...prev, avatar: profilePic } : prev);
         }
@@ -329,7 +349,7 @@ const Messages = () => {
       _id: chatId,
       username: conversation.username,
       name: conversation.username,
-      avatar: conversation.profile_picture || '/default-avatar.png',
+      avatar: getProfileImage(conversation) || conversation.profile_picture || '/default-avatar.png',
       platform: 'instagram',
       sender_id: conversation.sender_id || '',
     };
@@ -612,7 +632,13 @@ const Messages = () => {
                         <div key={conv._id || conv.username} onClick={() => handleChatSelect(conv)} className="cursor-pointer">
                           <div className={`flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${selectedChat?.username === conv.username ? 'bg-purple-50' : ''}`}>
                             <div className="relative flex-shrink-0">
-                              <img src={conv.profile_picture || '/default-avatar.png'} alt={conv.username} className="w-12 h-12 rounded-full object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />
+                              <img
+                                src={conv.profile_picture || '/default-avatar.png'}
+                                alt={conv.username}
+                                className="w-12 h-12 rounded-full object-cover"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+                              />
                               <span className="absolute -bottom-1 -right-1"><Instagram className="w-4 h-4" /></span>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -647,7 +673,13 @@ const Messages = () => {
                           <div className="flex items-center gap-3">
                             <button onClick={handleBackToList} className="md:hidden p-2 hover:bg-gray-100 rounded-lg -ml-2"><ArrowLeft className="w-5 h-5" /></button>
                             <div className="relative">
-                              <img src={selectedChat.avatar} alt={selectedChat.name} className="w-10 h-10 rounded-full object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />
+                              <img
+                                src={selectedChat.avatar}
+                                alt={selectedChat.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+                              />
                               <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
                             </div>
                             <div>
@@ -700,10 +732,42 @@ const Messages = () => {
                                 <p className={`text-xs font-medium mb-1 ${isIncoming ? 'text-purple-200' : 'text-gray-500'}`}>
                                   {isIncoming ? selectedChat.name : 'Bot'}
                                 </p>
-                                {msg.type === 'image' && msg.metadata?.image_url ? (
-                                  <><img src={msg.metadata.image_url} alt="Image" className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
-                                ) : msg.type === 'video' && msg.metadata?.video_url ? (
-                                  <><video src={msg.metadata.video_url} controls className="max-w-full rounded-lg mb-2" />{msg.message && <p>{msg.message}</p>}</>
+                                {msg.type === 'image' ? (
+                                  (() => {
+                                    const imageUrl = normalizeImageUrl(
+                                      msg.metadata?.image_url ||
+                                      msg.metadata?.image?.url ||
+                                      msg.image_url ||
+                                      msg.image ||
+                                      msg.url
+                                    );
+                                    return imageUrl ? (
+                                      <>
+                                        <img src={imageUrl} alt="Image" className="max-w-full rounded-lg mb-2" referrerPolicy="no-referrer" />
+                                        {msg.message && <p>{msg.message}</p>}
+                                      </>
+                                    ) : (
+                                      <p>{msg.message}</p>
+                                    );
+                                  })()
+                                ) : msg.type === 'video' ? (
+                                  (() => {
+                                    const videoUrl = normalizeImageUrl(
+                                      msg.metadata?.video_url ||
+                                      msg.metadata?.video?.url ||
+                                      msg.video_url ||
+                                      msg.video ||
+                                      msg.url
+                                    );
+                                    return videoUrl ? (
+                                      <>
+                                        <video src={videoUrl} controls className="max-w-full rounded-lg mb-2" />
+                                        {msg.message && <p>{msg.message}</p>}
+                                      </>
+                                    ) : (
+                                      <p>{msg.message}</p>
+                                    );
+                                  })()
                                 ) : (
                                   <p>{msg.message}</p>
                                 )}
@@ -712,7 +776,15 @@ const Messages = () => {
                                   {isOutgoing && !msg.temp && <span className="ml-2">{msg.metadata?.read ? <CheckCheck className="w-4 h-4" /> : <Check className="w-4 h-4" />}</span>}
                                 </div>
                               </div>
-                              {isIncoming && <img src={selectedChat.avatar} alt={selectedChat.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover" onError={(e) => { e.target.src = '/default-avatar.png'; }} />}
+                              {isIncoming && (
+                                <img
+                                  src={selectedChat.avatar}
+                                  alt={selectedChat.name}
+                                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+                                />
+                              )}
                             </div>
                           );
                         })

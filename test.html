@@ -41,36 +41,31 @@
     #touch-controls {
       display: none;
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 110px;
       pointer-events: none;
     }
-    .touch-zone {
+    .touch-btn {
       position: absolute;
       pointer-events: auto;
+      border: 2px solid rgba(255,255,255,0.45);
+      border-radius: 16px;
+      background: rgba(0,0,0,0.25);
+      color: rgba(255,255,255,0.7);
+      font-size: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       user-select: none;
       -webkit-user-select: none;
     }
-    #zone-left {
-      left: 0; bottom: 0; width: 35%; height: 55%;
-    }
-    #zone-right {
-      right: 0; bottom: 0; width: 35%; height: 55%;
-    }
-    #zone-jump {
-      left: 15%; right: 15%; bottom: 0; height: 55%;
-    }
-    .touch-hint {
-      position: absolute;
-      bottom: 8px;
-      color: rgba(255,255,255,0.35);
-      font: bold 11px monospace;
-      pointer-events: none;
-      text-align: center;
-    }
-    #hint-left { left: 8px; }
-    #hint-right { right: 8px; }
-    #hint-jump { left: 50%; transform: translateX(-50%); bottom: 46px; }
-    #hint-dash { left: 50%; transform: translateX(-50%); bottom: 28px; font-size: 9px; }
+    .touch-btn:active { background: rgba(255,255,255,0.35); }
+    #btn-left  { bottom: 10px; left: 10px;  width: 70px; height: 70px; }
+    #btn-right { bottom: 10px; left: 90px;  width: 70px; height: 70px; }
+    #btn-jump  { bottom: 10px; right: 10px; width: 80px; height: 80px; font-size: 20px; }
+    #btn-dash  { bottom: 10px; right: 100px; width: 64px; height: 64px; font-size: 14px; }
     @media (pointer: coarse) {
       #touch-controls { display: block; }
     }
@@ -80,13 +75,10 @@
   <div id="wrap">
     <canvas id="game" width="320" height="480"></canvas>
     <div id="touch-controls">
-      <div class="touch-zone" id="zone-left"></div>
-      <div class="touch-zone" id="zone-jump"></div>
-      <div class="touch-zone" id="zone-right"></div>
-      <div class="touch-hint" id="hint-left">&larr; HOLD</div>
-      <div class="touch-hint" id="hint-right">HOLD &rarr;</div>
-      <div class="touch-hint" id="hint-jump">TAP = JUMP</div>
-      <div class="touch-hint" id="hint-dash">SWIPE = DASH</div>
+      <div class="touch-btn" id="btn-left">&larr;</div>
+      <div class="touch-btn" id="btn-right">&rarr;</div>
+      <div class="touch-btn" id="btn-dash">DASH</div>
+      <div class="touch-btn" id="btn-jump">JUMP</div>
     </div>
   </div>
 
@@ -220,10 +212,12 @@
       const LEVELS = Array.from({ length: 30 }, (_, i) => {
         const world = Math.floor(i / 10);
         const lvlInWorld = i % 10;
+        // Gentle start: levels 1-5 are easy, ramps up from level 6+
+        const diff = i < 5 ? 0.15 + i * 0.12 : 0.6 + (i - 5) * 0.08;
         return {
-          length: 360 + lvlInWorld * 45 + world * 30,
+          length: i < 3 ? 200 + i * 40 : 300 + lvlInWorld * 40 + world * 30,
           seed: 1200 + i * 97,
-          difficulty: 0.85 + i * 0.07,
+          difficulty: diff,
           world: world,
         };
       });
@@ -536,16 +530,16 @@
         const worldIdx = config.world;
         const world = WORLDS[worldIdx];
 
-        const gapChance = 0.06 + difficulty * 0.015;
-        const spikeChance = 0.10 + difficulty * 0.02;
-        const enemyChance = 0.05 + difficulty * 0.015;
-        const platformChance = 0.32 + difficulty * 0.04;
+        const gapChance = difficulty < 0.4 ? 0.02 + difficulty * 0.01 : 0.04 + difficulty * 0.015;
+        const spikeChance = difficulty < 0.4 ? difficulty * 0.06 : 0.04 + difficulty * 0.02;
+        const enemyChance = difficulty < 0.4 ? difficulty * 0.04 : 0.03 + difficulty * 0.015;
+        const platformChance = 0.35 + difficulty * 0.03;
         const springChance = 0.03 + difficulty * 0.01;
-        const heartChance = 0.015;
+        const heartChance = difficulty < 0.5 ? 0.04 : 0.015;
         const starChance = 0.04;
-        const sawChance = worldIdx >= 1 ? 0.02 + difficulty * 0.01 : 0.005;
-        const flyEnemyChance = worldIdx >= 1 ? 0.03 + difficulty * 0.01 : 0;
-        const fastEnemyChance = worldIdx >= 2 ? 0.03 + difficulty * 0.01 : 0.005;
+        const sawChance = difficulty < 0.5 ? 0 : (worldIdx >= 1 ? 0.01 + difficulty * 0.01 : 0.003);
+        const flyEnemyChance = difficulty < 0.5 ? 0 : (worldIdx >= 1 ? 0.02 + difficulty * 0.01 : 0);
+        const fastEnemyChance = difficulty < 0.5 ? 0 : (worldIdx >= 2 ? 0.02 + difficulty * 0.01 : 0.003);
         const gemChance = 0.02 + worldIdx * 0.015;
         const movPlatChance = 0.015 + worldIdx * 0.01;
 
@@ -587,7 +581,8 @@
           }
           const roll = rng();
           if (roll < gapChance) {
-            const gapLen = 2 + Math.floor(rng() * 3);
+            const maxGap = difficulty < 0.4 ? 1 : difficulty < 0.7 ? 2 : 3;
+            const gapLen = 2 + Math.floor(rng() * maxGap);
             for (let i = 0; i < gapLen && x + i < levelW; i++) {
               floorHeights[x + i] = null;
             }
@@ -652,13 +647,15 @@
         }
 
         // Ground-level entities with overlap prevention
+        // Wider safe start zone for easier levels
+        const safeZone = difficulty < 0.4 ? 25 : difficulty < 0.6 ? 18 : 12;
         const usedTiles = new Set();
         for (let gx = 8; gx < levelW - 8; gx++) {
           const fy = floorHeights[gx];
           if (fy === null) continue;
           const tileKey = `${gx},${fy - 1}`;
 
-          if (gx > 12 && gx < levelW - 12 && rng() < spikeChance && !usedTiles.has(tileKey)) {
+          if (gx > safeZone && gx < levelW - 12 && rng() < spikeChance && !usedTiles.has(tileKey)) {
             hazards.push({ x: gx, y: fy - 1 });
             usedTiles.add(tileKey);
           } else if (rng() < sawChance && !usedTiles.has(tileKey)) {
@@ -815,7 +812,9 @@
 
         coinsTotal = coins.length + gems.length;
         coinsCollected = 0;
-        coinsNeeded = Math.max(1, Math.floor(coinsTotal * 0.75));
+        // Easier coin requirements for early levels
+        const coinPct = difficulty < 0.3 ? 0.35 : difficulty < 0.5 ? 0.50 : difficulty < 0.7 ? 0.60 : 0.75;
+        coinsNeeded = Math.max(1, Math.floor(coinsTotal * coinPct));
       }
 
       // === BOSS LEVEL GENERATION ===
@@ -1013,9 +1012,11 @@
           dashRechargeTimer: 0,
         };
 
-        dashCharge = 0;
+        // Start with dash on easy levels; give bonus HP on first few levels
+        const config2 = LEVELS[index % LEVELS.length];
+        dashCharge = config2.difficulty < 0.5 ? 1 : 0;
         levelElapsed = 0;
-        hp = maxHp;
+        hp = index < 3 ? maxHp + 1 : maxHp;
         invuln = 0;
         cameraX = 0;
         cameraY = 0;
@@ -1439,15 +1440,6 @@
       function update(dt) {
         gameTime += dt;
         pollGamepad();
-
-        // Fade touch hints after a few seconds
-        if (touchHintTimer > 0) {
-          touchHintTimer -= dt;
-          if (touchHintTimer <= 0) {
-            const hints = document.querySelectorAll(".touch-hint");
-            hints.forEach(h => { h.style.transition = "opacity 1s"; h.style.opacity = "0"; });
-          }
-        }
 
         if (state === "title") {
           if (Object.keys(pressed).length > 0) {
@@ -2249,121 +2241,35 @@
       window.addEventListener("keyup", handleKeyUp);
       window.addEventListener("resize", setCanvasScale);
 
-      // === GESTURE-BASED TOUCH CONTROLS ===
-      const activeTouches = {}; // id -> { startX, startY, zone, startTime }
-      let touchHintTimer = 5; // show hints for first 5 seconds
-
-      function getCanvasCoords(touch) {
-        const rect = canvas.getBoundingClientRect();
-        return {
-          x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-          y: (touch.clientY - rect.top) * (canvas.height / rect.height),
-        };
-      }
-
-      // Zone touch handlers (hold to move)
-      const zoneLeft = document.getElementById("zone-left");
-      const zoneRight = document.getElementById("zone-right");
-      const zoneJump = document.getElementById("zone-jump");
-
-      if (zoneLeft) {
-        zoneLeft.addEventListener("touchstart", (e) => {
+      // === TOUCH CONTROLS ===
+      const touchState = {};
+      function bindTouch(id, code) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("touchstart", (e) => {
           e.preventDefault();
           if (!audioCtx) getAudioCtx();
-          keys["ArrowLeft"] = true;
-          for (const t of e.changedTouches) {
-            activeTouches[t.identifier] = { zone: "left", startX: t.clientX, startY: t.clientY, startTime: Date.now() };
-          }
+          touchState[code] = true; keys[code] = true; pressed[code] = true;
         }, { passive: false });
-        zoneLeft.addEventListener("touchend", (e) => {
+        el.addEventListener("touchend", (e) => {
           e.preventDefault();
-          keys["ArrowLeft"] = false;
-          for (const t of e.changedTouches) delete activeTouches[t.identifier];
+          touchState[code] = false; keys[code] = false;
         }, { passive: false });
-        zoneLeft.addEventListener("touchcancel", (e) => {
-          keys["ArrowLeft"] = false;
-          for (const t of e.changedTouches) delete activeTouches[t.identifier];
+        el.addEventListener("touchcancel", () => {
+          touchState[code] = false; keys[code] = false;
         });
       }
-
-      if (zoneRight) {
-        zoneRight.addEventListener("touchstart", (e) => {
-          e.preventDefault();
-          if (!audioCtx) getAudioCtx();
-          keys["ArrowRight"] = true;
-          for (const t of e.changedTouches) {
-            activeTouches[t.identifier] = { zone: "right", startX: t.clientX, startY: t.clientY, startTime: Date.now() };
-          }
-        }, { passive: false });
-        zoneRight.addEventListener("touchend", (e) => {
-          e.preventDefault();
-          keys["ArrowRight"] = false;
-          for (const t of e.changedTouches) delete activeTouches[t.identifier];
-        }, { passive: false });
-        zoneRight.addEventListener("touchcancel", (e) => {
-          keys["ArrowRight"] = false;
-          for (const t of e.changedTouches) delete activeTouches[t.identifier];
-        });
-      }
-
-      if (zoneJump) {
-        zoneJump.addEventListener("touchstart", (e) => {
-          e.preventDefault();
-          if (!audioCtx) getAudioCtx();
-          for (const t of e.changedTouches) {
-            activeTouches[t.identifier] = { zone: "jump", startX: t.clientX, startY: t.clientY, startTime: Date.now() };
-          }
-          // Tap = jump
-          pressed["Space"] = true;
-          keys["Space"] = true;
-        }, { passive: false });
-        zoneJump.addEventListener("touchmove", (e) => {
-          e.preventDefault();
-          for (const t of e.changedTouches) {
-            const info = activeTouches[t.identifier];
-            if (!info) continue;
-            const dx = t.clientX - info.startX;
-            const dy = t.clientY - info.startY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            // Swipe detection: >30px horizontal movement = dash
-            if (dist > 30 && Math.abs(dx) > Math.abs(dy) && !info.dashed) {
-              info.dashed = true;
-              pressed["ShiftLeft"] = true;
-              // Set facing based on swipe direction
-              if (dx > 0) { keys["ArrowRight"] = true; info.swipeDir = "right"; }
-              else { keys["ArrowLeft"] = true; info.swipeDir = "left"; }
-            }
-          }
-        }, { passive: false });
-        zoneJump.addEventListener("touchend", (e) => {
-          e.preventDefault();
-          keys["Space"] = false;
-          for (const t of e.changedTouches) {
-            const info = activeTouches[t.identifier];
-            if (info && info.swipeDir) {
-              if (info.swipeDir === "right") keys["ArrowRight"] = false;
-              else keys["ArrowLeft"] = false;
-            }
-            delete activeTouches[t.identifier];
-          }
-        }, { passive: false });
-        zoneJump.addEventListener("touchcancel", (e) => {
-          keys["Space"] = false;
-          for (const t of e.changedTouches) {
-            const info = activeTouches[t.identifier];
-            if (info && info.swipeDir) {
-              if (info.swipeDir === "right") keys["ArrowRight"] = false;
-              else keys["ArrowLeft"] = false;
-            }
-            delete activeTouches[t.identifier];
-          }
-        });
-      }
+      bindTouch("btn-left", "ArrowLeft");
+      bindTouch("btn-right", "ArrowRight");
+      bindTouch("btn-jump", "Space");
+      bindTouch("btn-dash", "ShiftLeft");
 
       // Canvas-level touch for menu screens
       canvas.addEventListener("touchstart", (e) => {
         if (!audioCtx) getAudioCtx();
-        const { x: tx, y: ty } = getCanvasCoords(e.touches[0]);
+        const rect = canvas.getBoundingClientRect();
+        const tx = (e.touches[0].clientX - rect.left) * (canvas.width / rect.width);
+        const ty = (e.touches[0].clientY - rect.top) * (canvas.height / rect.height);
 
         if (state === "title") {
           e.preventDefault();

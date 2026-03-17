@@ -235,7 +235,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     setSearchQuery('');
     try {
       if (result.type === 'product') navigate(`/product/${result.id}`);
-      else if (result.type === 'service') navigate(`/service/${result.id}`);
+      else if (result.type === 'service') navigate('/Bookings', { state: { search: result.displayName } });
       else navigate(`/products?search=${encodeURIComponent(result.displayName)}`);
     } catch (error) { toast.error('Failed to navigate'); navigate('/products'); }
   };
