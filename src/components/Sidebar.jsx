@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Grid, ShoppingBag, MessageSquare, CreditCard, Bell, Mail, Users, ClipboardList, BarChart, Settings } from 'lucide-react';
 
-const SidebarLink = ({ href, icon: Icon, children, isActive, onClick }) => {
+const SidebarLink = ({ href, icon: Icon, children, isActive, onClick, dataTour }) => {
   const handleClick = (e) => {
     e.preventDefault();
     if (onClick) {
@@ -14,6 +14,7 @@ const SidebarLink = ({ href, icon: Icon, children, isActive, onClick }) => {
     <a
       href={href}
       onClick={handleClick}
+      data-tour={dataTour}
       className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors
         ${isActive 
           ? 'text-purple-600 bg-purple-50' 
@@ -54,19 +55,19 @@ const Sidebar = () => {
   // Navigation structure
   const navigationStructure = {
     mainMenu: [
-      { href: '/Overview', icon: Grid, label: 'Overview' },
+      { href: '/Overview', icon: Grid, label: 'Overview', dataTour: 'nav-overview' },
       { href: '/ProductPage', icon: ShoppingBag, label: 'Product Page' },
-      { href: '/Chatbot', icon: MessageSquare, label: 'Chat Bot' },
+      { href: '/Chatbot', icon: MessageSquare, label: 'Chat Bot', dataTour: 'nav-chatbot' },
       { href: '/Payments', icon: CreditCard, label: 'Payment' }
     ],
     socialPage: [
-      { href: '/Notifications', icon: Bell, label: 'Notification' },
-      { href: '/Messages', icon: Mail, label: 'Messages' }
+      { href: '/Notifications', icon: Bell, label: 'Notification', dataTour: 'nav-notifications' },
+      { href: '/Messages', icon: Mail, label: 'Messages', dataTour: 'nav-messages' }
     ],
     others: [
-      { href: '/Customers', icon: Users, label: 'Customers' },
-      { href: '/Orders', icon: ClipboardList, label: 'Orders' },
-      { href: '/Bookings', icon: BarChart, label: 'Bookings' },
+      { href: '/Customers', icon: Users, label: 'Customers', dataTour: 'nav-customers' },
+      { href: '/Orders', icon: ClipboardList, label: 'Orders', dataTour: 'nav-orders' },
+      { href: '/Bookings', icon: BarChart, label: 'Bookings', dataTour: 'nav-bookings' },
       { href: '/ManageStore', icon: Settings, label: 'Settings' }
     ]
   };
@@ -84,6 +85,7 @@ const Sidebar = () => {
           href={item.href} 
           icon={item.icon} 
           isActive={isLinkActive(item.href)}
+          dataTour={item.dataTour}
         >
           {item.label}
         </SidebarLink>

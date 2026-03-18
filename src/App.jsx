@@ -43,6 +43,7 @@ import AdminAnalytics from './components/Auth/AdminAnalytics';
 import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
 import SupportPage from './components/SupportPage';
+import Tour from './components/Tour';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
       <Router>
         <div className="App"> 
           <Toaster position="top-right" />
+          <Tour />
           <Routes>
             {/* Public routes */}
             <Route exact path="/" element={<AuthenticationPage/>}/> 

@@ -260,7 +260,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
 
   // ── Notification bell with count ──
   const NotificationBell = () => (
-    <Link to="/Notifications" className="relative p-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+    <Link to="/Notifications" data-tour="header-notifications" className="relative p-2 text-gray-600 hover:bg-gray-50 rounded-lg">
       <Bell className="h-5 w-5" />
       {unreadCount > 0 && (
         <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1">
@@ -301,7 +301,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
         <div className="hidden md:flex items-center justify-between">
           <div className="flex items-center gap-8 flex-1">
             <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-            <div className="max-w-md flex-1 relative" ref={searchResultsRef}>
+            <div className="max-w-md flex-1 relative" ref={searchResultsRef} data-tour="header-search">
               <form onSubmit={handleSearchSubmit} className="relative">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
                 <Input type="search" placeholder="Search products and services..." className="pl-10 pr-10 w-full bg-gray-50 border-gray-200" value={searchQuery} onChange={handleSearchChange} onFocus={() => searchResults.length > 0 && setShowSearchResults(true)} />
