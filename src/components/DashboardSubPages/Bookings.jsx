@@ -91,9 +91,18 @@ const Bookings = () => {
         }
       });
 
-      // The backend returns a flat array combining all three collections
+      // The backend now returns a structured payload with pagination
       console.log('[Bookings] API response:', response.data);
-      const bookingsData = response.data || [];
+      const payload = response.data;
+      const rawBookings =
+        payload?.data?.bookings ??
+        payload?.bookings ??
+        payload?.data ??
+        payload;
+      const bookingsData = Array.isArray(rawBookings) ? rawBookings : [];
+      if (!Array.isArray(rawBookings)) {
+        console.warn('[Bookings] Unexpected response shape:', payload);
+      }
       
       // Process each booking to ensure proper structure
       const normalizeStatus = (value) => {

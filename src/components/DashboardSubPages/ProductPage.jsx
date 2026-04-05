@@ -125,15 +125,24 @@ const ProductPage = () => {
         }
       });
 
-      let products = response.data || [];
-      
-      products = products.map(product => ({
+      const payload = response.data;
+      const rawProducts =
+        payload?.data?.products ??
+        payload?.products ??
+        payload?.data ??
+        payload;
+      const productsArray = Array.isArray(rawProducts) ? rawProducts : [];
+      if (!Array.isArray(rawProducts)) {
+        console.warn('[Products] Unexpected response shape:', payload);
+      }
+
+      let products = productsArray.map(product => ({
         ...product,
         id: product.id || product._id,
         status: normalizeStatus(product.status),
         draft: product.draft === true || product.draft === 'true',
         quantity: product.quantity || 0,
-        price: product.price || 0,
+        price: parseFloat(String(product.price ?? '').replace(/[^0-9.]/g, '')) || 0,
         name: product.name || 'Untitled Product',
         image: product.image || '',
         category: product.category || '',
@@ -176,14 +185,23 @@ const ProductPage = () => {
         }
       });
 
-      let services = response.data || [];
-      
-      services = services.map(service => ({
+      const payload = response.data;
+      const rawServices =
+        payload?.data?.services ??
+        payload?.services ??
+        payload?.data ??
+        payload;
+      const servicesArray = Array.isArray(rawServices) ? rawServices : [];
+      if (!Array.isArray(rawServices)) {
+        console.warn('[Services] Unexpected response shape:', payload);
+      }
+
+      let services = servicesArray.map(service => ({
         ...service,
         id: service.id || service._id,
         status: normalizeStatus(service.status),
         draft: service.draft === true || service.draft === 'true',
-        price: service.price || 0,
+        price: parseFloat(String(service.price ?? '').replace(/[^0-9.]/g, '')) || 0,
         name: service.name || 'Untitled Service',
         image: service.image || '',
         category: service.category || '',
