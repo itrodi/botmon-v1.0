@@ -110,28 +110,20 @@ const Orders = () => {
 
       // Process the response data
       const payload = response.data;
-      const ordersData = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.data)
-        ? payload.data
-        : Array.isArray(payload?.orders)
-        ? payload.orders
-        : Array.isArray(payload?.data?.orders)
-        ? payload.data.orders
-        : payload?.data?.orders && typeof payload.data.orders === 'object'
-        ? Object.values(payload.data.orders)
-        : payload?.orders && typeof payload.orders === 'object'
-        ? Object.values(payload.orders)
-        : payload?.data && typeof payload.data === 'object'
-        ? Object.values(payload.data)
-        : [];
+      const rawOrders =
+        payload?.data?.orders ??
+        payload?.orders ??
+        payload?.data ??
+        payload;
+      const ordersData = Array.isArray(rawOrders) ? rawOrders : [];
       console.log('Fetched orders:', payload); // Debug log
-      const ordersArray = Array.isArray(ordersData) ? ordersData : [];
-      if (!Array.isArray(ordersData)) {
+      if (!Array.isArray(rawOrders)) {
         console.warn('[Orders] Unexpected response shape for orders:', payload);
+      } else {
+        console.log('[Orders] Orders array length:', ordersData.length);
       }
       
-      const processedOrders = ordersArray.map(order => {
+      const processedOrders = ordersData.map(order => {
         // Determine platform from source or platform field
         let platform = order.platform;
         if (!platform && order.source) {
