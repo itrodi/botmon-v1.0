@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Facebook, 
   Instagram, 
@@ -945,18 +945,14 @@ const LinkAccount = () => {
   // Loading state
   if (loading.initial) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header title="Settings" />
-          <main className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <Loader2 className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Loading your accounts...</p>
-            </div>
-          </main>
+      <SettingsLayout title="Connect Social Channels">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading your accounts...</p>
+          </div>
         </div>
-      </div>
+      </SettingsLayout>
     );
   }
 
@@ -1172,11 +1168,7 @@ const LinkAccount = () => {
                   </CardContent>
                 </Card>
               </div>
-            </div>
-          </div>
-        </main>
-      </div>
-      
+
       {/* Unlink Confirmation Dialog */}
       <Dialog open={showUnlinkDialog} onOpenChange={(open) => {
         setShowUnlinkDialog(open);
@@ -1222,7 +1214,6 @@ const LinkAccount = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
     </SettingsLayout>
   );
 };
