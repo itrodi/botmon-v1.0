@@ -1,7 +1,10 @@
-import { Link } from 'react-router-dom';
-import { CircleUser, ChevronLeft, Facebook, Instagram, Menu, Package2, Search, Share2, Twitter } from "lucide-react"
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft } from "lucide-react";
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,21 +12,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import Header from '../Header';
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -31,107 +22,137 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
+import SettingsLayout from '../SettingsLayout';
 
 const InputBankDetails = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    bank: '',
+    account: '',
+    number: '',
+    bvn: ''
+  });
+
+  const handleChange = (name, value) => {
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!form.bank || !form.account || !form.number || !form.bvn) {
+      toast.error('Please fill all bank details');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        return;
+      }
+
+      await axios.post(
+        'https://api.automation365.io/bank',
+        {
+          bank: form.bank,
+          account: form.account,
+          number: form.number,
+          bvn: form.bvn
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      toast.success('Bank details saved');
+      navigate('/Bank');
+    } catch (error) {
+      const message = error.response?.data?.error || 'Failed to save bank details';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-        <div className="mx-auto grid w-full max-w-6xl gap-2">
-          <h1 className="text-3xl font-semibold"></h1>
-        </div>
-        <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-          <nav
-            className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0"
-          >
-            <Link to="/ManageStore" >
-              Business Details
-            </Link>
-            <Link to="/PersonalDetails">Personal details</Link>
-            <Link to="/StoreSetting">Store settings</Link>
-            <Link to="/Bank" className="font-semibold text-primary">Payments</Link>
-            <Link to="/LinkAccount">Connect Social channels</Link>
-            <Link href="#">Advance</Link>
-          </nav>
-          <div className="grid gap-6">
-   
-            <Card x-chunk="dashboard-04-chunk-2">
-              <CardHeader>
-              <Link to="/Bank">
+    <SettingsLayout title="Payments">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Link to="/Bank">
               <Button variant="outline" size="icon" className="h-7 w-7">
                 <ChevronLeft className="h-4 w-4" />
-                <span className="sr-only mb-10">Back</span>
+                <span className="sr-only">Back</span>
               </Button>
-              </Link>
-                <CardTitle>Add Bank Account</CardTitle>
-                <CardDescription>
-                 Input bank details
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-              <div className="grid gap-3 ">
-            <Label htmlFor="name">Select Bank</Label>
-            <Select>
-                          <SelectTrigger
-                            id="Banks"
-                            aria-label="Select bank"
-                          >
-                            <SelectValue placeholder="Select Bank" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Access">Access Bank</SelectItem>
-                            <SelectItem value="FirstBank">
-                              First Bank
-                            </SelectItem>
-                            <SelectItem value="Zenith Bank">
-                              Zenith 
-                            </SelectItem>
-                            <SelectItem value="Opay">
-                              Opay digital services
-                            </SelectItem>
-                          </SelectContent>
+            </Link>
+            <div>
+              <CardTitle>Add Bank Account</CardTitle>
+              <CardDescription>
+                Input bank details for payouts
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="bank">Select Bank</Label>
+              <Select value={form.bank} onValueChange={(value) => handleChange('bank', value)}>
+                <SelectTrigger id="bank" aria-label="Select bank">
+                  <SelectValue placeholder="Select Bank" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Access">Access Bank</SelectItem>
+                  <SelectItem value="FirstBank">First Bank</SelectItem>
+                  <SelectItem value="Zenith Bank">Zenith Bank</SelectItem>
+                  <SelectItem value="Opay">Opay digital services</SelectItem>
+                </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="account">Bank Account Name</Label>
+              <Input
+                id="account"
+                type="text"
+                value={form.account}
+                onChange={(e) => handleChange('account', e.target.value)}
+                placeholder="Enter Account Name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="number">Bank Account Number</Label>
+              <Input
+                id="number"
+                type="text"
+                value={form.number}
+                onChange={(e) => handleChange('number', e.target.value)}
+                placeholder="Enter Account Number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bvn">BVN</Label>
+              <Input
+                id="bvn"
+                type="text"
+                value={form.bvn}
+                onChange={(e) => handleChange('bvn', e.target.value)}
+                placeholder="Enter BVN"
+              />
+            </div>
           </div>
-          <div className="grid gap-3 mt-4">
-            <Label htmlFor="name">Bank Account Name</Label>
-            <Input
-              id="Firstname"
-              type="text"
-              className="w-full"
-              defaultValue="Enter Account Name"
-            />
-          </div>
-          <div className="grid gap-3 mt-4">
-            <Label htmlFor="name">Bank Account Number</Label>
-            <Input
-              id="name"
-              type="text"
-              className="w-full"
-              defaultValue="0067693542"
-            />
-          </div>
-          <div className="grid gap-3 mt-4">
-            <Label htmlFor="name">Bvn</Label>
-            <Input
-              id="Bvn"
-              type="text"
-              className="w-full"
-              defaultValue="input bvn"
-            />
-          </div>
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                <Button>Save</Button>
-              </CardFooter>
-            </Card>
-            
-          </div>
-        </div>
-      </main>
-    </div>
+        </CardContent>
+        <CardFooter className="border-t px-6 py-4">
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? 'Saving...' : 'Save'}
+          </Button>
+        </CardFooter>
+      </Card>
+    </SettingsLayout>
+  );
+};
 
-  )
-}
-
-export default InputBankDetails
+export default InputBankDetails;

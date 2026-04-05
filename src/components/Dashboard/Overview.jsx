@@ -43,76 +43,105 @@ const StatCard = ({ title, value, trend, trendValue, icon: Icon, iconBg, loading
   </div>
 );
 
-const ActivityItem = ({ notification }) => {
-  const formatTime = (timestamp) => {
-    if (!timestamp) return 'Unknown time';
-    
-    try {
-      const date = new Date(timestamp);
-      const now = new Date();
-      const diff = now - date;
-      
-      const minutes = Math.floor(diff / 60000);
-      const hours = Math.floor(diff / 3600000);
-      const days = Math.floor(diff / 86400000);
-      
-      if (minutes < 1) return 'Just now';
-      if (minutes < 60) return `${minutes} minutes ago`;
-      if (hours < 24) return `${hours} hours ago`;
-      if (days < 7) return `${days} days ago`;
-      
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-    } catch (error) {
-      return 'Invalid date';
-    }
-  };
+const normalizeImageUrl = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  if (value.startsWith('data:')) return value;
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  if (value.startsWith('//')) return `https:${value}`;
+  return `https://${value}`;
+};
 
-  const getPlatformColor = (platform) => {
-    switch (platform?.toLowerCase()) {
-      case 'instagram':
-        return 'bg-pink-100 text-pink-600';
-      case 'whatsapp':
-        return 'bg-green-100 text-green-600';
-      case 'facebook':
-      case 'messenger':
-        return 'bg-blue-100 text-blue-600';
-      default:
-        return 'bg-purple-100 text-purple-600';
-    }
-  };
+const getObjectIdTimestamp = (value) => {
+  if (typeof value !== 'string' || value.length < 8) return null;
+  const ts = parseInt(value.slice(0, 8), 16);
+  if (Number.isNaN(ts)) return null;
+  return new Date(ts * 1000).toISOString();
+};
 
-  const getActivityMessage = (notif) => {
-    const productName = notif.pname || 'Product';
-    const quantity = notif.quantity || '1';
-    const price = notif.price || '0';
-    const customerName = notif.name || 'Customer';
+const getActivityTitle = (notif) => {
+  if (notif.title || notif.subject) return notif.title || notif.subject;
+  const customerName = notif.username || notif.name || 'Customer';
+  return customerName;
+};
 
-    if (notif.Type === 'Product') {
-      return `New order for ${productName} (Qty: ${quantity}) - ₦${price}`;
-    }
-    
-    return `New activity from ${customerName}`;
-  };
+const getActivityMessage = (notif) => {
+  if (notif.message || notif.body || notif.description) return notif.message || notif.body || notif.description;
+  const productName = notif.pname || 'Product';
+  const quantity = notif.quantity || '1';
+  const price = notif.price || '0';
+  const status = notif.status || 'Pending';
+  if (notif.Type === 'Product') {
+    const formattedPrice = typeof price === 'string' && (price.includes('$') || price.includes('₦')) ? price : `₦${price}`;
+    return `Order for ${productName} (Qty: ${quantity}) - ${formattedPrice} • Status: ${status}`;
+  }
+  return 'New activity recorded';
+};
 
-  const getActivityTitle = (notif) => {
-    const customerName = notif.name || 'Customer';
-    const platform = notif.platform || '';
-    
-    return `${customerName}${platform ? ` via ${platform}` : ''}`;
-  };
+const getPlatformBadgeClass = (platform) => {
+  switch (platform?.toLowerCase()) {
+    case 'instagram':
+      return 'bg-pink-100 text-pink-700';
+    case 'whatsapp':
+      return 'bg-green-100 text-green-700';
+    case 'facebook':
+    case 'messenger':
+      return 'bg-blue-100 text-blue-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+};
 
+const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return 'Unknown time';
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes} minutes ago`;
+    if (hours < 24) return `${hours} hours ago`;
+    if (days < 7) return `${days} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return 'Invalid date';
+  }
+};
+
+const getActivityAvatar = (notif) => {
+  const direct =
+    notif.profile_image ||
+    notif['profile-image'] ||
+    notif.profileImage ||
+    notif.profile_picture ||
+    notif.avatar ||
+    notif.image;
+  const normalized = normalizeImageUrl(direct);
+  if (normalized) return normalized;
+  const name = notif.username || notif.name || 'User';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6B7280&color=fff`;
+};
+
+const ActivityItem = ({ notification, onClick }) => {
   return (
-    <div className="flex items-center gap-3 py-3 border-b last:border-b-0">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getPlatformColor(notification.platform)}`}>
-        {notification.Type === 'Product' ? (
-          <ShoppingBag className="w-4 h-4" />
-        ) : (
-          <User className="w-4 h-4" />
-        )}
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left flex items-center gap-3 py-3 border-b last:border-b-0 hover:bg-gray-50 rounded-lg px-2"
+    >
+      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+        <img
+          src={getActivityAvatar(notification)}
+          alt=""
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            const fallbackName = notification.username || notification.name || 'User';
+            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=6B7280&color=fff`;
+          }}
+        />
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="text-sm font-medium text-gray-900 truncate">
@@ -123,8 +152,13 @@ const ActivityItem = ({ notification }) => {
         </p>
         <div className="flex items-center gap-2 mt-1">
           <p className="text-xs text-gray-500">
-            {formatTime(notification.timestamp)}
+            {formatRelativeTime(notification.timestamp)}
           </p>
+          {notification.platform && (
+            <span className={`text-xs px-2 py-0.5 rounded-full ${getPlatformBadgeClass(notification.platform)}`}>
+              {notification.platform}
+            </span>
+          )}
           {notification.status && (
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               notification.status === 'Confirmed' 
@@ -138,7 +172,7 @@ const ActivityItem = ({ notification }) => {
           )}
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -235,7 +269,7 @@ const Overview = () => {
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/notifications', {
+      const response = await fetch('https://api.automation365.io/notifications?limit=10', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -251,18 +285,88 @@ const Overview = () => {
       }
 
       const result = await response.json();
-      
-      if (result.status === 'success' && result.data) {
-        const sortedNotifications = result.data
+      const list = Array.isArray(result?.notifications)
+        ? result.notifications
+        : Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result?.data?.notifications)
+        ? result.data.notifications
+        : [];
+
+      if (result.status === 'success') {
+        const processed = list.map((notif) => ({
+          ...notif,
+          timestamp:
+            notif.timestamp ||
+            notif.created_at ||
+            notif.time ||
+            notif.date ||
+            getObjectIdTimestamp(notif._id || notif.id) ||
+            new Date().toISOString(),
+          id: notif._id || notif.ids || notif.id,
+          title: getActivityTitle(notif),
+          message: getActivityMessage(notif),
+        }));
+        const sortedNotifications = processed
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
           .slice(0, 7);
         setNotifications(sortedNotifications);
+      } else {
+        setNotifications([]);
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
     } finally {
       setNotificationsLoading(false);
     }
+  };
+
+  const getNotificationAction = (notification) => {
+    const action = notification.action || {};
+    if (action.type) return { type: action.type, ...action };
+    const type = (notification.Type || notification.type || '').toLowerCase();
+    if (type.includes('service') || type.includes('booking') || type.includes('appointment')) {
+      return { type: 'booking' };
+    }
+    if (type === 'product' || notification.pname || notification.price) {
+      return { type: 'order' };
+    }
+    if (notification.username || notification.platform) {
+      return { type: 'chat' };
+    }
+    return { type: 'none' };
+  };
+
+  const handleActivityClick = (notification) => {
+    const action = getNotificationAction(notification);
+
+    if (action.type === 'chat') {
+      const username = action.username || notification.username || notification.name;
+      const conversationId = action.conversation_id || action.conversationId || notification.conversation_id || notification.chat_id || null;
+      if (username || conversationId) {
+        navigate('/Messages', { state: { username, conversationId } });
+        return;
+      }
+    }
+
+    if (action.type === 'order') {
+      const orderId = action.order_id || action.orderId || notification.ids || notification.id || notification._id;
+      if (orderId) {
+        navigate('/Orders', { state: { orderId } });
+        return;
+      }
+    }
+
+    if (action.type === 'booking') {
+      const bookingId = action.booking_id || action.bookingId || notification.ids || notification.id || notification._id;
+      const search = notification['service-name'] || notification.service_name || notification.serviceName || null;
+      if (bookingId || search) {
+        navigate('/Bookings', { state: { bookingId, search } });
+        return;
+      }
+    }
+
+    navigate('/notifications');
   };
 
   const getChartData = () => {
@@ -566,7 +670,8 @@ const Overview = () => {
                       notifications.map((notification, index) => (
                         <ActivityItem 
                           key={notification.ids || notification.id || index} 
-                          notification={notification} 
+                          notification={notification}
+                          onClick={() => handleActivityClick(notification)}
                         />
                       ))
                     ) : (

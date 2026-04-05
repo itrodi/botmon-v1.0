@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Link } from 'react-router-dom';
 import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -24,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import Header from '../Header';
+import SettingsLayout from '../SettingsLayout';
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -471,34 +470,8 @@ const ManageStore = () => {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-        <nav className="grid gap-4 text-sm text-muted-foreground">
-          <Link to="/Overview" className="font-semibold hover:text-purple-600 transition-colors">
-            Home
-          </Link>
-          <Link to="/ManageStore" className="font-semibold text-purple-600">
-            Business Details
-          </Link>
-          <Link to="/PersonalDetails" className="font-semibold hover:text-purple-600 transition-colors">
-            Personal details
-          </Link>
-          <Link to="/StoreSetting" className="font-semibold hover:text-purple-600 transition-colors">
-            Store settings
-          </Link>
-          <Link to="/Bank" className="font-semibold hover:text-purple-600 transition-colors">
-            Payments
-          </Link>
-          <Link to="/Link" className="font-semibold hover:text-purple-600 transition-colors">
-            Connect Social channels
-          </Link>
-          <Link to="/Advance" className="font-semibold hover:text-purple-600 transition-colors">
-            Advance
-          </Link>
-        </nav>
-        
-        <Card>
+    <SettingsLayout title="Business Details">
+      <Card>
           <CardHeader>
             <CardTitle>Business Information</CardTitle>
             <CardDescription>Edit your business information</CardDescription>
@@ -991,9 +964,8 @@ const ManageStore = () => {
               {loading ? 'Saving...' : 'Save'}
             </Button>
           </CardFooter>
-        </Card>
-      </main>
-    </div>
+      </Card>
+    </SettingsLayout>
   );
 };
 

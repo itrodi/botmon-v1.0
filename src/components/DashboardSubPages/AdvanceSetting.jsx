@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter, AlertTriangle, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import Header from '../Header';
+import SettingsLayout from '../SettingsLayout';
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -227,26 +227,8 @@ const AdvanceSetting = () => {
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-        <div className="mx-auto grid w-full max-w-6xl gap-2">
-          <h1 className="text-3xl font-semibold"></h1>
-        </div>
-        <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-          <nav
-            className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0"
-          >
-             <Link to="/ManageStore" >
-              Business Details
-            </Link>
-            <Link to="/PersonalDetails" >Personal details</Link>
-            <Link to="/StoreSetting" >Store settings</Link>
-            <Link to="/Bank" >Payments</Link>
-            <Link to="/Link">Connect Social channels</Link>
-            <Link to="/Advance" className="font-semibold text-primary">Advance</Link>
-          </nav>
-          <div className="grid gap-6" id="discounts">
+    <SettingsLayout title="Advance">
+      <div className="grid gap-6" id="discounts">
             <Card x-chunk="dashboard-04-chunk-2">
               <CardHeader>
                 <CardTitle>2FA</CardTitle>
@@ -512,10 +494,8 @@ const AdvanceSetting = () => {
                 </Dialog>
               </CardFooter>
             </Card>
-          </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </SettingsLayout>
   )
 }
 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Link } from 'react-router-dom';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Header from '../Header';
+import SettingsLayout from '../SettingsLayout';
 
 const PersonalDetails = () => {
   const [loading, setLoading] = useState(false);
@@ -106,34 +105,8 @@ const PersonalDetails = () => {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-        <nav className="grid gap-4 text-sm text-muted-foreground">
-          <Link to="/Overview" className="font-semibold hover:text-purple-600 transition-colors">
-            Home
-          </Link>
-          <Link to="/ManageStore" className="font-semibold hover:text-purple-600 transition-colors">
-            Business Details
-          </Link>
-          <Link to="/PersonalDetails" className="font-semibold text-purple-600">
-            Personal details
-          </Link>
-          <Link to="/StoreSetting" className="font-semibold hover:text-purple-600 transition-colors">
-            Store settings
-          </Link>
-          <Link to="/Bank" className="font-semibold hover:text-purple-600 transition-colors">
-            Payments
-          </Link>
-          <Link to="/Link" className="font-semibold hover:text-purple-600 transition-colors">
-            Connect Social channels
-          </Link>
-          <Link to="/Advance" className="font-semibold hover:text-purple-600 transition-colors">
-            Advance
-          </Link>
-        </nav>
-
-        <Card>
+    <SettingsLayout title="Personal details">
+      <Card>
           <CardHeader>
             <CardTitle>Personal Information</CardTitle>
             <CardDescription>Edit your personal details</CardDescription>
@@ -226,9 +199,8 @@ const PersonalDetails = () => {
               {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </CardFooter>
-        </Card>
-      </main>
-    </div>
+      </Card>
+    </SettingsLayout>
   );
 };
 

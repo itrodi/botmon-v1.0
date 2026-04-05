@@ -33,8 +33,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
-import Header from '../Header';
-import Sidebar from '../Sidebar';
+import SettingsLayout from '../SettingsLayout';
 import { toast } from 'react-hot-toast';
 
 const LinkAccount = () => {
@@ -967,30 +966,12 @@ const LinkAccount = () => {
   const availableCount = socialPlatforms.length;
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Settings" />
-        
-        <main className="flex-1 overflow-y-auto">
-          <div className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-            <div className="mx-auto grid w-full max-w-6xl gap-2">
-              <h1 className="text-3xl font-semibold">Connect Social Channels</h1>
-              <p className="text-gray-600">Manage your connected social media accounts and notification preferences</p>
-            </div>
-            
-            <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-              <nav className="grid gap-4 text-sm text-muted-foreground">
-                <Link to="/ManageStore">Business Details</Link>
-                <Link to="/PersonalDetails">Personal details</Link>
-                <Link to="/StoreSetting">Store settings</Link>
-                <Link to="/Bank">Payments</Link>
-                <Link to="/Link" className="font-semibold text-primary">Connect Social channels</Link>
-                <Link to="/Advance">Advance</Link>
-              </nav>
-              
-              <div className="grid gap-6">
+    <SettingsLayout title="Connect Social Channels">
+      <div className="grid gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Connect Social Channels</h1>
+          <p className="text-gray-600">Manage your connected social media accounts and notification preferences</p>
+        </div>
                 {/* Main Social Accounts Card */}
                 <Card>
                   <CardHeader>
@@ -1242,6 +1223,7 @@ const LinkAccount = () => {
         </DialogContent>
       </Dialog>
     </div>
+    </SettingsLayout>
   );
 };
 

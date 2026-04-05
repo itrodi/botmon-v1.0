@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom';
-import { CircleUser, Eye, Facebook, Instagram, Menu, Package2, Search, Share2, Twitter } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,76 +10,98 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import Header from '../Header';
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-
+} from "@/components/ui/card";
+import SettingsLayout from '../SettingsLayout';
 
 const BankAccount = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [bankDetails, setBankDetails] = useState(null);
+
+  const fetchBankDetails = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      const response = await axios.get('https://api.automation365.io/bank', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setBankDetails(response.data);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        setBankDetails(null);
+      } else if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        navigate('/login');
+      } else {
+        toast.error('Failed to load bank details');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBankDetails();
+  }, []);
+
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-        <div className="mx-auto grid w-full max-w-6xl gap-2">
-          <h1 className="text-3xl font-semibold"></h1>
-        </div>
-        <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-          <nav
-            className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0"
-          >
-            <Link to="/ManageStore" >
-              Business Details
+    <SettingsLayout title="Payments">
+      <Card>
+        <CardHeader>
+          <CardTitle>Bank Account</CardTitle>
+          <CardDescription>
+            Information from your bank accounts for payouts
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-sm text-gray-500">Loading bank details...</div>
+          ) : bankDetails ? (
+            <div className="space-y-3 text-sm text-gray-700">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Bank Name</span>
+                <span className="font-medium">{bankDetails.Bank_Name || '—'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Account Name</span>
+                <span className="font-medium">{bankDetails.Account_Name || '—'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Account Number</span>
+                <span className="font-medium">{bankDetails.Account_Number || '—'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">BVN</span>
+                <span className="font-medium">{bankDetails.BVN || '—'}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">
+              No bank account added yet.
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="border-t px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Link to="/AddBank">
+              <Button>{bankDetails ? 'Update Bank Account' : 'Add Bank Account'}</Button>
             </Link>
-            <Link to="/PersonalDetails">Personal details</Link>
-            <Link to="/StoreSetting">Store settings</Link>
-            <Link to="/Bank" className="font-semibold text-primary">Payments</Link>
-            <Link to="/Link">Connect Social channels</Link>
-            <Link to="/Advance" >Advance</Link>
-          </nav>
-          <div className="grid gap-6">
-   
-            <Card x-chunk="dashboard-04-chunk-2">
-              <CardHeader>
-                <CardTitle>Bank Account</CardTitle>
-                <CardDescription>
-                 Information from your bank accounts for payouts
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-          
-              </CardContent>
-              <CardFooter className=" px-6 py-4">
-                <Link to="/AddBank">
-                <Button>Add Bank Account</Button>
-                </Link>
-              </CardFooter>
-            </Card>
-            
+            <Button variant="outline" onClick={fetchBankDetails} disabled={loading}>
+              Refresh
+            </Button>
           </div>
-        </div>
-      </main>
-    </div>
+        </CardFooter>
+      </Card>
+    </SettingsLayout>
+  );
+};
 
-  )
-}
-
-export default BankAccount
+export default BankAccount;

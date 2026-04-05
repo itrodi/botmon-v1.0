@@ -35,6 +35,7 @@ import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import StoreSettings from './components/DashboardSubPages/StoreSettings';
 import BankAccount from './components/DashboardSubPages/BankAccount';
+import InputBankDetails from './components/DashboardSubPages/InputBankDetails';
 import LinkAccount from './components/DashboardSubPages/LinkAccount';
 import AdvanceSetting from './components/DashboardSubPages/AdvanceSetting';
 import IndividualProductPage from './components/IndividualProductPage';
@@ -193,6 +194,11 @@ function App() {
             <Route exact path="/Bank" element={
               <ProtectedRoute>
                 <BankAccount/>
+              </ProtectedRoute>
+            }/>
+            <Route exact path="/AddBank" element={
+              <ProtectedRoute>
+                <InputBankDetails/>
               </ProtectedRoute>
             }/>
             <Route exact path="/Link" element={

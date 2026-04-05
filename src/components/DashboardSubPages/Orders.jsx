@@ -85,6 +85,13 @@ const Orders = () => {
     };
   }, [activeTab, orders, searchTerm]);
 
+  const normalizeImageList = (order) => {
+    if (Array.isArray(order?.images)) return order.images.filter(Boolean);
+    if (order?.images) return [order.images].filter(Boolean);
+    if (order?.image) return [order.image].filter(Boolean);
+    return [];
+  };
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -102,10 +109,29 @@ const Orders = () => {
       });
 
       // Process the response data
-      const ordersData = response.data || [];
-      console.log('Fetched orders:', ordersData); // Debug log
+      const payload = response.data;
+      const ordersData = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.orders)
+        ? payload.orders
+        : Array.isArray(payload?.data?.orders)
+        ? payload.data.orders
+        : payload?.data?.orders && typeof payload.data.orders === 'object'
+        ? Object.values(payload.data.orders)
+        : payload?.orders && typeof payload.orders === 'object'
+        ? Object.values(payload.orders)
+        : payload?.data && typeof payload.data === 'object'
+        ? Object.values(payload.data)
+        : [];
+      console.log('Fetched orders:', payload); // Debug log
+      const ordersArray = Array.isArray(ordersData) ? ordersData : [];
+      if (!Array.isArray(ordersData)) {
+        console.warn('[Orders] Unexpected response shape for orders:', payload);
+      }
       
-      const processedOrders = ordersData.map(order => {
+      const processedOrders = ordersArray.map(order => {
         // Determine platform from source or platform field
         let platform = order.platform;
         if (!platform && order.source) {
@@ -121,6 +147,8 @@ const Orders = () => {
         // Normalize status - if no status, it's Pending
         let status = order.status || 'Pending';
         
+        const imageList = normalizeImageList(order);
+
         return {
           ...order,
           platform,
@@ -128,13 +156,13 @@ const Orders = () => {
           ids: order.ids || order.id || order._id,
           email: order.email || 'No email provided',
           'product-name': order['product-name'] || order.product_name || order.pname || order.name || 'Product',
-          price: parseFloat(order.price) || 0,
+          price: parseFloat(String(order.price ?? '').replace(/[^0-9.]/g, '')) || 0,
           quantity: parseInt(order.quantity) || 1,
           customer_name: order.customer_name || order.name || order.customer || 'Customer',
           address: order.address || 'No address provided',
           phone: order.phone || 'No phone provided',
-          image: order.image || order.images?.[0] || '',
-          images: order.images || [order.image].filter(Boolean),
+          image: imageList[0] || '',
+          images: imageList,
           created_at: order.created_at || order.timestamp || new Date().toISOString(),
           // Add searchable text for better search functionality
           searchableText: [
@@ -411,11 +439,18 @@ const Orders = () => {
 
   const stats = getOrderStats();
 
+  const selectedOrderImages = selectedOrder
+    ? (Array.isArray(selectedOrder.images)
+        ? selectedOrder.images.filter(Boolean)
+        : [selectedOrder.images].filter(Boolean))
+    : [];
+
   // Pagination logic
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const safeFilteredOrders = Array.isArray(filteredOrders) ? filteredOrders : [];
+  const currentOrders = safeFilteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(safeFilteredOrders.length / ordersPerPage);
 
   const renderPaginationButtons = () => {
     const buttons = [];
@@ -734,17 +769,17 @@ const Orders = () => {
             <div className="space-y-4">
               {/* Product Image Carousel */}
               <div className="relative">
-                {selectedOrder.images && selectedOrder.images.length > 0 ? (
+                {selectedOrderImages.length > 0 ? (
                   <>
                     <img 
-                      src={selectedOrder.images[currentImageIndex] || selectedOrder.image}
+                      src={selectedOrderImages[currentImageIndex] || selectedOrder.image}
                       alt={selectedOrder['product-name']}
                       className="w-full h-64 object-contain rounded-lg bg-gray-50"
                       onError={(e) => {
                         e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedOrder['product-name'])}&background=6B7280&color=fff&size=400`;
                       }}
                     />
-                    {selectedOrder.images.length > 1 && (
+                    {selectedOrderImages.length > 1 && (
                       <>
                         <div className="absolute inset-0 flex items-center justify-between px-4">
                           <Button
@@ -752,7 +787,7 @@ const Orders = () => {
                             className="h-8 w-8 rounded-full bg-white/80 hover:bg-white"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setCurrentImageIndex(prev => prev === 0 ? selectedOrder.images.length - 1 : prev - 1);
+                              setCurrentImageIndex(prev => prev === 0 ? selectedOrderImages.length - 1 : prev - 1);
                             }}
                           >
                             <ChevronLeft className="h-4 w-4" />
@@ -762,14 +797,14 @@ const Orders = () => {
                             className="h-8 w-8 rounded-full bg-white/80 hover:bg-white"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setCurrentImageIndex(prev => prev === selectedOrder.images.length - 1 ? 0 : prev + 1);
+                              setCurrentImageIndex(prev => prev === selectedOrderImages.length - 1 ? 0 : prev + 1);
                             }}
                           >
                             <ChevronRight className="h-4 w-4" />
                           </Button>
                         </div>
                         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                          {selectedOrder.images.map((_, index) => (
+                          {selectedOrderImages.map((_, index) => (
                             <button
                               key={index}
                               className={`w-2 h-2 rounded-full transition-colors
