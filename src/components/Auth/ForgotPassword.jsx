@@ -2,25 +2,53 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError('Email is required');
+      return;
+    }
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setError('');
     setLoading(true);
-    
-    await axios.post('https://api.automation365.io/auth/reset-password', {
-      email: email.trim()
-    }).catch(() => {}); // Ignore error since email sends before backend error
-    
-    setLoading(false);
-    toast.success('OTP sent to your email!');
-    navigate('/reset-password', { state: { email: email.trim() } });
+
+    // Note: we intentionally ignore backend errors here because the email is
+    // dispatched asynchronously by the backend. Surface a friendly message on
+    // the next screen regardless.
+    try {
+      await axios.post('https://api.automation365.io/auth/reset-password', {
+        email: trimmed,
+      });
+    } catch (err) {
+      // Backend sends email before the response resolves — safe to ignore
+      // client-side errors but log for observability during development.
+      if (import.meta.env.DEV) {
+        console.warn('Reset password request error (ignored):', err?.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+
+    toast.success('If that email exists, a reset code has been sent.');
+    navigate('/reset-password', { state: { email: trimmed } });
   };
 
   return (
@@ -78,24 +106,42 @@ const ForgotPassword = () => {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               <div>
+                <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
                 <Input
+                  id="forgot-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full p-3 rounded-lg border border-gray-200"
-                  required
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError('');
+                  }}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  aria-invalid={error ? 'true' : 'false'}
+                  aria-describedby={error ? 'forgot-email-error' : undefined}
+                  className={`w-full p-3 rounded-lg border ${
+                    error ? 'border-red-500 focus-visible:ring-red-500' : 'border-gray-200'
+                  }`}
                 />
+                {error && (
+                  <p id="forgot-email-error" className="mt-1 text-sm text-red-600">
+                    {error}
+                  </p>
+                )}
               </div>
 
-              <Button 
+              <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg disabled:opacity-50"
+                aria-busy={loading}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg disabled:opacity-50 inline-flex items-center justify-center gap-2"
               >
-                {loading ? 'Sending...' : 'Send Reset Code'}
+                {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                {loading ? 'Sending...' : 'Send reset code'}
               </Button>
 
               <div className="text-center">

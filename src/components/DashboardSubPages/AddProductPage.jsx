@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, X, Edit2, Settings, FileText } from 'lucide-react';
+import { Upload, Plus, X, Edit2, Settings, FileText, Loader2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -1062,26 +1062,31 @@ const AddProductPage = () => {
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-4">
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   variant="outline"
                   onClick={handleDiscard}
+                  disabled={isLoading}
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="button"
-                  className={`text-white ${
-                    isDraft 
-                      ? 'bg-yellow-600 hover:bg-yellow-700' 
+                  className={`text-white inline-flex items-center gap-2 ${
+                    isDraft
+                      ? 'bg-yellow-600 hover:bg-yellow-700'
                       : 'bg-purple-600 hover:bg-purple-700'
                   }`}
                   disabled={isLoading}
                   onClick={handleSubmit}
+                  aria-busy={isLoading}
                 >
-                  {isLoading 
-                    ? (isDraft ? 'Saving Draft...' : 'Uploading Product...') 
-                    : (isDraft ? 'Save as Draft' : 'Upload Product')
+                  {isLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  )}
+                  {isLoading
+                    ? (isDraft ? 'Saving draft...' : 'Uploading product...')
+                    : (isDraft ? 'Save as draft' : 'Upload product')
                   }
                 </Button>
               </div>

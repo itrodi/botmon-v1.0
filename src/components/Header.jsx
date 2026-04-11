@@ -260,10 +260,22 @@ const Header = ({ title = "Botmon Dashboard" }) => {
 
   // ── Notification bell with count ──
   const NotificationBell = () => (
-    <Link to="/Notifications" data-tour="header-notifications" className="relative p-2 text-gray-600 hover:bg-gray-50 rounded-lg">
-      <Bell className="h-5 w-5" />
+    <Link
+      to="/Notifications"
+      data-tour="header-notifications"
+      className="relative p-2 text-gray-600 hover:bg-gray-50 rounded-lg"
+      aria-label={
+        unreadCount > 0
+          ? `Notifications, ${unreadCount} unread`
+          : 'Notifications'
+      }
+    >
+      <Bell className="h-5 w-5" aria-hidden="true" />
       {unreadCount > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1">
+        <span
+          aria-hidden="true"
+          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1"
+        >
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}
@@ -272,10 +284,13 @@ const Header = ({ title = "Botmon Dashboard" }) => {
 
   const ProfileDropdown = () => (
     <DropdownMenu>
-      <DropdownMenuTrigger className="focus:outline-none">
+      <DropdownMenuTrigger
+        className="focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 rounded-full"
+        aria-label="Open profile menu"
+      >
         <div className="relative">
-          <img src={businessData.blogo} alt={businessData.bname} className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" onError={(e) => { e.target.src = '/api/placeholder/40/40'; }} />
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
+          <img src={businessData.blogo} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" onError={(e) => { e.target.src = '/api/placeholder/40/40'; }} />
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full" aria-hidden="true"></span>
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -305,12 +320,12 @@ const Header = ({ title = "Botmon Dashboard" }) => {
               <form onSubmit={handleSearchSubmit} className="relative">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
                 <Input type="search" placeholder="Search products and services..." className="pl-10 pr-10 w-full bg-gray-50 border-gray-200" value={searchQuery} onChange={handleSearchChange} onFocus={() => searchResults.length > 0 && setShowSearchResults(true)} />
-                {searchQuery && <button type="button" onClick={handleClearSearch} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>}
+                {searchQuery && <button type="button" aria-label="Clear search" onClick={handleClearSearch} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" aria-hidden="true" /></button>}
               </form>
               {showSearchResults && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50" role="listbox" aria-label="Search results">
                   {isSearching ? (
-                    <div className="p-4 text-center text-gray-500"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2"></div>Searching...</div>
+                    <div className="p-4 text-center text-gray-500"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2" aria-hidden="true"></div>Searching...</div>
                   ) : searchResults.length > 0 ? (
                     <>
                       {searchResults.map((result) => (
@@ -355,7 +370,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
             <form onSubmit={handleSearchSubmit} className="relative">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
               <Input type="search" placeholder="Search..." className="pl-10 pr-10 w-full bg-gray-50 border-gray-200" value={searchQuery} onChange={handleSearchChange} onFocus={() => searchResults.length > 0 && setShowSearchResults(true)} />
-              {searchQuery && <button type="button" onClick={handleClearSearch} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>}
+              {searchQuery && <button type="button" aria-label="Clear search" onClick={handleClearSearch} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" aria-hidden="true" /></button>}
             </form>
             {showSearchResults && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">

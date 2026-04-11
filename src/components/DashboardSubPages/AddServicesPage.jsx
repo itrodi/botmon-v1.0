@@ -669,28 +669,30 @@ const AddServicesPage = () => {
                   variant="outline" 
                   size="sm"
                   onClick={handleDiscard}
+                  disabled={isLoading}
                 >
                   Discard
                 </Button>
-                <Button 
+                <Button
                   size="sm"
                   onClick={handleSubmit}
                   disabled={isLoading}
+                  aria-busy={isLoading}
                   className={`text-white ${
-                    isDraft 
-                      ? 'bg-yellow-600 hover:bg-yellow-700' 
+                    isDraft
+                      ? 'bg-yellow-600 hover:bg-yellow-700'
                       : 'bg-purple-600 hover:bg-purple-700'
                   }`}
                 >
                   {isLoading ? (
                     <>
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                       Saving...
                     </>
                   ) : isDraft ? (
-                    'Save as Draft'
+                    'Save as draft'
                   ) : (
-                    'Save Service'
+                    'Save service'
                   )}
                 </Button>
               </div>
@@ -1087,28 +1089,34 @@ const AddServicesPage = () => {
               <div className="flex items-center justify-center gap-2 md:hidden">
                 <Button 
                   type="button"
-                  variant="outline" 
+                  variant="outline"
                   size="sm"
                   onClick={handleDiscard}
+                  disabled={isLoading}
                 >
                   Discard
                 </Button>
-                <Button 
+                <Button
                   type="submit"
                   size="sm"
                   disabled={isLoading}
+                  aria-busy={isLoading}
                   className={`text-white ${
-                    isDraft 
-                      ? 'bg-yellow-600 hover:bg-yellow-700' 
+                    isDraft
+                      ? 'bg-yellow-600 hover:bg-yellow-700'
                       : 'bg-purple-600 hover:bg-purple-700'
                   }`}
                 >
-                  {isLoading 
-                    ? 'Saving...' 
-                    : isDraft 
-                      ? 'Save as Draft' 
-                      : 'Save Service'
-                  }
+                  {isLoading ? (
+                    <>
+                      <Loader className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                      Saving...
+                    </>
+                  ) : isDraft ? (
+                    'Save as draft'
+                  ) : (
+                    'Save service'
+                  )}
                 </Button>
               </div>
             </form>

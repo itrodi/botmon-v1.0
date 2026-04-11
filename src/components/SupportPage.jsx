@@ -47,10 +47,15 @@ const SupportPage = () => {
     window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
   };
 
-  // Handle WhatsApp click
+  // Handle WhatsApp click — opens in a new tab with noopener/noreferrer to
+  // prevent the target page from accessing window.opener (reverse tabnabbing).
   const handleWhatsAppClick = () => {
     const message = encodeURIComponent('Hello! I need help with Automation365. ');
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+    window.open(
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
   };
 
   // Handle form input changes
@@ -65,6 +70,15 @@ const SupportPage = () => {
   // Handle form submission via email
   const handleFormSubmit = (e) => {
     e.preventDefault();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      window.alert('Please fill in your name, email, and message.');
+      return;
+    }
+    if (!emailRegex.test(formData.email.trim())) {
+      window.alert('Please enter a valid email address.');
+      return;
+    }
     const subject = encodeURIComponent(formData.subject || 'Support Request');
     const body = encodeURIComponent(
       `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`
@@ -214,61 +228,71 @@ const SupportPage = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleFormSubmit} className="space-y-4">
+                <form onSubmit={handleFormSubmit} className="space-y-4" noValidate>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="support-name" className="block text-sm font-medium text-gray-700 mb-1">
                         Your Name
                       </label>
                       <Input
+                        id="support-name"
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
                         placeholder="John Doe"
+                        required
+                        autoComplete="name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="support-email" className="block text-sm font-medium text-gray-700 mb-1">
                         Email Address
                       </label>
                       <Input
+                        id="support-email"
                         name="email"
                         type="email"
                         value={formData.email}
                         onChange={handleInputChange}
                         placeholder="john@example.com"
+                        required
+                        autoComplete="email"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="support-subject" className="block text-sm font-medium text-gray-700 mb-1">
                       Subject
                     </label>
                     <Input
+                      id="support-subject"
                       name="subject"
                       value={formData.subject}
                       onChange={handleInputChange}
                       placeholder="What do you need help with?"
+                      required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="support-message" className="block text-sm font-medium text-gray-700 mb-1">
                       Message
                     </label>
                     <Textarea
+                      id="support-message"
                       name="message"
                       value={formData.message}
                       onChange={handleInputChange}
                       placeholder="Describe your issue or question in detail..."
                       className="min-h-[120px]"
+                      required
                     />
                   </div>
                   <div className="flex justify-end">
-                    <Button 
+                    <Button
                       type="submit"
                       className="bg-purple-600 hover:bg-purple-700 text-white"
                     >
-                      <Mail className="w-4 h-4 mr-2" />
+                      <Mail className="w-4 h-4 mr-2" aria-hidden="true" />
                       Send via Email
                     </Button>
                   </div>

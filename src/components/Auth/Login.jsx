@@ -2,18 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+  const [errors, setErrors] = useState({});
+
+  const validate = ({ email, password }) => {
+    const nextErrors = {};
+    if (!email.trim()) {
+      nextErrors.email = 'Email is required';
+    } else if (!EMAIL_REGEX.test(email.trim())) {
+      nextErrors.email = 'Please enter a valid email address';
+    }
+    if (!password) {
+      nextErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      nextErrors.password = 'Password must be at least 6 characters';
+    }
+    return nextErrors;
+  };
 
   useEffect(() => {
     // Handle OAuth callback - check for tokens in query params
@@ -82,10 +102,24 @@ const Login = () => {
       ...prev,
       [name]: value
     }));
+    if (errors[name]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const nextErrors = validate(formData);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+    setErrors({});
     setLoading(true);
     
     try {
@@ -206,38 +240,84 @@ const Login = () => {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <Input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Enter Email"
-                  className="w-full p-3 rounded-lg border border-gray-200"
-                  required
-                />
-                <div className="relative">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+              <div className="space-y-5">
+                <div>
+                  <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
                   <Input
-                    type="password"
-                    name="password"
-                    value={formData.password}
+                    id="login-email"
+                    type="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleInputChange}
-                    placeholder="Password"
-                    className="w-full p-3 rounded-lg border border-gray-200"
-                    required
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    aria-invalid={errors.email ? 'true' : 'false'}
+                    aria-describedby={errors.email ? 'login-email-error' : undefined}
+                    className={`w-full p-3 rounded-lg border ${
+                      errors.email ? 'border-red-500 focus-visible:ring-red-500' : 'border-gray-200'
+                    }`}
                   />
-                  <Link to="/forgot-password" className="absolute right-0 -bottom-6 text-sm text-purple-400">
-                    Forgotten Password?
-                  </Link>
+                  {errors.email && (
+                    <p id="login-email-error" className="mt-1 text-sm text-red-600">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">
+                      Password
+                    </label>
+                    <Link to="/forgot-password" className="text-sm text-purple-600 hover:text-purple-700">
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      aria-invalid={errors.password ? 'true' : 'false'}
+                      aria-describedby={errors.password ? 'login-password-error' : undefined}
+                      className={`w-full p-3 pr-10 rounded-lg border ${
+                        errors.password ? 'border-red-500 focus-visible:ring-red-500' : 'border-gray-200'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(prev => !prev)}
+                      className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" aria-hidden="true" />
+                      ) : (
+                        <Eye className="h-5 w-5" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p id="login-password-error" className="mt-1 text-sm text-red-600">
+                      {errors.password}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <Button 
+              <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg disabled:opacity-50"
+                aria-busy={loading}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg disabled:opacity-50 inline-flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                 {loading ? 'Logging in...' : 'Login'}
               </Button>
 

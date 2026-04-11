@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar as CalendarIcon, X, Clock, Loader } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, X, Clock, Loader, CalendarCheck } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
+import EmptyState from "@/components/ui/empty-state";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 import {
   Dialog,
   DialogContent,
@@ -513,33 +515,30 @@ const Bookings = () => {
 
             {/* Loading State */}
             {loading && bookings.length === 0 ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader className="w-8 h-8 animate-spin text-purple-600" />
-              </div>
+              <LoadingSpinner label="Loading bookings..." />
             ) : (
               <>
                 {/* No Bookings Message */}
                 {filteredBookings.length === 0 ? (
-                  <div className="bg-white rounded-lg p-8 text-center">
-                    <div className="text-gray-500 mb-4">
-                      {bookings.length === 0 ? (
-                        'No bookings found'
-                      ) : searchTerm ? (
-                        <>
-                          No bookings found matching "<span className="font-medium">{searchTerm}</span>"
-                          <Button 
-                            variant="link" 
-                            className="ml-2 p-0 h-auto text-purple-600"
-                            onClick={() => setSearchTerm('')}
-                          >
-                            Clear search
-                          </Button>
-                        </>
-                      ) : (
-                        `No ${activeTab === 'all' ? '' : activeTab} bookings found`
-                      )}
-                    </div>
-                  </div>
+                  <EmptyState
+                    icon={CalendarCheck}
+                    title={
+                      bookings.length === 0
+                        ? 'No bookings yet'
+                        : searchTerm
+                          ? 'No matching bookings'
+                          : `No ${activeTab === 'all' ? '' : activeTab} bookings`
+                    }
+                    description={
+                      bookings.length === 0
+                        ? 'Appointments booked through your bot will appear here once customers start scheduling.'
+                        : searchTerm
+                          ? `No bookings match "${searchTerm}". Try a different search term.`
+                          : `You have no ${activeTab} bookings at the moment.`
+                    }
+                    actionLabel={searchTerm ? 'Clear search' : undefined}
+                    onAction={searchTerm ? () => setSearchTerm('') : undefined}
+                  />
                 ) : (
                   <>
                     {/* Bookings Grid */}
