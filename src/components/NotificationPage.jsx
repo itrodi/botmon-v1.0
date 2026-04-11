@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, User, BadgeCheck, MessageCircle, XCircle, ShoppingBag, DollarSign, Mail, MessageSquare, Phone, RefreshCw, Bell, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar as CalendarIcon, User, BadgeCheck, MessageCircle, XCircle, ShoppingBag, DollarSign, Mail, MessageSquare, Phone, RefreshCw, Bell, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format, isToday, isYesterday, formatDistanceToNow } from "date-fns";
+import { format, isToday, isYesterday, formatDistanceToNow, isSameDay } from "date-fns";
 import { toast } from 'react-hot-toast';
 import Header from '../components/Header';
 
@@ -19,7 +19,7 @@ const NotificationPage = () => {
   const navigate = useNavigate();
   const { socket, connected: socketConnected } = useSocket();
 
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -357,8 +357,18 @@ const NotificationPage = () => {
   };
 
   const filterNotifications = () => {
-    if (filterType === 'all') return [...notifications];
-    return notifications.filter(n => { if (filterType === 'unread') return !n.marked; if (filterType === 'read') return n.marked; return getNotificationType(n) === filterType; });
+    let list = [...notifications];
+    if (date) {
+      list = list.filter(n => {
+        try {
+          const d = new Date(n.timestamp);
+          if (Number.isNaN(d.getTime())) return false;
+          return isSameDay(d, date);
+        } catch { return false; }
+      });
+    }
+    if (filterType === 'all') return list;
+    return list.filter(n => { if (filterType === 'unread') return !n.marked; if (filterType === 'read') return n.marked; return getNotificationType(n) === filterType; });
   };
 
   const groupNotificationsByDate = () => {
@@ -401,7 +411,30 @@ const NotificationPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Popover><PopoverTrigger asChild><Button variant="outline" className="flex items-center gap-2"><CalendarIcon className="w-4 h-4" /><span className="hidden sm:inline">{format(date, "PPP")}</span></Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><Calendar mode="single" selected={date} onSelect={setDate} initialFocus /></PopoverContent></Popover>
+                    <div className="flex items-center gap-1">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="flex items-center gap-2" aria-label={date ? `Filtering by ${format(date, 'PPP')}` : 'Filter by date'}>
+                            <CalendarIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">{date ? format(date, "PPP") : "Pick a date"}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar mode="single" selected={date || undefined} onSelect={setDate} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                      {date && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDate(null)}
+                          aria-label="Clear date filter"
+                          title="Clear date filter"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                     <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
                       <option value="all">All</option><option value="unread">Unread</option><option value="read">Read</option><option value="order">Orders</option><option value="chat">Chats</option><option value="new_customer">New Customers</option><option value="successful_transaction">Successful</option><option value="failed_transaction">Failed</option><option value="payment_received">Payments</option>
                     </select>
@@ -409,7 +442,19 @@ const NotificationPage = () => {
                 </div>
 
                 {filteredNotifications.length === 0 ? (
-                  <div className="bg-white rounded-lg shadow-sm p-8 text-center"><Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">{filterType === 'all' ? 'No notifications' : `No ${filterType} notifications`}</p></div>
+                  <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+                    <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">
+                      {date
+                        ? `No${filterType !== 'all' ? ` ${filterType}` : ''} notifications on ${format(date, 'PPP')}`
+                        : filterType === 'all' ? 'No notifications' : `No ${filterType} notifications`}
+                    </p>
+                    {date && (
+                      <Button variant="link" className="mt-2" onClick={() => setDate(null)}>
+                        Clear date filter
+                      </Button>
+                    )}
+                  </div>
                 ) : Object.entries(groupedNotifications).map(([dateGroup, notifs]) => (
                   <div key={dateGroup}>
                     <h3 className="text-sm font-medium text-gray-500 mb-2">{dateGroup}</h3>

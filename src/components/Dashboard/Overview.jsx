@@ -370,76 +370,96 @@ const Overview = () => {
   };
 
   const getChartData = () => {
-    if (!analyticsData || !analyticsData.revenue_breakdown) {
-      const mockData = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        mockData.push({
-          name: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          revenue: 0,
-          quantity: 0,
+    const revenueBreakdown = (analyticsData && analyticsData.revenue_breakdown) || [];
+
+    // Group raw breakdown items by their YYYY-MM-DD date string.
+    const groupedByDay = {};
+    revenueBreakdown.forEach(item => {
+      const dateStr = item.date;
+      if (!dateStr) return;
+      if (!groupedByDay[dateStr]) {
+        groupedByDay[dateStr] = { revenue: 0, transactions: 0, day: item.day };
+      }
+      groupedByDay[dateStr].revenue += parseFloat(item.amount) || 0;
+      groupedByDay[dateStr].transactions += 1;
+    });
+
+    const today = new Date();
+    const toDateKey = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    if (chartPeriod === 'year') {
+      // Last 12 months, grouped by month.
+      const monthlyTotals = {};
+      Object.entries(groupedByDay).forEach(([dateStr, vals]) => {
+        const key = dateStr.slice(0, 7); // YYYY-MM
+        if (!monthlyTotals[key]) monthlyTotals[key] = { revenue: 0, transactions: 0 };
+        monthlyTotals[key].revenue += vals.revenue;
+        monthlyTotals[key].transactions += vals.transactions;
+      });
+
+      const chartData = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const vals = monthlyTotals[key] || { revenue: 0, transactions: 0 };
+        chartData.push({
+          name: d.toLocaleDateString('en-US', { month: 'short' }),
+          revenue: vals.revenue,
+          quantity: vals.transactions,
+          fullDate: key,
         });
       }
-      return mockData;
+      return chartData;
     }
 
-    const revenueBreakdown = analyticsData.revenue_breakdown || [];
-    
-    const groupedData = {};
-    revenueBreakdown.forEach(item => {
-      const date = item.date;
-      if (!groupedData[date]) {
-        groupedData[date] = {
-          revenue: 0,
-          transactions: 0,
-          day: item.day
-        };
-      }
-      groupedData[date].revenue += parseFloat(item.amount) || 0;
-      groupedData[date].transactions += 1;
-    });
-    
-    if (Object.keys(groupedData).length === 0) {
-      const mockData = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        mockData.push({
-          name: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          revenue: 0,
-          quantity: 0,
+    if (chartPeriod === 'month') {
+      // Current month: one point per day, from day 1 → end of month (or today).
+      const chartData = [];
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = new Date(year, month, day);
+        const key = toDateKey(d);
+        const vals = groupedByDay[key] || { revenue: 0, transactions: 0 };
+        chartData.push({
+          name: String(day),
+          revenue: vals.revenue,
+          quantity: vals.transactions,
+          fullDate: key,
         });
       }
-      return mockData;
+      return chartData;
     }
-    
+
+    // Default: last 7 days.
     const chartData = [];
-    const today = new Date();
-    
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      if (groupedData[dateStr]) {
-        const data = groupedData[dateStr];
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = toDateKey(d);
+      const vals = groupedByDay[key];
+      if (vals) {
         chartData.push({
-          name: data.day?.substring(0, 3) || date.toLocaleDateString('en-US', { weekday: 'short' }),
-          revenue: data.revenue,
-          quantity: data.transactions,
-          fullDate: dateStr
+          name: vals.day?.substring(0, 3) || d.toLocaleDateString('en-US', { weekday: 'short' }),
+          revenue: vals.revenue,
+          quantity: vals.transactions,
+          fullDate: key,
         });
       } else {
         chartData.push({
-          name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          name: d.toLocaleDateString('en-US', { weekday: 'short' }),
           revenue: 0,
           quantity: 0,
-          fullDate: dateStr
+          fullDate: key,
         });
       }
     }
-    
     return chartData;
   };
 
@@ -610,12 +630,16 @@ const Overview = () => {
                             tickLine={false}
                             fontSize={12}
                           />
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value, name) => [
                               name === 'revenue' ? `₦${parseFloat(value).toLocaleString()}` : `${parseInt(value).toLocaleString()} transactions`,
                               name === 'revenue' ? 'Revenue' : 'Transactions'
                             ]}
-                            labelFormatter={(label) => `Day: ${label}`}
+                            labelFormatter={(label) => {
+                              if (chartPeriod === 'year') return `Month: ${label}`;
+                              if (chartPeriod === 'month') return `Day ${label}`;
+                              return `Day: ${label}`;
+                            }}
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e5e7eb',
