@@ -21,7 +21,7 @@ const SidebarLink = ({ href, icon: Icon, children, isActive, onClick, dataTour }
           : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
         }`}
     >
-      <Icon className="w-5 h-5" />
+      <Icon className="w-5 h-5" aria-hidden="true" />
       <span>{children}</span>
     </a>
   );
@@ -95,28 +95,31 @@ const Sidebar = () => {
 
   // Only render on desktop (md and above)
   return (
-    <aside className="hidden md:flex w-64 flex-col border-r border-gray-200 bg-white h-screen flex-shrink-0">
+    <aside
+      aria-label="Main navigation"
+      className="hidden md:flex w-64 flex-col border-r border-gray-200 bg-white h-screen flex-shrink-0"
+    >
       <div className="p-4 border-b border-gray-200">
-        <img src="/Images/botmon-logo.png" alt="Logo" className="h-8" />
+        <img src="/Images/botmon-logo.png" alt="Botmon" className="h-8" />
       </div>
-      <div className="flex-1 overflow-y-auto py-4">
-        <NavigationSection 
-          title="MAIN MENU" 
+      <nav className="flex-1 overflow-y-auto py-4" aria-label="Primary">
+        <NavigationSection
+          title="MAIN MENU"
           items={navigationStructure.mainMenu}
         />
         <div className="mt-6">
-          <NavigationSection 
-            title="SOCIAL PAGE" 
+          <NavigationSection
+            title="SOCIAL PAGE"
             items={navigationStructure.socialPage}
           />
         </div>
         <div className="mt-6">
-          <NavigationSection 
-            title="OTHERS" 
+          <NavigationSection
+            title="OTHERS"
             items={navigationStructure.others}
           />
         </div>
-      </div>
+      </nav>
     </aside>
   );
 };

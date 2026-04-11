@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Plus, Edit2, Filter, Loader, Search, X, FileText } from 'lucide-react';
+import { Download, Plus, Edit2, Filter, Search, X, FileText, Package, Wrench, FileX } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import EmptyState from "@/components/ui/empty-state";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import { toast } from 'react-hot-toast';
@@ -666,46 +668,56 @@ const ProductPage = () => {
 
             {/* Loading State */}
             {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader className="w-8 h-8 animate-spin text-purple-600" />
-              </div>
+              <LoadingSpinner label={`Loading ${activeTab}...`} />
             ) : (
               <>
                 {/* No Products/Services Message */}
                 {displayData.length === 0 ? (
-                  <div className="bg-white rounded-lg p-8 text-center shadow-sm">
-                    <div className="text-gray-500 mb-4">
-                      {hasSearchQuery 
-                        ? `No ${activeTab} found matching "${searchQuery}"`
-                        : filterActive 
-                          ? `No active ${activeTab} found`
+                  <EmptyState
+                    icon={
+                      activeTab === 'services'
+                        ? Wrench
+                        : activeTab === 'drafts'
+                          ? FileX
+                          : Package
+                    }
+                    title={
+                      hasSearchQuery
+                        ? `No ${activeTab} match your search`
+                        : filterActive
+                          ? `No active ${activeTab} yet`
                           : activeTab === 'drafts'
-                            ? 'No drafts found'
-                            : `No ${activeTab} found`
-                      }
-                    </div>
-                    {hasSearchQuery ? (
-                      <Button 
-                        variant="outline"
-                        onClick={clearSearch}
-                        className="mr-2"
-                      >
-                        Clear search
-                      </Button>
-                    ) : !filterActive && activeTab !== 'drafts' && (
-                      <Button 
-                        className="bg-purple-600 hover:bg-purple-700 text-white"
-                        onClick={handleAddNew}
-                      >
-                        {activeTab === 'services' ? 'Add First Service' : 'Add First Product'}
-                      </Button>
-                    )}
-                    {activeTab === 'drafts' && !hasSearchQuery && (
-                      <p className="text-sm text-gray-400 mt-2">
-                        Drafts will appear here when you save products or services as drafts
-                      </p>
-                    )}
-                  </div>
+                            ? 'No drafts yet'
+                            : activeTab === 'services'
+                              ? 'No services yet'
+                              : 'No products yet'
+                    }
+                    description={
+                      hasSearchQuery
+                        ? `We couldn't find any ${activeTab} matching "${searchQuery}". Try a different search term.`
+                        : activeTab === 'drafts'
+                          ? 'Drafts will appear here when you save products or services without publishing them.'
+                          : activeTab === 'services'
+                            ? 'Create your first service to start accepting bookings from customers.'
+                            : 'Add your first product to start selling through your bot.'
+                    }
+                    actionLabel={
+                      hasSearchQuery
+                        ? 'Clear search'
+                        : !filterActive && activeTab !== 'drafts'
+                          ? activeTab === 'services'
+                            ? 'Add first service'
+                            : 'Add first product'
+                          : undefined
+                    }
+                    onAction={
+                      hasSearchQuery
+                        ? clearSearch
+                        : !filterActive && activeTab !== 'drafts'
+                          ? handleAddNew
+                          : undefined
+                    }
+                  />
                 ) : (
                   <>
                     {/* Grid */}

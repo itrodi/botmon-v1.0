@@ -1018,25 +1018,27 @@ const EditProductPage = () => {
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-4">
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   variant="outline"
                   onClick={handleCancel}
+                  disabled={isLoading}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-purple-600 text-white"
+                <Button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
                   disabled={isLoading}
+                  aria-busy={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
-                      Updating Product...
+                      <Loader className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                      Updating product...
                     </>
                   ) : (
-                    'Update Product'
+                    'Update product'
                   )}
                 </Button>
               </div>

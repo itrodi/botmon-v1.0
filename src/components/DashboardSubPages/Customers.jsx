@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Download, ChevronDown, Loader, Instagram, MessageCircle, Phone } from 'lucide-react';
+import { Search, Download, ChevronDown, Users, Instagram, MessageCircle, Phone } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import EmptyState from "@/components/ui/empty-state";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 import Sidebar from '../Sidebar';
 import Header from '../Header';
 import { toast } from 'react-hot-toast';
@@ -272,21 +274,24 @@ const Customers = () => {
 
             {/* Loading State */}
             {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader className="w-8 h-8 animate-spin text-purple-600" />
-              </div>
+              <LoadingSpinner label="Loading customers..." />
             ) : (
               <>
                 {/* No Customers Message */}
                 {filteredCustomers.length === 0 ? (
-                  <div className="bg-white rounded-lg p-8 text-center">
-                    <div className="text-gray-500 mb-4">
-                      {searchTerm 
-                        ? 'No customers found matching your search'
-                        : 'No customers found'
-                      }
-                    </div>
-                  </div>
+                  <EmptyState
+                    icon={Users}
+                    title={
+                      searchTerm ? 'No matching customers' : 'No customers yet'
+                    }
+                    description={
+                      searchTerm
+                        ? `No customers match "${searchTerm}". Try a different search term.`
+                        : 'Customers will appear here once they interact with your bot on Instagram, WhatsApp, or Messenger.'
+                    }
+                    actionLabel={searchTerm ? 'Clear search' : undefined}
+                    onAction={searchTerm ? () => setSearchTerm('') : undefined}
+                  />
                 ) : (
                   <>
                     {/* Table */}

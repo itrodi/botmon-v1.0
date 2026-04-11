@@ -622,9 +622,16 @@ const Messages = () => {
 
                 <div className="flex-1 overflow-y-auto">
                   {filteredConversations.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500">{searchQuery ? 'No chats found' : 'No messages yet'}</p>
+                    <div className="text-center py-10 px-4" role="status" aria-live="polite">
+                      <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
+                      <p className="text-gray-700 font-medium mb-1">
+                        {searchQuery ? 'No chats found' : 'No conversations yet'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {searchQuery
+                          ? `Nothing matches "${searchQuery}". Try another search.`
+                          : 'Incoming chats from Instagram, WhatsApp, and Messenger will appear here.'}
+                      </p>
                     </div>
                   ) : (
                     <>
@@ -789,7 +796,11 @@ const Messages = () => {
                           );
                         })
                       ) : (
-                        <div className="text-center py-8"><MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No messages yet</p></div>
+                        <div className="text-center py-10" role="status" aria-live="polite">
+                          <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
+                          <p className="text-gray-700 font-medium">No messages in this chat yet</p>
+                          <p className="text-sm text-gray-500 mt-1">Send a message to start the conversation.</p>
+                        </div>
                       )}
                       <div ref={messagesEndRef} />
                     </div>
@@ -801,24 +812,26 @@ const Messages = () => {
                           <Mic className="w-5 h-5 text-gray-400 hidden sm:block cursor-pointer hover:text-gray-600" />
                           <input placeholder="Type a message..." className="flex-1 bg-transparent outline-none min-w-0" value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()} disabled={sendingMessage} />
                           <div className="flex items-center gap-2 text-gray-400 flex-shrink-0">
-                            <button className="hover:text-gray-600"><Paperclip className="w-5 h-5" /></button>
-                            <button className="hover:text-gray-600 hidden sm:block"><Image className="w-5 h-5" /></button>
-                            <button className="hover:text-gray-600 hidden sm:block"><Smile className="w-5 h-5" /></button>
-                            <button className="hover:text-gray-600 hidden sm:block"><Calendar className="w-5 h-5" /></button>
+                            <button type="button" aria-label="Attach file" className="hover:text-gray-600"><Paperclip className="w-5 h-5" aria-hidden="true" /></button>
+                            <button type="button" aria-label="Attach image" className="hover:text-gray-600 hidden sm:block"><Image className="w-5 h-5" aria-hidden="true" /></button>
+                            <button type="button" aria-label="Insert emoji" className="hover:text-gray-600 hidden sm:block"><Smile className="w-5 h-5" aria-hidden="true" /></button>
+                            <button type="button" aria-label="Schedule message" className="hover:text-gray-600 hidden sm:block"><Calendar className="w-5 h-5" aria-hidden="true" /></button>
                           </div>
                         </div>
-                        <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 rounded-lg disabled:opacity-50 flex-shrink-0" onClick={handleSendMessage} disabled={sendingMessage || !messageInput.trim()}>
-                          {sendingMessage ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div> : <Send className="w-4 h-4" />}
+                        <button type="button" aria-label="Send message" className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 rounded-lg disabled:opacity-50 flex-shrink-0" onClick={handleSendMessage} disabled={sendingMessage || !messageInput.trim()}>
+                          {sendingMessage ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true"></div> : <Send className="w-4 h-4" aria-hidden="true" />}
                         </button>
                       </div>
                     </div>
                   </>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center">
-                      <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-700 mb-2">Select a conversation</h3>
-                      <p className="text-gray-500">Choose a chat from the list</p>
+                  <div className="flex-1 flex items-center justify-center p-6">
+                    <div className="text-center max-w-sm" role="status" aria-live="polite">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-50">
+                        <MessageCircle className="w-8 h-8 text-purple-500" aria-hidden="true" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Select a conversation</h3>
+                      <p className="text-sm text-gray-500">Choose a chat from the list to start messaging your customers.</p>
                     </div>
                   </div>
                 )}

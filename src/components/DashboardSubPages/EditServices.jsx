@@ -748,26 +748,28 @@ const EditServicePage = () => {
               </h1>
               
               <div className="hidden items-center gap-2 md:ml-auto md:flex">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleDiscard}
+                  disabled={isLoading}
                 >
                   Discard
                 </Button>
-                <Button 
+                <Button
                   size="sm"
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="bg-purple-600 text-white"
+                  aria-busy={isLoading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
                 >
                   {isLoading ? (
                     <>
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                       Saving...
                     </>
                   ) : (
-                    'Save Changes'
+                    'Save changes'
                   )}
                 </Button>
               </div>
@@ -1122,20 +1124,29 @@ const EditServicePage = () => {
 
               {/* Mobile Action Buttons */}
               <div className="flex items-center justify-center gap-2 md:hidden">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleDiscard}
+                  disabled={isLoading}
                 >
                   Discard
                 </Button>
-                <Button 
+                <Button
                   type="submit"
                   size="sm"
                   disabled={isLoading}
-                  className="bg-purple-600 text-white"
+                  aria-busy={isLoading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
+                  {isLoading ? (
+                    <>
+                      <Loader className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save changes'
+                  )}
                 </Button>
               </div>
             </form>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, Loader, Package, Truck, CheckCircle } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Loader, Package, Truck, CheckCircle, ShoppingBag } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/ui/empty-state";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 import {
   Dialog,
   DialogContent,
@@ -626,31 +628,30 @@ const Orders = () => {
 
             {/* Loading State */}
             {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader className="w-8 h-8 animate-spin text-purple-600" />
-              </div>
+              <LoadingSpinner label="Loading orders..." />
             ) : (
               <>
                 {/* No Orders Message */}
                 {currentOrders.length === 0 ? (
-                  <div className="bg-white rounded-lg p-8 text-center">
-                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <div className="text-gray-500 mb-4">
-                      {searchTerm 
-                        ? `No orders found matching "${searchTerm}"`
-                        : `No ${activeTab === 'all' ? '' : activeTab} orders found`
-                      }
-                    </div>
-                    {searchTerm && (
-                      <Button
-                        variant="outline"
-                        onClick={clearSearch}
-                        className="mt-2"
-                      >
-                        Clear search to see all orders
-                      </Button>
-                    )}
-                  </div>
+                  <EmptyState
+                    icon={ShoppingBag}
+                    title={
+                      searchTerm
+                        ? 'No matching orders'
+                        : activeTab === 'all'
+                          ? 'No orders yet'
+                          : `No ${activeTab} orders`
+                    }
+                    description={
+                      searchTerm
+                        ? `No orders match "${searchTerm}". Try a different search term or clear the filter.`
+                        : activeTab === 'all'
+                          ? 'Orders placed by your customers will appear here once your bot is live.'
+                          : `You have no ${activeTab} orders right now.`
+                    }
+                    actionLabel={searchTerm ? 'Clear search' : undefined}
+                    onAction={searchTerm ? clearSearch : undefined}
+                  />
                 ) : (
                   <>
                     {/* Orders Grid */}
