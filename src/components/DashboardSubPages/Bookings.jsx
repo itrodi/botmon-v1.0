@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar as CalendarIcon, X, Clock, Loader, CalendarCheck } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -87,14 +88,13 @@ const Bookings = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/bookings', {
+      const response = await axios.get(API_BASE_URL + '/bookings', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
       // The backend now returns a structured payload with pagination
-      console.log('[Bookings] API response:', response.data);
       const payload = response.data;
       const rawBookings =
         payload?.data?.bookings ??
@@ -103,7 +103,6 @@ const Bookings = () => {
         payload;
       const bookingsData = Array.isArray(rawBookings) ? rawBookings : [];
       if (!Array.isArray(rawBookings)) {
-        console.warn('[Bookings] Unexpected response shape:', payload);
       }
       
       // Process each booking to ensure proper structure
@@ -118,7 +117,6 @@ const Bookings = () => {
       };
 
       const processedBookings = bookingsData.map((booking, index) => {
-        console.log('[Bookings] Raw booking status:', booking?.status, '| ids:', booking?.ids || booking?.id || booking?._id || `booking_${index}`);
         // Since backend doesn't include platform info, we need to determine it
         // This is a limitation - you might want to add platform info in backend
         // For now, we'll try to infer from available data or set default
@@ -246,7 +244,7 @@ const Bookings = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/accept-bookings',
+        API_BASE_URL + '/accept-bookings',
         {
           ids: selectedSchedule.ids,
           'service-name': selectedSchedule['service-name'],
@@ -302,7 +300,7 @@ const Bookings = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/reject-bookings',
+        API_BASE_URL + '/reject-bookings',
         {
           ids: selectedSchedule.ids,
           'service-name': selectedSchedule['service-name'],
@@ -370,7 +368,7 @@ const Bookings = () => {
       const formattedDate = format(selectedDate, 'yyyy-MM-dd');
 
       const response = await axios.post(
-        'https://api.automation365.io/reschedule-bookings',
+        API_BASE_URL + '/reschedule-bookings',
         {
           ids: selectedSchedule.ids,
           'service-name': selectedSchedule['service-name'],

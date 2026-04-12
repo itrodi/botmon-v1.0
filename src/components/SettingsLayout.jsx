@@ -11,7 +11,6 @@ const SettingsLayout = ({ title = 'Settings', children }) => {
     { href: '/ManageStore', label: 'Business Details' },
     { href: '/PersonalDetails', label: 'Personal details' },
     { href: '/StoreSetting', label: 'Store settings' },
-    { href: '/Bank', label: 'Payments' },
     { href: '/Link', label: 'Connect Social channels' },
     { href: '/Advance', label: 'Advance' },
   ];

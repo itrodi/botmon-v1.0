@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Upload, Plus, X, Loader, ChevronLeft, Edit2, FileText } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -131,13 +132,12 @@ const AddServicesPage = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/add-services', {
+      const response = await axios.get(API_BASE_URL + '/add-services', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      console.log('Categories response:', response.data);
 
       // Parse categories with IDs and filter out empty ones
       if (response.data.categories) {
@@ -160,7 +160,6 @@ const AddServicesPage = () => {
             .filter(Boolean);
         }
         
-        console.log('Parsed categories:', validCategories);
         setCategories(validCategories);
       }
       
@@ -185,7 +184,6 @@ const AddServicesPage = () => {
             .filter(Boolean);
         }
         
-        console.log('Parsed subs:', validSubs);
         setSubs(validSubs);
       }
     } catch (error) {
@@ -353,7 +351,7 @@ const AddServicesPage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/sadd-category',
+        API_BASE_URL + '/sadd-category',
         newCategory,
         {
           headers: {
@@ -405,7 +403,7 @@ const AddServicesPage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/service/edit-category',
+        API_BASE_URL + '/service/edit-category',
         {
           cat_id: editingCategory.id,
           category: editingCategory.name
@@ -464,7 +462,7 @@ const AddServicesPage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/service/edit-sub',
+        API_BASE_URL + '/service/edit-sub',
         {
           sub_id: editingSub.id,
           sub: editingSub.name
@@ -594,18 +592,9 @@ const AddServicesPage = () => {
         }
       });
 
-      console.log('Submitting service with:', {
-        statusOption: serviceData.statusOption,
-        status,
-        draft,
-        variantCount: variants.vname.length,
-        hasServiceImage: !!serviceImage,
-        variantImageCount: variants.vimages.filter(img => img).length
-      });
-
       // Submit the service to correct endpoint
       const response = await axios.post(
-        'https://api.automation365.io/supload',
+        API_BASE_URL + '/supload',
         formData,
         {
           headers: {
@@ -615,7 +604,6 @@ const AddServicesPage = () => {
         }
       );
 
-      console.log('Upload response:', response.data);
 
       if (response.data.message === "done") {
         const successMessage = isDraftMode 

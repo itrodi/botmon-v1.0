@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter } from "lucide-react";
 import axios from 'axios';
@@ -107,7 +108,7 @@ const StoreSettings = () => {
       }
   
       // Get discounts
-      const discountsResponse = await axios.get('https://api.automation365.io/ssettings', {
+      const discountsResponse = await axios.get(API_BASE_URL + '/ssettings', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -158,7 +159,7 @@ const StoreSettings = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/delete-discount',
+        API_BASE_URL + '/delete-discount',
         {
           'discount-id': id
         },
@@ -210,7 +211,7 @@ const StoreSettings = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/notification',
+        API_BASE_URL + '/notification',
         {
           email: notificationPrefs.email,
           sms: notificationPrefs.sms,
@@ -245,7 +246,7 @@ const StoreSettings = () => {
       }
   
       const response = await axios.post(
-        'https://api.automation365.io/others',
+        API_BASE_URL + '/others',
         {
           payment: otherSettings.payment,
           receipt: otherSettings.receipt

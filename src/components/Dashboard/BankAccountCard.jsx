@@ -1,0 +1,324 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
+import { Loader2, Pencil, Plus } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { API_BASE_URL } from '@/config/api';
+
+const BANK_OPTIONS = [
+  { value: 'Access', label: 'Access Bank' },
+  { value: 'FirstBank', label: 'First Bank' },
+  { value: 'Zenith Bank', label: 'Zenith Bank' },
+  { value: 'Opay', label: 'Opay digital services' },
+];
+
+const initialForm = { bank: '', account: '', number: '', bvn: '' };
+
+const maskAccountNumber = (value) => {
+  if (!value) return '—';
+  const str = String(value);
+  if (str.length <= 4) return str;
+  return `${'•'.repeat(str.length - 4)}${str.slice(-4)}`;
+};
+
+const BankAccountCard = () => {
+  const [loading, setLoading] = useState(true);
+  const [bankDetails, setBankDetails] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState(initialForm);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const fetchBankDetails = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const response = await axios.get(`${API_BASE_URL}/bank`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBankDetails(response.data || null);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        setBankDetails(null);
+      } else if (error.response?.status !== 401) {
+        toast.error('Failed to load bank details');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBankDetails();
+  }, [fetchBankDetails]);
+
+  const openDialog = () => {
+    setForm(
+      bankDetails
+        ? {
+            bank: bankDetails.Bank_Name || '',
+            account: bankDetails.Account_Name || '',
+            number: bankDetails.Account_Number || '',
+            bvn: bankDetails.BVN || '',
+          }
+        : initialForm
+    );
+    setErrors({});
+    setDialogOpen(true);
+  };
+
+  const handleChange = (name, value) => {
+    setForm((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+  };
+
+  const validate = () => {
+    const nextErrors = {};
+    if (!form.bank) nextErrors.bank = 'Select a bank';
+    if (!form.account.trim()) nextErrors.account = 'Account name is required';
+    if (!form.number.trim()) {
+      nextErrors.number = 'Account number is required';
+    } else if (!/^\d{6,}$/.test(form.number.trim())) {
+      nextErrors.number = 'Enter a valid account number';
+    }
+    if (!form.bvn.trim()) {
+      nextErrors.bvn = 'BVN is required';
+    } else if (!/^\d{11}$/.test(form.bvn.trim())) {
+      nextErrors.bvn = 'BVN must be 11 digits';
+    }
+    return nextErrors;
+  };
+
+  const handleSave = async () => {
+    const nextErrors = validate();
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        return;
+      }
+      await axios.post(
+        `${API_BASE_URL}/bank`,
+        {
+          bank: form.bank,
+          account: form.account.trim(),
+          number: form.number.trim(),
+          bvn: form.bvn.trim(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      toast.success('Bank details saved');
+      setDialogOpen(false);
+      fetchBankDetails();
+    } catch (error) {
+      const message = error.response?.data?.error || 'Failed to save bank details';
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-medium text-gray-600">
+              Payout bank account
+            </h3>
+            {loading ? (
+              <div className="mt-3 flex items-center gap-2 text-gray-500 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading bank details…
+              </div>
+            ) : bankDetails ? (
+              <div className="mt-2 space-y-1">
+                <p className="text-lg font-semibold text-gray-900">
+                  {bankDetails.Bank_Name || '—'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {bankDetails.Account_Name || '—'}
+                </p>
+                <p className="text-sm text-gray-500 tracking-wider">
+                  {maskAccountNumber(bankDetails.Account_Number)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">
+                No bank account added yet. Add one to receive payouts.
+              </p>
+            )}
+          </div>
+          <Button
+            variant={bankDetails ? 'outline' : 'default'}
+            onClick={openDialog}
+            disabled={loading}
+            className={
+              bankDetails
+                ? 'flex items-center gap-2'
+                : 'flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700'
+            }
+          >
+            {bankDetails ? (
+              <>
+                <Pencil className="w-4 h-4" />
+                Update
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />
+                Add Bank
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {bankDetails ? 'Update bank account' : 'Add bank account'}
+            </DialogTitle>
+            <DialogDescription>
+              Bank details are used to receive payouts from successful
+              transactions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="bank-select">Bank</Label>
+              <Select
+                value={form.bank}
+                onValueChange={(value) => handleChange('bank', value)}
+              >
+                <SelectTrigger
+                  id="bank-select"
+                  aria-invalid={errors.bank ? 'true' : 'false'}
+                  className={errors.bank ? 'border-red-500' : ''}
+                >
+                  <SelectValue placeholder="Select bank" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANK_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.bank && (
+                <p className="text-sm text-red-600">{errors.bank}</p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bank-account-name">Account name</Label>
+              <Input
+                id="bank-account-name"
+                value={form.account}
+                onChange={(e) => handleChange('account', e.target.value)}
+                placeholder="Account holder's name"
+                aria-invalid={errors.account ? 'true' : 'false'}
+                className={errors.account ? 'border-red-500' : ''}
+              />
+              {errors.account && (
+                <p className="text-sm text-red-600">{errors.account}</p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bank-account-number">Account number</Label>
+              <Input
+                id="bank-account-number"
+                inputMode="numeric"
+                value={form.number}
+                onChange={(e) =>
+                  handleChange('number', e.target.value.replace(/[^\d]/g, ''))
+                }
+                placeholder="10-digit account number"
+                aria-invalid={errors.number ? 'true' : 'false'}
+                className={errors.number ? 'border-red-500' : ''}
+              />
+              {errors.number && (
+                <p className="text-sm text-red-600">{errors.number}</p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bank-bvn">BVN</Label>
+              <Input
+                id="bank-bvn"
+                inputMode="numeric"
+                value={form.bvn}
+                onChange={(e) =>
+                  handleChange('bvn', e.target.value.replace(/[^\d]/g, ''))
+                }
+                placeholder="11-digit BVN"
+                maxLength={11}
+                aria-invalid={errors.bvn ? 'true' : 'false'}
+                className={errors.bvn ? 'border-red-500' : ''}
+              />
+              {errors.bvn && (
+                <p className="text-sm text-red-600">{errors.bvn}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              aria-busy={saving}
+              className="bg-purple-600 text-white hover:bg-purple-700"
+            >
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+export default BankAccountCard;

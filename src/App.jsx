@@ -1,7 +1,9 @@
 // App.jsx
-import './utils/axiosConfig'; 
+import './utils/axiosConfig';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SocketProvider } from './context/SocketContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import NotFound from './components/NotFound';
 import Overview from './components/Dashboard/Overview';
 import ProductPage from './components/DashboardSubPages/ProductPage';
 import TransactionDetails from './components/TransactionDetails';
@@ -48,9 +50,10 @@ import Tour from './components/Tour';
 
 function App() {
   return (
+    <ErrorBoundary>
     <SocketProvider>
       <Router>
-        <div className="App"> 
+        <div className="App">
           <Toaster position="top-right" />
           <Tour />
           <Routes>
@@ -238,10 +241,13 @@ function App() {
                 <SupportPage/>
               </ProtectedRoute>
             }/>
+            {/* 404 catch-all */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
       </Router>
     </SocketProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { processOAuthCallback } from '@/utils/authUtils';
+import { API_BASE_URL } from '@/config/api';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -36,65 +38,28 @@ const Login = () => {
   };
 
   useEffect(() => {
-    // Handle OAuth callback - check for tokens in query params
-    const success = searchParams.get('success');
-    const token = searchParams.get('token');
-    const refreshToken = searchParams.get('refresh_token');
-    const error = searchParams.get('error');
-    const status = searchParams.get('status');
-    
-    // Clear URL params immediately to prevent token exposure in browser history
-    if (token || error || status || success !== null) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    
-    // Handle both "true" and "True" (Python sends capitalized)
-    const isSuccess = success && (success.toLowerCase() === 'true' || success === 'True');
-    const isFailure = success && (success.toLowerCase() === 'false' || success === 'False');
-    
-    if (isSuccess && token) {
+    const result = processOAuthCallback();
+
+    if (!result.isOAuthCallback) return;
+
+    if (result.success && result.token) {
       setOauthLoading(true);
-      handleOAuthSuccess(token, refreshToken);
-    } else if (isFailure || status === 'false') {
-      const errorMessage = error || status;
-      if (errorMessage) {
-        const decodedError = decodeURIComponent(errorMessage.replace(/\+/g, ' '));
-        
-        if (decodedError.toLowerCase().includes('without using') || 
-            decodedError.toLowerCase().includes('oauth flow') ||
-            decodedError.toLowerCase().includes('google oauth')) {
-          toast.error('This email was registered with password. Please use email and password to login.');
-        } else if (decodedError.toLowerCase().includes('already logged in') ||
-                   decodedError.toLowerCase().includes('already exists')) {
-          toast.error('This account already exists. Please login instead.');
-        } else {
-          toast.error(decodedError || 'Login failed. Please try again.');
-        }
+      toast.success('Login successful!');
+      navigate('/Overview');
+    } else if (result.error) {
+      const err = result.error;
+      if (err.toLowerCase().includes('without using') ||
+          err.toLowerCase().includes('oauth flow') ||
+          err.toLowerCase().includes('google oauth')) {
+        toast.error('This email was registered with password. Please use email and password to login.');
+      } else if (err.toLowerCase().includes('already logged in') ||
+                 err.toLowerCase().includes('already exists')) {
+        toast.error('This account already exists. Please login instead.');
+      } else {
+        toast.error(err || 'Login failed. Please try again.');
       }
-    } else if (error) {
-      toast.error(decodeURIComponent(error.replace(/\+/g, ' ')));
     }
   }, [searchParams]);
-
-  const handleOAuthSuccess = async (token, refreshToken) => {
-    try {
-      // Store token
-      localStorage.setItem('token', token);
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
-      }
-      
-      toast.success('Login successful!');
-      
-      // Go directly to Overview - no need to check linked accounts
-      navigate('/Overview');
-      
-    } catch (error) {
-      console.error('OAuth login failed:', error);
-      toast.error('Login failed. Please try again.');
-      setOauthLoading(false);
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -123,7 +88,7 @@ const Login = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post('https://api.automation365.io/auth/login', {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email: formData.email,
         password: formData.password
       });
@@ -166,7 +131,7 @@ const Login = () => {
   const handleGoogleLogin = () => {
     setOauthLoading(true);
     // Backend redirects to /Overview which handles the token
-    window.location.href = 'https://api.automation365.io/auth/google-login';
+    window.location.href = `${API_BASE_URL}/auth/google-login`;
   };
 
   const handleAppleLogin = () => {

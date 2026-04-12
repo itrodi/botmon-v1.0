@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, ChevronLeft, ChevronRight, Loader, Package, Truck, CheckCircle, ShoppingBag } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
@@ -104,7 +105,7 @@ const Orders = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/orders', {
+      const response = await axios.get(API_BASE_URL + '/orders', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -118,11 +119,8 @@ const Orders = () => {
         payload?.data ??
         payload;
       const ordersData = Array.isArray(rawOrders) ? rawOrders : [];
-      console.log('Fetched orders:', payload); // Debug log
       if (!Array.isArray(rawOrders)) {
-        console.warn('[Orders] Unexpected response shape for orders:', payload);
       } else {
-        console.log('[Orders] Orders array length:', ordersData.length);
       }
       
       const processedOrders = ordersData.map(order => {
@@ -174,7 +172,6 @@ const Orders = () => {
         };
       });
 
-      console.log('Processed orders:', processedOrders); // Debug log
       setOrders(processedOrders);
 
       if (pendingOrderId) {
@@ -227,7 +224,6 @@ const Orders = () => {
     // Enhanced search functionality
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
-      console.log('Searching for:', searchLower); // Debug log
       
       filtered = filtered.filter(order => {
         // Multi-field search with fallbacks
@@ -252,12 +248,10 @@ const Orders = () => {
           return fieldStr.includes(searchLower);
         });
 
-        console.log(`Order ${order.ids} matches search:`, matches); // Debug log
         return matches;
       });
     }
 
-    console.log('Filtered orders:', filtered); // Debug log
 
     // Sort by date (newest first)
     filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -270,13 +264,11 @@ const Orders = () => {
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-    console.log('Search term changed:', value); // Debug log
   };
 
   // Clear search function
   const clearSearch = () => {
     setSearchTerm('');
-    console.log('Search cleared'); // Debug log
   };
 
   const handleOrderClick = (order) => {
@@ -299,7 +291,7 @@ const Orders = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/confirm-order',
+        API_BASE_URL + '/confirm-order',
         {
           ids: selectedOrder.ids,
           'product-name': selectedOrder['product-name'],
@@ -352,7 +344,7 @@ const Orders = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/reject-order',
+        API_BASE_URL + '/reject-order',
         {
           ids: selectedOrder.ids,
           'product-name': selectedOrder['product-name'],

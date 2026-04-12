@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -43,7 +44,7 @@ const PersonalDetails = () => {
           return;
         }
 
-        const response = await axios.get('https://api.automation365.io/psettings', {
+        const response = await axios.get(API_BASE_URL + '/psettings', {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -77,7 +78,7 @@ const PersonalDetails = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/psettingsp',
+        API_BASE_URL + '/psettingsp',
         {
           first: personalData.first,
           last: personalData.last,

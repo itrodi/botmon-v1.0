@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Upload, Plus, X, Loader, ChevronLeft, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -144,7 +145,7 @@ const EditServicePage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/get-services',
+        API_BASE_URL + '/get-services',
         { id: serviceId },
         {
           headers: {
@@ -155,7 +156,6 @@ const EditServicePage = () => {
       );
 
       const service = response.data;
-      console.log('Fetched service:', service);
 
       if (!service || Object.keys(service).length === 0) {
         toast.error('Service not found');
@@ -219,13 +219,12 @@ const EditServicePage = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/add-services', {
+      const response = await axios.get(API_BASE_URL + '/add-services', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      console.log('Categories response:', response.data);
 
       // Parse categories properly
       if (response.data.categories) {
@@ -438,7 +437,7 @@ const EditServicePage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/sadd-category',
+        API_BASE_URL + '/sadd-category',
         newCategory,
         {
           headers: {
@@ -493,7 +492,7 @@ const EditServicePage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/service/edit-category',
+        API_BASE_URL + '/service/edit-category',
         {
           cat_id: editingCategory.id,
           category: editingCategory.name
@@ -554,7 +553,7 @@ const EditServicePage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/service/edit-sub',
+        API_BASE_URL + '/service/edit-sub',
         {
           sub_id: editingSub.id,
           sub: editingSub.name
@@ -667,17 +666,9 @@ const EditServicePage = () => {
         }
       });
 
-      console.log('Updating service:', {
-        serviceId,
-        serviceData,
-        variantCount: variants.vname.length,
-        hasNewImage: !!serviceImage,
-        variantImageCount: variants.vimages.filter(img => img).length
-      });
-
       // Submit the service update
       const response = await axios.post(
-        'https://api.automation365.io/edit-service',
+        API_BASE_URL + '/edit-service',
         formData,
         {
           headers: {
@@ -687,7 +678,6 @@ const EditServicePage = () => {
         }
       );
 
-      console.log('Update response:', response.data);
 
       if (response.data.message === "service updated successfully") {
         toast.success('Service updated successfully');
@@ -1072,7 +1062,6 @@ const EditServicePage = () => {
                             alt="Service preview"
                             className="aspect-square w-full rounded-md object-cover"
                             onError={(e) => {
-                              console.log('Image failed to load:', serviceImagePreview);
                               e.target.style.display = 'none';
                               e.target.nextSibling.style.display = 'flex';
                             }}

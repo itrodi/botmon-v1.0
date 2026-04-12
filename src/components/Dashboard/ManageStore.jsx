@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -126,13 +127,12 @@ const ManageStore = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/settings', {
+      const response = await axios.get(API_BASE_URL + '/settings', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      console.log('Backend response:', response.data);
 
       // Transform the FAQ data format
       const faqs = response.data.faq || [];
@@ -188,7 +188,7 @@ const ManageStore = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/delete_faq',
+        API_BASE_URL + '/delete_faq',
         {
           faq_id: faqId
         },
@@ -293,15 +293,8 @@ const ManageStore = () => {
         formData.append('bbanner', newBanner);
       }
 
-      console.log('Submitting business info:', {
-        hasNewLogo: !!newLogo,
-        hasNewBanner: !!newBanner,
-        logoSize: newLogo ? `${(newLogo.size / 1024 / 1024).toFixed(2)}MB` : 'No new logo',
-        bannerSize: newBanner ? `${(newBanner.size / 1024 / 1024).toFixed(2)}MB` : 'No new banner'
-      });
-
       const response = await axios.post(
-        'https://api.automation365.io/settingsp',
+        API_BASE_URL + '/settingsp',
         formData,
         {
           headers: {
@@ -330,7 +323,7 @@ const ManageStore = () => {
         const token = localStorage.getItem('token');
         if (!token) return;
   
-        const response = await axios.get('https://api.automation365.io/open', {
+        const response = await axios.get(API_BASE_URL + '/open', {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -411,7 +404,7 @@ const ManageStore = () => {
       });
 
       const response = await axios.post(
-        'https://api.automation365.io/close',
+        API_BASE_URL + '/close',
         formattedData,
         {
           headers: {
@@ -442,7 +435,7 @@ const ManageStore = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/settinghp',
+        API_BASE_URL + '/settinghp',
         {
           description: businessData.description,
           insta: businessData.insta,
@@ -488,7 +481,6 @@ const ManageStore = () => {
                       alt="Business Logo"
                       className="h-full w-full object-cover rounded-md border"
                       onError={(e) => {
-                        console.log('Logo image failed to load:', logoPreview);
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'flex';
                       }}
@@ -534,7 +526,6 @@ const ManageStore = () => {
                       alt="Business Banner"
                       className="h-full w-full object-cover rounded-md border"
                       onError={(e) => {
-                        console.log('Banner image failed to load:', bannerPreview);
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'flex';
                       }}

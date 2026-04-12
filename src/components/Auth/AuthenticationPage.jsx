@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
@@ -101,7 +102,7 @@ const AuthenticationPage = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post('https://api.automation365.io/auth/register', {
+      const response = await axios.post(API_BASE_URL + '/auth/register', {
         email: formData.email,
         password: formData.password
       });
@@ -142,7 +143,7 @@ const AuthenticationPage = () => {
     clearUserData();
     setOauthLoading(true);
     // Backend redirects to /Onboarding1 which handles the token
-    window.location.href = 'https://api.automation365.io/auth/google-register';
+    window.location.href = API_BASE_URL + '/auth/google-register';
   };
 
   const handleAppleSignUp = () => {

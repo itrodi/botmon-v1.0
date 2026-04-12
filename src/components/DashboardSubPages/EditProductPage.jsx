@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Upload, Plus, X, Loader, Edit2, Settings } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -133,7 +134,7 @@ const EditProductPage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/get-products',
+        API_BASE_URL + '/get-products',
         { id: productId },
         {
           headers: {
@@ -144,7 +145,6 @@ const EditProductPage = () => {
       );
 
       const product = response.data;
-      console.log('Fetched product:', product);
 
       if (!product || Object.keys(product).length === 0) {
         toast.error('Product not found');
@@ -207,13 +207,12 @@ const EditProductPage = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/add-products', {
+      const response = await axios.get(API_BASE_URL + '/add-products', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      console.log('Categories response:', response.data);
 
       // Store full objects with IDs for editing
       if (response.data.categories && Array.isArray(response.data.categories)) {
@@ -265,7 +264,7 @@ const EditProductPage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/product/edit-category',
+        API_BASE_URL + '/product/edit-category',
         {
           cat_id: editCategoryForm.cat_id,
           category: editCategoryForm.category
@@ -332,7 +331,7 @@ const EditProductPage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/product/edit-sub',
+        API_BASE_URL + '/product/edit-sub',
         {
           sub_id: editCategoryForm.sub_id,
           sub: editCategoryForm.sub
@@ -545,7 +544,7 @@ const EditProductPage = () => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/add-category',
+        API_BASE_URL + '/add-category',
         newCategory,
         {
           headers: {
@@ -633,17 +632,9 @@ const EditProductPage = () => {
         }
       });
 
-      console.log('Updating product:', {
-        productId,
-        productData,
-        variantCount: variants.vname.length,
-        hasNewImage: !!productImage,
-        variantImageCount: variants.vimages.filter(img => img).length
-      });
-
       // Submit the product update
       const response = await axios.post(
-        'https://api.automation365.io/edit-product',
+        API_BASE_URL + '/edit-product',
         formData,
         {
           headers: {
@@ -653,7 +644,6 @@ const EditProductPage = () => {
         }
       );
 
-      console.log('Update response:', response.data);
 
       if (response.data.message === "Product updated successfully") {
         toast.success('Product updated successfully');
@@ -818,7 +808,6 @@ const EditProductPage = () => {
                       alt="Product preview" 
                       className="w-full max-h-64 object-contain mb-4 border rounded" 
                       onError={(e) => {
-                        console.log('Image failed to load:', productImagePreview);
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'flex';
                       }}

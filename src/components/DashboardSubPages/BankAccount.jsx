@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -28,7 +29,7 @@ const BankAccount = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/bank', {
+      const response = await axios.get(API_BASE_URL + '/bank', {
         headers: { Authorization: `Bearer ${token}` }
       });
 

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Bell, Settings, HelpCircle, LogOut, Package, Briefcase, X, Menu, Grid, ShoppingBag, MessageSquare, CreditCard, Mail, Users, ClipboardList, BarChart } from 'lucide-react';
@@ -72,7 +73,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('https://api.automation365.io/notification-page', {
+      const response = await fetch(API_BASE_URL + '/notification-page', {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
@@ -180,7 +181,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-      const response = await axios.get('https://api.automation365.io/auth/user-header-info', {
+      const response = await axios.get(API_BASE_URL + '/auth/user-header-info', {
         headers: getAuthHeaders()
       });
       if (response.data) {
@@ -207,8 +208,8 @@ const Header = ({ title = "Botmon Dashboard" }) => {
       const token = localStorage.getItem('token');
       if (!token) { toast.error('Please login first'); return; }
       const [productsResponse, servicesResponse] = await Promise.all([
-        axios.get('https://api.automation365.io/products', { headers: getAuthHeaders() }),
-        axios.get('https://api.automation365.io/services', { headers: getAuthHeaders() })
+        axios.get(API_BASE_URL + '/products', { headers: getAuthHeaders() }),
+        axios.get(API_BASE_URL + '/services', { headers: getAuthHeaders() })
       ]);
       const products = productsResponse.data || [];
       const services = servicesResponse.data || [];
@@ -251,11 +252,20 @@ const Header = ({ title = "Botmon Dashboard" }) => {
   const handleLogout = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (token) { try { await axios.post('https://api.automation365.io/auth/logout', null, { headers: getAuthHeaders() }); } catch (e) {} }
+      if (token) {
+        try {
+          await axios.post(API_BASE_URL + '/auth/logout', null, { headers: getAuthHeaders() });
+        } catch (e) {
+          toast.error('Could not reach server — logging out locally.');
+        }
+      }
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
       logout();
       toast.success('Logged out successfully');
-    } catch (error) { logout(); }
+    } catch (error) {
+      toast.error('Logout encountered an error.');
+      logout();
+    }
   };
 
   // ── Notification bell with count ──

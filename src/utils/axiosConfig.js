@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
@@ -60,7 +61,7 @@ axios.interceptors.response.use(
       }
 
       try {
-        const response = await axios.post('https://api.automation365.io/auth/refresh', {
+        const response = await axios.post(API_BASE_URL + '/auth/refresh', {
           refresh_token: refreshToken
         }, {
           skipAuthRefresh: true // Custom flag to skip interceptor for this request

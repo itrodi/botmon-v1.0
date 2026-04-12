@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,7 @@ const ResetPassword = () => {
     
     setResendLoading(true);
     try {
-      const response = await axios.post('https://api.automation365.io/auth/reset-password', {
+      const response = await axios.post(API_BASE_URL + '/auth/reset-password', {
         email: formData.email
       });
       
@@ -97,7 +98,7 @@ const ResetPassword = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post('https://api.automation365.io/auth/password', {
+      const response = await axios.post(API_BASE_URL + '/auth/password', {
         email: formData.email,
         otp: formData.otp.trim(),
         password: formData.password

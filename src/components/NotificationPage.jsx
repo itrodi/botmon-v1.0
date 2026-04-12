@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, User, BadgeCheck, MessageCircle, XCircle, ShoppingBag, DollarSign, Mail, MessageSquare, Phone, RefreshCw, Bell, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -94,29 +95,19 @@ const NotificationPage = () => {
 
   // ── DEBUG: Log socket state ──
   useEffect(() => {
-    console.log('[Notifications] Component mounted');
-    console.log('[Notifications] socket:', socket ? 'exists' : 'null');
-    console.log('[Notifications] socketConnected:', socketConnected);
   }, []);
 
   useEffect(() => {
-    console.log('[Notifications] Socket state changed — socket:', socket ? `exists (id: ${socket.id})` : 'null', '| connected:', socketConnected);
   }, [socket, socketConnected]);
 
   // ── Socket listener with debug ──
   useEffect(() => {
     if (!socket) {
-      console.log('[Notifications] ⏳ No socket yet — waiting...');
       return;
     }
 
-    console.log('[Notifications] 🔗 Attaching listener. Socket ID:', socket.id);
 
     const handleNewNotification = (data) => {
-      console.log('═══════════════════════════════════════════');
-      console.log('[Notifications] 🔔 new_notification RECEIVED');
-      console.log('[Notifications] Raw data:', JSON.stringify(data));
-      console.log('═══════════════════════════════════════════');
 
       const processed = processNotification(data);
       setNotifications((prev) => {
@@ -128,11 +119,9 @@ const NotificationPage = () => {
     };
 
     socket.on('new_notification', handleNewNotification);
-    console.log('[Notifications] ✅ Listener attached for "new_notification"');
 
     return () => {
       socket.off('new_notification', handleNewNotification);
-      console.log('[Notifications] 🔌 Listener removed for "new_notification"');
     };
   }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -146,7 +135,7 @@ const NotificationPage = () => {
       const token = localStorage.getItem('token');
       if (!token) { toast.error('Please login first'); navigate('/login'); return; }
       const limit = pagination.limit || 20;
-      let url = `https://api.automation365.io/notifications?limit=${limit}`;
+      let url = `${API_BASE_URL}/notifications?limit=${limit}`;
       if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
 
       const response = await fetch(url, {
@@ -156,7 +145,6 @@ const NotificationPage = () => {
       if (!response.ok) throw new Error(`Failed to fetch notifications (${response.status})`);
 
       const result = await response.json();
-      console.log('[Notifications] API response:', result);
 
       const list = Array.isArray(result?.notifications)
         ? result.notifications
@@ -239,7 +227,7 @@ const NotificationPage = () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) { toast.error('Please login first'); navigate('/login'); return; }
-      const response = await fetch('https://api.automation365.io/mark-notifications', {
+      const response = await fetch(API_BASE_URL + '/mark-notifications', {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ _id: notificationId })
       });

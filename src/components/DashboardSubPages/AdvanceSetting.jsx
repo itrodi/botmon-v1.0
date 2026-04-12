@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal, PlusCircle, Facebook, Instagram, Upload, Package2, Search, Share2, Twitter, AlertTriangle, Trash2 } from "lucide-react"
@@ -75,7 +76,6 @@ const AdvanceSetting = () => {
     for (const key of possibleKeys) {
       const token = localStorage.getItem(key) || sessionStorage.getItem(key);
       if (token) {
-        console.log(`Found token with key: ${key}`);
         return token;
       }
     }
@@ -86,7 +86,6 @@ const AdvanceSetting = () => {
       if (userData) {
         const user = JSON.parse(userData);
         if (user.token) {
-          console.log('Found token in user object');
           return user.token;
         }
       }
@@ -118,9 +117,8 @@ const AdvanceSetting = () => {
         throw new Error('No authentication token found. Please log in again.');
       }
 
-      console.log('Making delete request with token:', token.substring(0, 20) + '...'); // Log partial token for debugging
 
-      const response = await fetch('https://api.automation365.io/auth/delete-account', {
+      const response = await fetch(API_BASE_URL + '/auth/delete-account', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -211,13 +209,8 @@ const AdvanceSetting = () => {
 
   // Debug function to check stored tokens (can be removed in production)
   const debugCheckTokens = () => {
-    console.log('=== Checking for stored tokens ===');
-    console.log('localStorage keys:', Object.keys(localStorage));
-    console.log('sessionStorage keys:', Object.keys(sessionStorage));
     const token = getAuthToken();
-    console.log('Found token:', token ? 'Yes' : 'No');
     if (token) {
-      console.log('Token preview:', token.substring(0, 30) + '...');
     }
   };
 

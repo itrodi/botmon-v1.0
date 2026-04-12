@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Search, Download, ChevronDown, Users, Instagram, MessageCircle, Phone } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -41,12 +42,11 @@ const Customers = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/customers', {
+      const response = await axios.get(API_BASE_URL + '/customers', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log('Customers API response:', response.data);
 
       // Process the response data
       const payload = response.data?.data ?? response.data;
