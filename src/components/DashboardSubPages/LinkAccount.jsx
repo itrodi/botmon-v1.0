@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
@@ -79,7 +80,7 @@ const LinkAccount = () => {
     if (!token) return false;
     
     try {
-      const response = await fetch('https://api.automation365.io/instagram', {
+      const response = await fetch(API_BASE_URL + '/instagram', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -88,7 +89,6 @@ const LinkAccount = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Instagram API data:', data);
         
         // Check if Instagram is linked - API returns {id, dp} when linked
         if (data && data.id) {
@@ -128,7 +128,7 @@ const LinkAccount = () => {
     if (!token) return false;
     
     try {
-      const response = await fetch('https://api.automation365.io/messenger', {
+      const response = await fetch(API_BASE_URL + '/messenger', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -137,7 +137,6 @@ const LinkAccount = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Facebook API data:', data);
         
         if (data && (data.page_id || data.id)) {
           const profileData = {
@@ -191,7 +190,7 @@ const LinkAccount = () => {
     
     // Optionally fetch from API if you have a WhatsApp status endpoint
     try {
-      const response = await fetch('https://api.automation365.io/whatsapp', {
+      const response = await fetch(API_BASE_URL + '/whatsapp', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -215,7 +214,6 @@ const LinkAccount = () => {
       }
     } catch (error) {
       // API might not exist, that's okay
-      console.log('WhatsApp API check:', error.message);
     }
     
     return false;
@@ -503,7 +501,7 @@ const LinkAccount = () => {
     
     const facebookAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     facebookAuthUrl.searchParams.set('client_id', '639118129084539');
-    facebookAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/messenger');
+    facebookAuthUrl.searchParams.set('redirect_uri', API_BASE_URL + '/auth/messenger');
     facebookAuthUrl.searchParams.set('response_type', 'code');
     facebookAuthUrl.searchParams.set('scope', 'pages_manage_metadata,pages_messaging,business_management');
     facebookAuthUrl.searchParams.set('state', encodedState);
@@ -532,7 +530,7 @@ const LinkAccount = () => {
     const instagramAuthUrl = new URL('https://www.instagram.com/oauth/authorize');
     instagramAuthUrl.searchParams.set('force_reauth', 'true');
     instagramAuthUrl.searchParams.set('client_id', '9440795702651023');
-    instagramAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/instagram-settings');
+    instagramAuthUrl.searchParams.set('redirect_uri', API_BASE_URL + '/auth/instagram-settings');
     instagramAuthUrl.searchParams.set('response_type', 'code');
     instagramAuthUrl.searchParams.set('scope', 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights');
     instagramAuthUrl.searchParams.set('state', encodedState);
@@ -561,7 +559,7 @@ const LinkAccount = () => {
         const code = response.authResponse.code;
         
         try {
-          const backendResponse = await fetch('https://api.automation365.io/auth/whatsapp?code=' + code, {
+          const backendResponse = await fetch(API_BASE_URL + '/auth/whatsapp?code=' + code, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -635,7 +633,7 @@ const LinkAccount = () => {
     // If no ID in state, try to get it from API
     if (!instaId) {
       try {
-        const response = await fetch('https://api.automation365.io/instagram', {
+        const response = await fetch(API_BASE_URL + '/instagram', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -653,11 +651,10 @@ const LinkAccount = () => {
     // If still no ID, try to unlink anyway (backend might handle it by user token)
     // or clear local state as fallback
     if (!instaId) {
-      console.warn('No Instagram ID found, attempting unlink without ID or clearing local state');
     }
     
     try {
-      const response = await fetch('https://api.automation365.io/unlink-instagram', {
+      const response = await fetch(API_BASE_URL + '/unlink-instagram', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -670,7 +667,6 @@ const LinkAccount = () => {
       try {
         data = await response.json();
       } catch (parseError) {
-        console.warn('Could not parse response JSON:', parseError);
       }
       
       if (response.ok) {
@@ -712,7 +708,7 @@ const LinkAccount = () => {
     setUnlinkingInProgress(true);
     
     try {
-      const response = await fetch('https://api.automation365.io/unlink-messenger', {
+      const response = await fetch(API_BASE_URL + '/unlink-messenger', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -755,7 +751,7 @@ const LinkAccount = () => {
     setUnlinkingInProgress(true);
     
     try {
-      await fetch('https://api.automation365.io/unlink-whatsapp', {
+      await fetch(API_BASE_URL + '/unlink-whatsapp', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -764,7 +760,6 @@ const LinkAccount = () => {
       });
     } catch (error) {
       // Continue with local cleanup even if API fails
-      console.log('WhatsApp unlink API error:', error);
     }
     
     // Clear local state

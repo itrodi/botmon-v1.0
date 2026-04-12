@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Download, Plus, Edit2, Filter, Search, X, FileText, Package, Wrench, FileX } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
@@ -121,7 +122,7 @@ const ProductPage = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/products', {
+      const response = await axios.get(API_BASE_URL + '/products', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -135,7 +136,6 @@ const ProductPage = () => {
         payload;
       const productsArray = Array.isArray(rawProducts) ? rawProducts : [];
       if (!Array.isArray(rawProducts)) {
-        console.warn('[Products] Unexpected response shape:', payload);
       }
 
       let products = productsArray.map(product => ({
@@ -181,7 +181,7 @@ const ProductPage = () => {
         return;
       }
 
-      const response = await axios.get('https://api.automation365.io/services', {
+      const response = await axios.get(API_BASE_URL + '/services', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -195,7 +195,6 @@ const ProductPage = () => {
         payload;
       const servicesArray = Array.isArray(rawServices) ? rawServices : [];
       if (!Array.isArray(rawServices)) {
-        console.warn('[Services] Unexpected response shape:', payload);
       }
 
       let services = servicesArray.map(service => ({
@@ -318,13 +317,13 @@ const ProductPage = () => {
       if (activeTab === 'drafts') {
         type = itemType;
         endpoint = itemType === 'service' 
-          ? 'https://api.automation365.io/service-status'
-          : 'https://api.automation365.io/product-status';
+          ? API_BASE_URL + '/service-status'
+          : API_BASE_URL + '/product-status';
       } else {
         type = activeTab === 'services' ? 'service' : 'product';
         endpoint = activeTab === 'services' 
-          ? 'https://api.automation365.io/service-status'
-          : 'https://api.automation365.io/product-status';
+          ? API_BASE_URL + '/service-status'
+          : API_BASE_URL + '/product-status';
       }
 
       const response = await axios.post(
@@ -410,12 +409,12 @@ const ProductPage = () => {
       let endpoint;
       if (activeTab === 'drafts') {
         endpoint = itemType === 'service' 
-          ? 'https://api.automation365.io/delete-services'
-          : 'https://api.automation365.io/delete-products';
+          ? API_BASE_URL + '/delete-services'
+          : API_BASE_URL + '/delete-products';
       } else {
         endpoint = activeTab === 'services' 
-          ? 'https://api.automation365.io/delete-services'
-          : 'https://api.automation365.io/delete-products';
+          ? API_BASE_URL + '/delete-services'
+          : API_BASE_URL + '/delete-products';
       }
 
       const response = await axios.post(

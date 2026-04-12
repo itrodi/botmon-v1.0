@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Download, Eye, Loader2, RefreshCw, FileText, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Eye, Loader2, RefreshCw, FileText, Search } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,6 +19,8 @@ import DashboardHeader from '../Header';
 import { format } from "date-fns";
 import { toast } from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
+import { API_BASE_URL } from '@/config/api';
+import BankAccountCard from './BankAccountCard';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -95,7 +97,6 @@ const TransactionRow = ({ transaction, onView, onDownload }) => {
 
 const Payments = () => {
   const [activeTab, setActiveTab] = useState('all');
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [date, setDate] = useState(new Date());
@@ -103,7 +104,6 @@ const Payments = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState(0);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -120,7 +120,7 @@ const Payments = () => {
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/orders', {
+      const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -137,11 +137,6 @@ const Payments = () => {
       }
 
       const ordersData = await response.json();
-
-      // Debug: Log first order to see data structure (remove in production)
-      if (ordersData.length > 0) {
-        console.log('Sample order data:', ordersData[0]);
-      }
 
       // Transform orders to transactions format
       const transformedTransactions = ordersData.map(order => {
@@ -200,7 +195,6 @@ const Payments = () => {
       setBalance(totalBalance);
 
     } catch (error) {
-      console.error('Error fetching transactions:', error);
       toast.error('Failed to load transactions');
     } finally {
       setLoading(false);
@@ -327,27 +321,6 @@ const Payments = () => {
     toast.success('Receipt downloaded successfully');
   };
 
-  const handleWithdraw = async () => {
-    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    if (parseFloat(withdrawAmount) > balance) {
-      toast.error('Insufficient balance');
-      return;
-    }
-
-    try {
-      // Here you would make an API call to process the withdrawal
-      toast.success('Withdrawal request submitted successfully');
-      setShowWithdrawModal(false);
-      setWithdrawAmount('');
-    } catch (error) {
-      toast.error('Failed to process withdrawal');
-    }
-  };
-
   // Calculate stats
   const stats = {
     total: transactions.length,
@@ -368,24 +341,19 @@ const Payments = () => {
 
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto p-6 space-y-6">
-            {/* Balance and Filter Section */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-              <div className="bg-white p-6 rounded-lg shadow-sm flex-1 w-full sm:w-auto sm:mr-4">
+            {/* Balance + Bank Account Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white p-6 rounded-lg shadow-sm">
                 <div className="space-y-1">
                   <span className="text-sm text-gray-600">Balance</span>
                   <h2 className="text-3xl font-semibold">₦{balance.toLocaleString()}</h2>
                   <p className="text-sm text-green-600">{percentageChange} from last month</p>
                 </div>
-                <Button 
-                  className="mt-4 bg-purple-600 text-white hover:bg-purple-700"
-                  onClick={() => setShowWithdrawModal(true)}
-                  disabled={balance === 0}
-                >
-                  Withdraw
-                </Button>
               </div>
-              
-              <div className="flex gap-2">
+              <BankAccountCard />
+            </div>
+
+            <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
                   onClick={fetchTransactions}
@@ -416,7 +384,6 @@ const Payments = () => {
                     />
                   </PopoverContent>
                 </Popover>
-              </div>
             </div>
 
             {/* Transactions Section */}
@@ -686,53 +653,6 @@ const Payments = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Withdraw Modal */}
-      <Dialog open={showWithdrawModal} onOpenChange={setShowWithdrawModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Withdraw Funds</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Available Balance</label>
-              <p className="text-2xl font-semibold">₦{balance.toLocaleString()}</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Bank Name</label>
-              <Input value="First Bank" disabled />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Account Number</label>
-              <Input value="0123456789" disabled />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Amount to Withdraw</label>
-              <Input 
-                type="number" 
-                placeholder="Enter amount" 
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                max={balance}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => {
-              setShowWithdrawModal(false);
-              setWithdrawAmount('');
-            }}>
-              Cancel
-            </Button>
-            <Button 
-              className="bg-purple-600 text-white hover:bg-purple-700"
-              onClick={handleWithdraw}
-              disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
-            >
-              Withdraw
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

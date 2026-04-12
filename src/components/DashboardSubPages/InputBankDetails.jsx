@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from "lucide-react";
@@ -53,7 +54,7 @@ const InputBankDetails = () => {
       }
 
       await axios.post(
-        'https://api.automation365.io/bank',
+        API_BASE_URL + '/bank',
         {
           bank: form.bank,
           account: form.account,

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +45,7 @@ const FaqVariation = ({ onClose, onSuccess }) => {
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/faq',
+        API_BASE_URL + '/faq',
         {
           questions: [faqData.question],
           answers: [faqData.answer]

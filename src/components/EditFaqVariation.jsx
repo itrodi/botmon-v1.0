@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +51,7 @@ const EditFaqVariation = ({ onClose, onSuccess, faqId, initialQuestion, initialA
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/edit_faq',
+        API_BASE_URL + '/edit_faq',
         {
           faq_id: faqId,
           new_question: faqData.question,

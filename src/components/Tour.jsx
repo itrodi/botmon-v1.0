@@ -1,7 +1,8 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const API_BASE = 'https://api.automation365.io';
+const API_BASE = API_BASE_URL + '';
 
 const Tour = () => {
   const location = useLocation();

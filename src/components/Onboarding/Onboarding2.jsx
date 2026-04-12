@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Globe, ArrowRight, Check, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -33,7 +34,7 @@ const Onboarding2 = () => {
     if (!token) return false;
     
     try {
-      const response = await fetch('https://api.automation365.io/instagram', {
+      const response = await fetch(API_BASE_URL + '/instagram', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -42,7 +43,6 @@ const Onboarding2 = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Instagram API data:', data);
         
         // Check if Instagram is linked - API returns {id, dp} when linked
         if (data && data.id) {
@@ -280,7 +280,7 @@ const Onboarding2 = () => {
     
     const facebookAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     facebookAuthUrl.searchParams.set('client_id', '639118129084539');
-    facebookAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/messenger');
+    facebookAuthUrl.searchParams.set('redirect_uri', API_BASE_URL + '/auth/messenger');
     facebookAuthUrl.searchParams.set('response_type', 'code');
     facebookAuthUrl.searchParams.set('scope', 'pages_manage_metadata,pages_messaging,business_management');
     facebookAuthUrl.searchParams.set('state', encodedState);
@@ -318,7 +318,7 @@ const Onboarding2 = () => {
     const instagramAuthUrl = new URL('https://www.instagram.com/oauth/authorize');
     instagramAuthUrl.searchParams.set('force_reauth', 'true');
     instagramAuthUrl.searchParams.set('client_id', '9440795702651023');
-    instagramAuthUrl.searchParams.set('redirect_uri', 'https://api.automation365.io/auth/instagram');
+    instagramAuthUrl.searchParams.set('redirect_uri', API_BASE_URL + '/auth/instagram');
     instagramAuthUrl.searchParams.set('response_type', 'code');
     instagramAuthUrl.searchParams.set('scope', 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights');
     instagramAuthUrl.searchParams.set('state', encodedState);
@@ -339,7 +339,7 @@ const Onboarding2 = () => {
     if (!instaId) {
       // Try to get ID from API first
       try {
-        const response = await fetch('https://api.automation365.io/instagram', {
+        const response = await fetch(API_BASE_URL + '/instagram', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -369,7 +369,7 @@ const Onboarding2 = () => {
     setLoading(prev => ({ ...prev, instagram: true }));
     
     try {
-      const response = await fetch('https://api.automation365.io/unlink-instagram', {
+      const response = await fetch(API_BASE_URL + '/unlink-instagram', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -422,7 +422,7 @@ const Onboarding2 = () => {
         const code = response.authResponse.code;
         
         try {
-          const backendResponse = await fetch('https://api.automation365.io/auth/whatsapp?code=' + code, {
+          const backendResponse = await fetch(API_BASE_URL + '/auth/whatsapp?code=' + code, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
           });

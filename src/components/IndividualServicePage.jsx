@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Edit, Briefcase, Tag, DollarSign, CreditCard, Image, Loader, AlertCircle } from 'lucide-react';
@@ -30,7 +31,7 @@ const IndividualServicePage = () => {
       }
 
       // Fetch all services and find the specific one
-      const response = await axios.get('https://api.automation365.io/services', {
+      const response = await axios.get(API_BASE_URL + '/services', {
         headers: {
           Authorization: `Bearer ${token}`
         }

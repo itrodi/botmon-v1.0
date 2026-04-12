@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Upload, Plus, X, Edit2, Settings, FileText, Loader2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -118,14 +119,13 @@ const AddProductPage = () => {
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/add-products', {
+      const response = await fetch(API_BASE_URL + '/add-products', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      console.log('Categories response status:', response.status);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -137,7 +137,6 @@ const AddProductPage = () => {
       }
 
       const data = await response.json();
-      console.log('Categories response:', data);
 
       // Store full objects with IDs for editing
       if (data.categories && Array.isArray(data.categories)) {
@@ -190,7 +189,7 @@ const AddProductPage = () => {
       }
 
       const response = await fetch(
-        'https://api.automation365.io/product/edit-category',
+        API_BASE_URL + '/product/edit-category',
         {
           method: 'POST',
           headers: {
@@ -271,7 +270,7 @@ const AddProductPage = () => {
       }
 
       const response = await fetch(
-        'https://api.automation365.io/product/edit-sub',
+        API_BASE_URL + '/product/edit-sub',
         {
           method: 'POST',
           headers: {
@@ -515,7 +514,7 @@ const AddProductPage = () => {
       }
 
       const response = await fetch(
-        'https://api.automation365.io/add-category',
+        API_BASE_URL + '/add-category',
         {
           method: 'POST',
           headers: {
@@ -633,17 +632,9 @@ const AddProductPage = () => {
         }
       });
 
-      console.log('Submitting product with:', {
-        statusOption: productData.statusOption,
-        status,
-        draft,
-        variantCount: variants.vname.length,
-        hasProductImage: !!productImage
-      });
-
       // Submit the product
       const response = await fetch(
-        'https://api.automation365.io/upload',
+        API_BASE_URL + '/upload',
         {
           method: 'POST',
           headers: {
@@ -653,7 +644,6 @@ const AddProductPage = () => {
         }
       );
 
-      console.log('Upload response status:', response.status);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -666,7 +656,6 @@ const AddProductPage = () => {
       }
 
       const data = await response.json();
-      console.log('Upload response:', data);
 
       if (data.message === "done") {
         const successMessage = isDraftMode 

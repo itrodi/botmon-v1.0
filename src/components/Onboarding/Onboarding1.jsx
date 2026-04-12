@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
@@ -154,7 +155,7 @@ const Onboarding1 = () => {
         submitData.append('image', image);
       }
 
-      const response = await axios.post('https://api.automation365.io/auth/buisness', submitData, {
+      const response = await axios.post(API_BASE_URL + '/auth/buisness', submitData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'

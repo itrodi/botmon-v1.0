@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -67,7 +68,7 @@ const AdminAnalytics = () => {
       setLoading(true);
       setError(null);
 
-      const API_BASE_URL = 'https://api.automation365.io';
+      const API_BASE_URL = API_BASE_URL + '';
       const endpoints = [
         { key: 'onboarding', url: `${API_BASE_URL}/user-onboarding-engagement` },
         { key: 'usagePatterns', url: `${API_BASE_URL}/platform-usage-patterns` },
@@ -98,7 +99,6 @@ const AdminAnalytics = () => {
         newData[result.key] = result.data;
       });
 
-      console.log('Fetched Analytics Data:', newData);
       setAnalyticsData(newData);
     } catch (err) {
       setError('Failed to fetch analytics data');
@@ -151,7 +151,7 @@ const AdminAnalytics = () => {
     setDbActionResult(null);
     
     try {
-      const API_BASE_URL = 'https://api.automation365.io';
+      const API_BASE_URL = API_BASE_URL + '';
       const token = localStorage.getItem('token');
       const emailsToKeep = parseEmailList(excludeEmails);
       
@@ -177,7 +177,7 @@ const AdminAnalytics = () => {
     setDbActionResult(null);
     
     try {
-      const API_BASE_URL = 'https://api.automation365.io';
+      const API_BASE_URL = API_BASE_URL + '';
       const token = localStorage.getItem('token');
       const emailsToDelete = parseEmailList(deleteEmails);
       

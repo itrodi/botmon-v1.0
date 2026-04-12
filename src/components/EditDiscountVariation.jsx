@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,7 +83,7 @@ const EditDiscountVariation = ({ discountId, initialData, onSuccess, onClose }) 
       }
 
       const response = await axios.post(
-        'https://api.automation365.io/edit-discount',
+        API_BASE_URL + '/edit-discount',
         {
           'discount-id': discountId,
           Names: discountData.name,

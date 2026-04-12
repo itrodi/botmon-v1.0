@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState } from 'react';
 import { Upload, X, Loader } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -116,10 +117,9 @@ const ProductVariation = ({ isOpen, onClose, onVariantAdded }) => {
         formData.append('vimage', variantImage);
       }
 
-      console.log('Submitting variant:', variantData);
 
       const response = await axios.post(
-        'https://api.automation365.io/varian',
+        API_BASE_URL + '/varian',
         formData,
         {
           headers: {

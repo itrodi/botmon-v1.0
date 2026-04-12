@@ -336,7 +336,6 @@ const Chatbot = () => {
         };
       }
 
-      console.log('Sending to API:', requestBody);
 
       const response = await fetch('https://test.automation365.io/test-chat', {
         method: 'POST',
@@ -347,10 +346,7 @@ const Chatbot = () => {
         body: JSON.stringify(requestBody)
       });
 
-      console.log('[Chatbot] Raw response:', response);
       const rawText = await response.clone().text();
-      console.log('[Chatbot] Raw response text:', rawText);
-      console.log('Response status:', response.status);
       
       if (response.status === 401) {
         throw new Error('Unauthorized. Please login again.');
@@ -361,7 +357,6 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
-      console.log('[Chatbot] Response data:', data);
       
       // Process the response
       if (data && data.response) {
@@ -432,7 +427,6 @@ const Chatbot = () => {
   };
 
   const handleButtonClick = (payload, title) => {
-    console.log(`Button clicked: "${title}" with payload: "${payload}"`);
     
     // Add user message showing button click
     const userMessage = {

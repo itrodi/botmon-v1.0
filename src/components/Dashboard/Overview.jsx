@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
@@ -223,7 +224,7 @@ const Overview = () => {
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/analytics', {
+      const response = await fetch(API_BASE_URL + '/analytics', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -269,7 +270,7 @@ const Overview = () => {
         return;
       }
 
-      const response = await fetch('https://api.automation365.io/notifications?limit=10', {
+      const response = await fetch(API_BASE_URL + '/notifications?limit=10', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

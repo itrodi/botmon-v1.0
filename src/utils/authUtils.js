@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 // authUtils.js - Authentication utility functions
 
 /**
@@ -90,7 +91,7 @@ export const logout = async () => {
   // Try to notify backend about logout
   if (token) {
     try {
-      await fetch('https://api.automation365.io/auth/logout', {
+      await fetch(API_BASE_URL + '/auth/logout', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,7 +1,8 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'https://api.automation365.io';
+const SOCKET_URL = API_BASE_URL + '';
 
 const SocketContext = createContext({
   socket: null,

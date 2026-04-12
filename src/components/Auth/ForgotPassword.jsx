@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/config/api';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
@@ -34,14 +35,13 @@ const ForgotPassword = () => {
     // dispatched asynchronously by the backend. Surface a friendly message on
     // the next screen regardless.
     try {
-      await axios.post('https://api.automation365.io/auth/reset-password', {
+      await axios.post(API_BASE_URL + '/auth/reset-password', {
         email: trimmed,
       });
     } catch (err) {
       // Backend sends email before the response resolves — safe to ignore
       // client-side errors but log for observability during development.
       if (import.meta.env.DEV) {
-        console.warn('Reset password request error (ignored):', err?.message);
       }
     } finally {
       setLoading(false);
