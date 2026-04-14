@@ -56,9 +56,9 @@ const Sidebar = () => {
   const navigationStructure = {
     mainMenu: [
       { href: '/Overview', icon: Grid, label: 'Overview', dataTour: 'nav-overview' },
-      { href: '/ProductPage', icon: ShoppingBag, label: 'Product Page' },
+      { href: '/ProductPage', icon: ShoppingBag, label: 'Product Page', dataTour: 'nav-products' },
       { href: '/Chatbot', icon: MessageSquare, label: 'Chat Bot', dataTour: 'nav-chatbot' },
-      { href: '/Payments', icon: CreditCard, label: 'Payment' }
+      { href: '/Payments', icon: CreditCard, label: 'Payment', dataTour: 'nav-payments' }
     ],
     socialPage: [
       { href: '/Notifications', icon: Bell, label: 'Notification', dataTour: 'nav-notifications' },
@@ -68,7 +68,7 @@ const Sidebar = () => {
       { href: '/Customers', icon: Users, label: 'Customers', dataTour: 'nav-customers' },
       { href: '/Orders', icon: ClipboardList, label: 'Orders', dataTour: 'nav-orders' },
       { href: '/Bookings', icon: BarChart, label: 'Bookings', dataTour: 'nav-bookings' },
-      { href: '/ManageStore', icon: Settings, label: 'Settings' }
+      { href: '/ManageStore', icon: Settings, label: 'Settings', dataTour: 'nav-settings' }
     ]
   };
 
