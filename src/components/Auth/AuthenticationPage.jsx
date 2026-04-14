@@ -61,7 +61,7 @@ const AuthenticationPage = () => {
       if (refreshToken) {
         localStorage.setItem('refreshToken', refreshToken);
       }
-      
+
       // Clear linked accounts for new user
       localStorage.setItem('linkedAccounts', JSON.stringify({
         facebook: false,
@@ -69,7 +69,10 @@ const AuthenticationPage = () => {
         instagram: false,
         whatsapp: false
       }));
-      
+
+      // Flag this user as new so the onboarding tour fires once
+      localStorage.setItem('isNewUser', 'true');
+
       toast.success('Registration successful!');
       navigate('/Onboarding1');
       
@@ -113,7 +116,7 @@ const AuthenticationPage = () => {
           localStorage.setItem('refreshToken', response.data.refresh_token || response.data.refreshToken);
         }
         localStorage.setItem('userEmail', formData.email);
-        
+
         // Clear linked accounts for new user
         localStorage.setItem('linkedAccounts', JSON.stringify({
           facebook: false,
@@ -121,7 +124,10 @@ const AuthenticationPage = () => {
           instagram: false,
           whatsapp: false
         }));
-        
+
+        // Flag this user as new so the onboarding tour fires once
+        localStorage.setItem('isNewUser', 'true');
+
         toast.success('Registration successful!');
         navigate('/Onboarding1');
       }
