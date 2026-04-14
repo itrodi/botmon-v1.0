@@ -33,6 +33,8 @@ const Onboarding1 = () => {
     const oauthSuccess = sessionStorage.getItem('oauth_success');
     if (oauthSuccess) {
       sessionStorage.removeItem('oauth_success');
+      // Flag this user as new so the onboarding tour fires once
+      localStorage.setItem('isNewUser', 'true');
       toast.success('Account created! Please set up your business.');
     }
     

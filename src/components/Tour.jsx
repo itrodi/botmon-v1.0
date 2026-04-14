@@ -2,7 +2,21 @@ import { API_BASE_URL } from '@/config/api';
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const TOUR_STORAGE_KEY = (userId) => `tourSeen_${userId || 'guest'}`;
+const TOUR_STORAGE_KEY = (identifier) => `tourSeen_${identifier || 'guest'}`;
+
+// Resolve a stable per-user identifier. Prefer email (written on signup/login)
+// but fall back to a one-time device token so two different users on the same
+// browser still each see the tour once.
+const getTourIdentifier = () => {
+  const email = localStorage.getItem('userEmail');
+  if (email) return email;
+  let deviceId = localStorage.getItem('tourDeviceId');
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    localStorage.setItem('tourDeviceId', deviceId);
+  }
+  return deviceId;
+};
 
 const Tour = () => {
   const location = useLocation();
@@ -89,8 +103,9 @@ const Tour = () => {
 
   // ── Persistence ──
   const markSeen = useCallback(() => {
-    const userId = localStorage.getItem('userId') || 'guest';
-    localStorage.setItem(TOUR_STORAGE_KEY(userId), '1');
+    localStorage.setItem(TOUR_STORAGE_KEY(getTourIdentifier()), '1');
+    // The "new user" flag is one-shot — clear it once the tour has been shown
+    localStorage.removeItem('isNewUser');
   }, []);
 
   // ── Allow other components to restart the tour ──
@@ -109,12 +124,28 @@ const Tour = () => {
     const publicPaths = ['/', '/login', '/forgot-password', '/reset-password', '/adminanalytics'];
     if (publicPaths.includes(location.pathname.toLowerCase())) return;
 
+    // Don't trigger the tour on the onboarding screens — wait until they land
+    // on the real dashboard so the sidebar and header targets actually exist.
+    const onboardingPrefixes = ['/onboarding'];
+    if (onboardingPrefixes.some((p) => location.pathname.toLowerCase().startsWith(p))) return;
+
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const userId = localStorage.getItem('userId') || 'guest';
-    if (localStorage.getItem(TOUR_STORAGE_KEY(userId))) return;
+    const identifier = getTourIdentifier();
+    if (localStorage.getItem(TOUR_STORAGE_KEY(identifier))) return;
 
+    // Primary signal: signup flow flagged this browser as a new user. Show
+    // immediately — don't gate on API activity checks, which can false-positive.
+    if (localStorage.getItem('isNewUser') === 'true') {
+      // Small delay so the dashboard layout mounts before the welcome modal
+      const t = setTimeout(() => setPhase('welcome'), 400);
+      return () => clearTimeout(t);
+    }
+
+    // Fallback signal for users who existed before the flag was introduced:
+    // if they have no products / services / orders / bookings, assume they're
+    // still new and show the tour.
     const controller = new AbortController();
     const headers = { Authorization: `Bearer ${token}` };
     const endpoints = [
