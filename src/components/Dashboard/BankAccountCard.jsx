@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Loader2, Pencil, Plus } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2, Pencil, Plus, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
@@ -14,29 +14,98 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { API_BASE_URL } from '@/config/api';
+import { fetchBanks } from '@/utils/banks';
 
-const BANK_OPTIONS = [
-  { value: 'Access', label: 'Access Bank' },
-  { value: 'FirstBank', label: 'First Bank' },
-  { value: 'Zenith Bank', label: 'Zenith Bank' },
-  { value: 'Opay', label: 'Opay digital services' },
-];
-
-const initialForm = { bank: '', account: '', number: '', bvn: '' };
+const initialForm = { bank: '', bankCode: '', account: '', number: '', bvn: '' };
 
 const maskAccountNumber = (value) => {
   if (!value) return '—';
   const str = String(value);
   if (str.length <= 4) return str;
   return `${'•'.repeat(str.length - 4)}${str.slice(-4)}`;
+};
+
+const BankPicker = ({ banks, loading, value, onChange, hasError }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return banks;
+    const q = query.toLowerCase();
+    return banks.filter((b) => b.name.toLowerCase().includes(q));
+  }, [banks, query]);
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        disabled={loading}
+        aria-invalid={hasError ? 'true' : 'false'}
+        className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md border bg-white ${
+          hasError ? 'border-red-500' : 'border-gray-200'
+        } disabled:opacity-60`}
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {loading
+            ? 'Loading banks…'
+            : value || 'Select bank'}
+        </span>
+        <ChevronsUpDown className="w-4 h-4 text-gray-400" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white rounded-md border border-gray-200 shadow-lg">
+          <div className="p-2 border-b border-gray-100 flex items-center gap-2">
+            <Search className="w-4 h-4 text-gray-400" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search banks"
+              className="flex-1 text-sm outline-none"
+            />
+          </div>
+          <ul className="max-h-60 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-gray-500">No banks found</li>
+            ) : (
+              filtered.map((b) => (
+                <li key={b.id ?? b.code ?? b.name}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(b);
+                      setOpen(false);
+                      setQuery('');
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-purple-50"
+                  >
+                    <span className="text-gray-800">{b.name}</span>
+                    {value === b.name && (
+                      <Check className="w-4 h-4 text-purple-600" />
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const BankAccountCard = () => {
@@ -46,6 +115,8 @@ const BankAccountCard = () => {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [banks, setBanks] = useState([]);
+  const [banksLoading, setBanksLoading] = useState(false);
 
   const fetchBankDetails = useCallback(async () => {
     setLoading(true);
@@ -71,11 +142,26 @@ const BankAccountCard = () => {
     fetchBankDetails();
   }, [fetchBankDetails]);
 
+  const loadBanks = useCallback(async () => {
+    if (banks.length > 0) return;
+    setBanksLoading(true);
+    try {
+      const list = await fetchBanks();
+      setBanks(list);
+      if (list.length === 0) {
+        toast.error('Could not load bank list. Please check your connection.');
+      }
+    } finally {
+      setBanksLoading(false);
+    }
+  }, [banks.length]);
+
   const openDialog = () => {
     setForm(
       bankDetails
         ? {
             bank: bankDetails.Bank_Name || '',
+            bankCode: bankDetails.Bank_Code || '',
             account: bankDetails.Account_Name || '',
             number: bankDetails.Account_Number || '',
             bvn: bankDetails.BVN || '',
@@ -84,6 +170,7 @@ const BankAccountCard = () => {
     );
     setErrors({});
     setDialogOpen(true);
+    loadBanks();
   };
 
   const handleChange = (name, value) => {
@@ -132,6 +219,7 @@ const BankAccountCard = () => {
         `${API_BASE_URL}/bank`,
         {
           bank: form.bank,
+          bank_code: form.bankCode || undefined,
           account: form.account.trim(),
           number: form.number.trim(),
           bvn: form.bvn.trim(),
@@ -224,25 +312,26 @@ const BankAccountCard = () => {
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label htmlFor="bank-select">Bank</Label>
-              <Select
+              <BankPicker
+                banks={banks}
+                loading={banksLoading}
                 value={form.bank}
-                onValueChange={(value) => handleChange('bank', value)}
-              >
-                <SelectTrigger
-                  id="bank-select"
-                  aria-invalid={errors.bank ? 'true' : 'false'}
-                  className={errors.bank ? 'border-red-500' : ''}
-                >
-                  <SelectValue placeholder="Select bank" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BANK_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                hasError={Boolean(errors.bank)}
+                onChange={(bank) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    bank: bank.name,
+                    bankCode: bank.code || '',
+                  }));
+                  if (errors.bank) {
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.bank;
+                      return next;
+                    });
+                  }
+                }}
+              />
               {errors.bank && (
                 <p className="text-sm text-red-600">{errors.bank}</p>
               )}
