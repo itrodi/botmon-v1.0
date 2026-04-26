@@ -303,10 +303,10 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     setSearchQuery('');
     try {
       if (result.type === 'product') navigate(`/product/${result.id}`);
-      else if (result.type === 'service') navigate('/Bookings', { state: { search: result.displayName } });
+      else if (result.type === 'service') navigate(`/service/${result.id}`);
       else if (result.type === 'customer') navigate(`/customer/${result.id}`);
       else if (result.type === 'order') navigate('/Orders');
-      else navigate(`/products?search=${encodeURIComponent(result.displayName)}`);
+      else navigate(`/ProductPage`);
     } catch (error) { toast.error('Failed to navigate'); navigate('/Overview'); }
   };
 
@@ -315,7 +315,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchResults.length > 0) handleSearchResultClick(searchResults[0]);
-    else if (searchQuery.trim()) { navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`); setShowSearchResults(false); setSearchQuery(''); }
+    else if (searchQuery.trim()) { navigate(`/ProductPage`); setShowSearchResults(false); setSearchQuery(''); }
   };
 
   const handleLogout = async () => {
@@ -478,7 +478,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
                         </div>
                       );
                     })}
-                    {searchQuery && <div onClick={() => { navigate(`/products?search=${encodeURIComponent(searchQuery)}`); setShowSearchResults(false); setSearchQuery(''); }} className="p-3 text-center text-purple-600 hover:bg-purple-50 cursor-pointer border-t border-gray-100">View all results for "{searchQuery}"</div>}
+                    {searchQuery && <div onClick={() => { navigate(`/ProductPage`); setShowSearchResults(false); setSearchQuery(''); }} className="p-3 text-center text-purple-600 hover:bg-purple-50 cursor-pointer border-t border-gray-100">View all results for "{searchQuery}"</div>}
                   </>
                 ) : searchQuery ? <div className="p-4 text-center text-gray-500">No results found</div> : null}
               </div>
