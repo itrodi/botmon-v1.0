@@ -17,7 +17,7 @@ import {
 import { API_BASE_URL } from '@/config/api';
 import { fetchBanks } from '@/utils/banks';
 
-const initialForm = { bank: '', bankCode: '', account: '', number: '', bvn: '' };
+const initialForm = { bank: '', bankCode: '', account: '', number: '' };
 
 const maskAccountNumber = (value) => {
   if (!value) return '—';
@@ -164,7 +164,6 @@ const BankAccountCard = () => {
             bankCode: bankDetails.Bank_Code || '',
             account: bankDetails.Account_Name || '',
             number: bankDetails.Account_Number || '',
-            bvn: bankDetails.BVN || '',
           }
         : initialForm
     );
@@ -193,11 +192,6 @@ const BankAccountCard = () => {
     } else if (!/^\d{6,}$/.test(form.number.trim())) {
       nextErrors.number = 'Enter a valid account number';
     }
-    if (!form.bvn.trim()) {
-      nextErrors.bvn = 'BVN is required';
-    } else if (!/^\d{11}$/.test(form.bvn.trim())) {
-      nextErrors.bvn = 'BVN must be 11 digits';
-    }
     return nextErrors;
   };
 
@@ -222,7 +216,6 @@ const BankAccountCard = () => {
           bank_code: form.bankCode || undefined,
           account: form.account.trim(),
           number: form.number.trim(),
-          bvn: form.bvn.trim(),
         },
         {
           headers: {
@@ -231,9 +224,19 @@ const BankAccountCard = () => {
           },
         }
       );
+      // Optimistically show the saved details immediately so the card
+      // updates even if the GET re-fetch is slow or cached.
+      setBankDetails({
+        Bank_Name: form.bank,
+        Bank_Code: form.bankCode || '',
+        Account_Name: form.account.trim(),
+        Account_Number: form.number.trim(),
+      });
       toast.success('Bank details saved');
       setDialogOpen(false);
-      fetchBankDetails();
+      // Re-fetch after a short delay to pick up any server-side
+      // enrichments (e.g. verified account name).
+      setTimeout(() => fetchBankDetails(), 800);
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to save bank details';
       toast.error(message);
@@ -365,24 +368,6 @@ const BankAccountCard = () => {
               />
               {errors.number && (
                 <p className="text-sm text-red-600">{errors.number}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="bank-bvn">BVN</Label>
-              <Input
-                id="bank-bvn"
-                inputMode="numeric"
-                value={form.bvn}
-                onChange={(e) =>
-                  handleChange('bvn', e.target.value.replace(/[^\d]/g, ''))
-                }
-                placeholder="11-digit BVN"
-                maxLength={11}
-                aria-invalid={errors.bvn ? 'true' : 'false'}
-                className={errors.bvn ? 'border-red-500' : ''}
-              />
-              {errors.bvn && (
-                <p className="text-sm text-red-600">{errors.bvn}</p>
               )}
             </div>
           </div>
