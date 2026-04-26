@@ -34,14 +34,29 @@ const Messages = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pendingDeepLink, setPendingDeepLink] = useState(null);
 
-  // Per-chat pause
+  // Per-chat pause — hydrate from localStorage on mount
   const [chatPaused, setChatPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
-  const [pausedChats, setPausedChats] = useState(new Set());
+  const [pausedChats, setPausedChats] = useState(() => {
+    try {
+      const stored = localStorage.getItem('pausedChats');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
 
-  // General pause/play all chats
-  const [allChatsPaused, setAllChatsPaused] = useState(false);
+  // General pause/play all chats — hydrate from localStorage
+  const [allChatsPaused, setAllChatsPaused] = useState(() => {
+    return localStorage.getItem('allChatsPaused') === 'true';
+  });
   const [togglingGeneralPause, setTogglingGeneralPause] = useState(false);
+
+  // Persist pause state to localStorage on change
+  useEffect(() => {
+    try { localStorage.setItem('pausedChats', JSON.stringify([...pausedChats])); } catch {}
+  }, [pausedChats]);
+  useEffect(() => {
+    try { localStorage.setItem('allChatsPaused', String(allChatsPaused)); } catch {}
+  }, [allChatsPaused]);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);

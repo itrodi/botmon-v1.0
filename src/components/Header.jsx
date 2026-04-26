@@ -204,6 +204,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
   const performSearch = async (query) => {
     if (!query.trim()) { setSearchResults([]); setShowSearchResults(false); return; }
     setIsSearching(true);
+    setShowSearchResults(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) { toast.error('Please login first'); return; }
@@ -211,16 +212,26 @@ const Header = ({ title = "Botmon Dashboard" }) => {
         axios.get(API_BASE_URL + '/products', { headers: getAuthHeaders() }),
         axios.get(API_BASE_URL + '/services', { headers: getAuthHeaders() })
       ]);
-      const products = productsResponse.data || [];
-      const services = servicesResponse.data || [];
+      // API may return a flat array or a wrapper object — normalize both
+      const rawProducts = productsResponse.data;
+      const products = Array.isArray(rawProducts) ? rawProducts
+        : Array.isArray(rawProducts?.products) ? rawProducts.products
+        : Array.isArray(rawProducts?.data) ? rawProducts.data
+        : [];
+      const rawServices = servicesResponse.data;
+      const services = Array.isArray(rawServices) ? rawServices
+        : Array.isArray(rawServices?.services) ? rawServices.services
+        : Array.isArray(rawServices?.data) ? rawServices.data
+        : [];
       const searchTerm = query.toLowerCase();
       const filteredProducts = products.filter(p => p.name?.toLowerCase().includes(searchTerm) || p.description?.toLowerCase().includes(searchTerm) || p.category?.toLowerCase().includes(searchTerm)).map(p => ({ ...p, type: 'product', displayName: p.name || 'Untitled Product', id: p.id || p._id })).slice(0, 5);
       const filteredServices = services.filter(s => s.name?.toLowerCase().includes(searchTerm) || s.description?.toLowerCase().includes(searchTerm) || s.category?.toLowerCase().includes(searchTerm)).map(s => ({ ...s, type: 'service', displayName: s.name || 'Untitled Service', id: s.id || s._id })).slice(0, 5);
       const combinedResults = [...filteredProducts, ...filteredServices].filter(item => item.id).sort((a, b) => a.displayName.localeCompare(b.displayName)).slice(0, 8);
       setSearchResults(combinedResults);
-      setShowSearchResults(combinedResults.length > 0);
+      setShowSearchResults(true);
     } catch (error) {
       if (error.response?.status === 401) { toast.error('Session expired.'); logout(); }
+      else { setSearchResults([]); }
     } finally { setIsSearching(false); }
   };
 

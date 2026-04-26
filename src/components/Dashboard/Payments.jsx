@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Eye, Loader2, RefreshCw, FileText, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Eye, Loader2, RefreshCw, FileText, Search, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { toast } from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
 import { API_BASE_URL } from '@/config/api';
@@ -99,7 +99,7 @@ const Payments = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [date, setDate] = useState(new Date());
+  const [dateRange, setDateRange] = useState(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -222,12 +222,13 @@ const Payments = () => {
       if (!matchesSearch) return false;
     }
 
-    // Filter by selected date (if needed)
-    const transactionDate = new Date(transaction.date);
-    const selectedDate = new Date(date);
-    if (format(transactionDate, 'yyyy-MM-dd') !== format(selectedDate, 'yyyy-MM-dd')) {
-      // For now, we'll show all dates. You can uncomment this to filter by date
-      // return false;
+    // Filter by date range
+    if (dateRange?.from) {
+      const txDate = new Date(transaction.date);
+      if (txDate < startOfDay(dateRange.from)) return false;
+      if (dateRange.to && txDate > endOfDay(dateRange.to)) return false;
+      // If only "from" is picked (no "to" yet), treat it as a single-day filter
+      if (!dateRange.to && txDate > endOfDay(dateRange.from)) return false;
     }
 
     return true;
@@ -372,18 +373,39 @@ const Payments = () => {
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">
                       <CalendarIcon className="w-4 h-4" />
-                      {format(date, "PPP")}
+                      {dateRange?.from ? (
+                        dateRange.to
+                          ? `${format(dateRange.from, "MMM d")} – ${format(dateRange.to, "MMM d, yyyy")}`
+                          : format(dateRange.from, "PPP")
+                      ) : (
+                        'Pick date range'
+                      )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="end">
                     <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={(range) => {
+                        setDateRange(range);
+                        setCurrentPage(1);
+                      }}
+                      numberOfMonths={2}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
+                {dateRange?.from && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => { setDateRange(undefined); setCurrentPage(1); }}
+                    aria-label="Clear date filter"
+                    title="Clear date filter"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
             </div>
 
             {/* Transactions Section */}

@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format, isToday, isYesterday, formatDistanceToNow, isSameDay } from "date-fns";
+import { format, isToday, isYesterday, formatDistanceToNow, startOfDay, endOfDay } from "date-fns";
 import { toast } from 'react-hot-toast';
 import Header from '../components/Header';
 
@@ -20,7 +20,7 @@ const NotificationPage = () => {
   const navigate = useNavigate();
   const { socket, connected: socketConnected } = useSocket();
 
-  const [date, setDate] = useState(null);
+  const [dateRange, setDateRange] = useState(undefined);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -346,12 +346,14 @@ const NotificationPage = () => {
 
   const filterNotifications = () => {
     let list = [...notifications];
-    if (date) {
+    if (dateRange?.from) {
+      const rangeStart = startOfDay(dateRange.from);
+      const rangeEnd = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
       list = list.filter(n => {
         try {
           const d = new Date(n.timestamp);
           if (Number.isNaN(d.getTime())) return false;
-          return isSameDay(d, date);
+          return d >= rangeStart && d <= rangeEnd;
         } catch { return false; }
       });
     }
@@ -402,20 +404,26 @@ const NotificationPage = () => {
                     <div className="flex items-center gap-1">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" className="flex items-center gap-2" aria-label={date ? `Filtering by ${format(date, 'PPP')}` : 'Filter by date'}>
+                          <Button variant="outline" className="flex items-center gap-2" aria-label={dateRange?.from ? `Filtering by date range` : 'Filter by date range'}>
                             <CalendarIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">{date ? format(date, "PPP") : "Pick a date"}</span>
+                            <span className="hidden sm:inline">
+                              {dateRange?.from
+                                ? dateRange.to
+                                  ? `${format(dateRange.from, "MMM d")} – ${format(dateRange.to, "MMM d, yyyy")}`
+                                  : format(dateRange.from, "PPP")
+                                : "Pick date range"}
+                            </span>
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="end">
-                          <Calendar mode="single" selected={date || undefined} onSelect={setDate} initialFocus />
+                          <Calendar mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} initialFocus />
                         </PopoverContent>
                       </Popover>
-                      {date && (
+                      {dateRange?.from && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setDate(null)}
+                          onClick={() => setDateRange(undefined)}
                           aria-label="Clear date filter"
                           title="Clear date filter"
                         >
@@ -433,8 +441,8 @@ const NotificationPage = () => {
                   <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                     <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500">
-                      {date
-                        ? `No${filterType !== 'all' ? ` ${filterType}` : ''} notifications on ${format(date, 'PPP')}`
+                      {dateRange?.from
+                        ? `No${filterType !== 'all' ? ` ${filterType}` : ''} notifications in selected range`
                         : filterType === 'all' ? 'No notifications' : `No ${filterType} notifications`}
                     </p>
                     {date && (

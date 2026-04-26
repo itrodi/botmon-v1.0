@@ -189,6 +189,9 @@ const Tour = () => {
     if (!step) return null;
     const el = document.querySelector(step.selector);
     if (!el) return null;
+    // Scroll the target into the visible area (especially for sidebar nav
+    // items that may be below the fold).
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     return el.getBoundingClientRect();
   }, [steps]);
 
@@ -197,8 +200,17 @@ const Tour = () => {
     if (rect) {
       setAnimating(true);
       setStepIndex(index);
+      // Re-measure after the smooth scroll settles so the spotlight
+      // position matches the element's final location.
+      setTimeout(() => {
+        const step = steps[index];
+        if (step) {
+          const el = document.querySelector(step.selector);
+          if (el) setTargetRect(el.getBoundingClientRect());
+        }
+        setAnimating(false);
+      }, 350);
       setTargetRect(rect);
-      setTimeout(() => setAnimating(false), 300);
       return;
     }
     if (attempts < 6) {
@@ -352,8 +364,8 @@ const Tour = () => {
   const tooltipStyle = (() => {
     if (!rect) return { top: 80, left: 24 };
     const spacing = 16;
-    const tooltipWidth = 340;
-    const tooltipHeight = 200;
+    const tooltipWidth = 380;
+    const tooltipHeight = 220;
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
 
@@ -411,9 +423,9 @@ const Tour = () => {
         <p className="text-sm text-gray-600 leading-relaxed px-5 pb-4">{step.body}</p>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-t border-gray-100">
-          {/* Progress dots */}
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between gap-3 px-5 py-3 bg-gray-50 border-t border-gray-100">
+          {/* Progress dots — allow wrapping so they don't push buttons off */}
+          <div className="flex items-center gap-1 flex-wrap min-w-0">
             {steps.map((_, i) => (
               <button
                 key={i}
@@ -421,7 +433,7 @@ const Tour = () => {
                 aria-label={`Go to step ${i + 1}`}
                 className={`rounded-full transition-all duration-200 ${
                   i === stepIndex
-                    ? 'w-6 h-2 bg-purple-600'
+                    ? 'w-5 h-2 bg-purple-600'
                     : i < stepIndex
                     ? 'w-2 h-2 bg-purple-300'
                     : 'w-2 h-2 bg-gray-300'
@@ -430,8 +442,8 @@ const Tour = () => {
             ))}
           </div>
 
-          {/* Navigation buttons */}
-          <div className="flex items-center gap-2">
+          {/* Navigation buttons — never shrink */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
               onClick={handleSkip}
