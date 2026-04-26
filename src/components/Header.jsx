@@ -300,15 +300,31 @@ const Header = ({ title = "Botmon Dashboard" }) => {
   };
 
   const handleSearchResultClick = (result) => {
+    console.log('[Search] result clicked:', { type: result.type, id: result.id, displayName: result.displayName });
     setShowSearchResults(false);
     setSearchQuery('');
     try {
-      if (result.type === 'product') navigate(`/product/${result.id}`, { state: { product: result.raw } });
-      else if (result.type === 'service') navigate(`/service/${result.id}`, { state: { service: result.raw } });
-      else if (result.type === 'customer') navigate(`/customer/${result.id}`, { state: { customer: result.raw } });
-      else if (result.type === 'order') navigate('/Orders');
-      else navigate(`/ProductPage`);
-    } catch (error) { toast.error('Failed to navigate'); navigate('/Overview'); }
+      if (result.type === 'product') {
+        console.log('[Search] navigating to /product/' + result.id);
+        navigate(`/product/${result.id}`, { state: { product: result.raw } });
+      } else if (result.type === 'service') {
+        console.log('[Search] navigating to /service/' + result.id);
+        navigate(`/service/${result.id}`, { state: { service: result.raw } });
+      } else if (result.type === 'customer') {
+        console.log('[Search] navigating to /customer/' + result.id);
+        navigate(`/customer/${result.id}`, { state: { customer: result.raw } });
+      } else if (result.type === 'order') {
+        console.log('[Search] navigating to /Orders');
+        navigate('/Orders');
+      } else {
+        console.log('[Search] fallback navigate to /ProductPage');
+        navigate(`/ProductPage`);
+      }
+    } catch (error) {
+      console.error('[Search] navigation error:', error);
+      toast.error('Failed to navigate');
+      navigate('/Overview');
+    }
   };
 
   const handleClearSearch = () => { setSearchQuery(''); setSearchResults([]); setShowSearchResults(false); };
