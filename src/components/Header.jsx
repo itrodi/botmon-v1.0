@@ -241,12 +241,12 @@ const Header = ({ title = "Botmon Dashboard" }) => {
 
       const filteredProducts = products
         .filter(p => p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q))
-        .map(p => ({ type: 'product', displayName: p.name || 'Untitled Product', id: p.id || p._id, price: p.price, image: p.image }))
+        .map(p => ({ type: 'product', displayName: p.name || 'Untitled Product', id: p.id || p._id, price: p.price, image: p.image, raw: p }))
         .slice(0, 4);
 
       const filteredServices = services
         .filter(s => s.name?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q) || s.category?.toLowerCase().includes(q))
-        .map(s => ({ type: 'service', displayName: s.name || 'Untitled Service', id: s.id || s._id, price: s.price, image: s.image }))
+        .map(s => ({ type: 'service', displayName: s.name || 'Untitled Service', id: s.id || s._id, price: s.price, image: s.image, raw: s }))
         .slice(0, 4);
 
       const filteredCustomers = customers
@@ -261,6 +261,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
           displayName: c.name || c.username || 'Unknown Customer',
           id: c.instagram_id || c.id || c._id,
           subtitle: c.email || c.phone || c.platform || '',
+          raw: c,
         }))
         .slice(0, 4);
 
@@ -302,9 +303,9 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     setShowSearchResults(false);
     setSearchQuery('');
     try {
-      if (result.type === 'product') navigate(`/product/${result.id}`);
-      else if (result.type === 'service') navigate(`/service/${result.id}`);
-      else if (result.type === 'customer') navigate(`/customer/${result.id}`);
+      if (result.type === 'product') navigate(`/product/${result.id}`, { state: { product: result.raw } });
+      else if (result.type === 'service') navigate(`/service/${result.id}`, { state: { service: result.raw } });
+      else if (result.type === 'customer') navigate(`/customer/${result.id}`, { state: { customer: result.raw } });
       else if (result.type === 'order') navigate('/Orders');
       else navigate(`/ProductPage`);
     } catch (error) { toast.error('Failed to navigate'); navigate('/Overview'); }

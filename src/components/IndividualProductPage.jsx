@@ -37,8 +37,18 @@ const IndividualProductPage = () => {
         }
       });
 
-      const products = response.data || [];
-      const foundProduct = products.find(p => p.id === id || p._id === id);
+      const raw = response.data;
+      const products = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.products)
+        ? raw.products
+        : Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw?.data?.products)
+        ? raw.data.products
+        : [];
+      console.log('[IndividualProductPage] response shape:', typeof raw, Array.isArray(raw) ? 'array' : Object.keys(raw || {}), 'count:', products.length);
+      const foundProduct = products.find(p => String(p.id) === String(id) || String(p._id) === String(id));
 
       if (foundProduct) {
         setProduct({
