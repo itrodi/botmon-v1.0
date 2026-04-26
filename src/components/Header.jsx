@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, Settings, HelpCircle, LogOut, Package, Briefcase, X, Menu, Grid, ShoppingBag, MessageSquare, CreditCard, Mail, Users, ClipboardList, BarChart, PlayCircle } from 'lucide-react';
+import { Search, Bell, Settings, HelpCircle, LogOut, Package, Briefcase, X, Menu, Grid, ShoppingBag, MessageSquare, CreditCard, Mail, Users, ClipboardList, BarChart, PlayCircle, UserCircle } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -208,25 +208,81 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) { toast.error('Please login first'); return; }
-      const [productsResponse, servicesResponse] = await Promise.all([
-        axios.get(API_BASE_URL + '/products', { headers: getAuthHeaders() }),
-        axios.get(API_BASE_URL + '/services', { headers: getAuthHeaders() })
+      const headers = getAuthHeaders();
+
+      const safeGet = async (url) => {
+        try { return (await axios.get(url, { headers })).data; }
+        catch { return null; }
+      };
+
+      const [rawProducts, rawServices, rawCustomers, rawOrders] = await Promise.all([
+        safeGet(API_BASE_URL + '/products'),
+        safeGet(API_BASE_URL + '/services'),
+        safeGet(API_BASE_URL + '/customers'),
+        safeGet(API_BASE_URL + '/orders'),
       ]);
-      // API may return a flat array or a wrapper object — normalize both
-      const rawProducts = productsResponse.data;
-      const products = Array.isArray(rawProducts) ? rawProducts
-        : Array.isArray(rawProducts?.products) ? rawProducts.products
-        : Array.isArray(rawProducts?.data) ? rawProducts.data
-        : [];
-      const rawServices = servicesResponse.data;
-      const services = Array.isArray(rawServices) ? rawServices
-        : Array.isArray(rawServices?.services) ? rawServices.services
-        : Array.isArray(rawServices?.data) ? rawServices.data
-        : [];
-      const searchTerm = query.toLowerCase();
-      const filteredProducts = products.filter(p => p.name?.toLowerCase().includes(searchTerm) || p.description?.toLowerCase().includes(searchTerm) || p.category?.toLowerCase().includes(searchTerm)).map(p => ({ ...p, type: 'product', displayName: p.name || 'Untitled Product', id: p.id || p._id })).slice(0, 5);
-      const filteredServices = services.filter(s => s.name?.toLowerCase().includes(searchTerm) || s.description?.toLowerCase().includes(searchTerm) || s.category?.toLowerCase().includes(searchTerm)).map(s => ({ ...s, type: 'service', displayName: s.name || 'Untitled Service', id: s.id || s._id })).slice(0, 5);
-      const combinedResults = [...filteredProducts, ...filteredServices].filter(item => item.id).sort((a, b) => a.displayName.localeCompare(b.displayName)).slice(0, 8);
+
+      const toArray = (raw, ...keys) => {
+        if (Array.isArray(raw)) return raw;
+        if (!raw || typeof raw !== 'object') return [];
+        for (const k of keys) { if (Array.isArray(raw[k])) return raw[k]; }
+        if (Array.isArray(raw.data)) return raw.data;
+        if (raw.data && typeof raw.data === 'object') {
+          for (const k of keys) { if (Array.isArray(raw.data[k])) return raw.data[k]; }
+        }
+        return [];
+      };
+
+      const products  = toArray(rawProducts, 'products');
+      const services  = toArray(rawServices, 'services');
+      const customers = toArray(rawCustomers, 'customers');
+      const orders    = toArray(rawOrders, 'orders');
+      const q = query.toLowerCase();
+
+      const filteredProducts = products
+        .filter(p => p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q))
+        .map(p => ({ type: 'product', displayName: p.name || 'Untitled Product', id: p.id || p._id, price: p.price, image: p.image }))
+        .slice(0, 4);
+
+      const filteredServices = services
+        .filter(s => s.name?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q) || s.category?.toLowerCase().includes(q))
+        .map(s => ({ type: 'service', displayName: s.name || 'Untitled Service', id: s.id || s._id, price: s.price, image: s.image }))
+        .slice(0, 4);
+
+      const filteredCustomers = customers
+        .filter(c => {
+          const name = (c.name || c.username || '').toLowerCase();
+          const email = (c.email || '').toLowerCase();
+          const phone = (c.phone || '').toLowerCase();
+          return name.includes(q) || email.includes(q) || phone.includes(q);
+        })
+        .map(c => ({
+          type: 'customer',
+          displayName: c.name || c.username || 'Unknown Customer',
+          id: c.instagram_id || c.id || c._id,
+          subtitle: c.email || c.phone || c.platform || '',
+        }))
+        .slice(0, 4);
+
+      const filteredOrders = orders
+        .filter(o => {
+          const product = (o['product-name'] || o.product_name || o.product || o.name || '').toLowerCase();
+          const email = (o.email || o.customer_email || '').toLowerCase();
+          const id = (o.ids || o.id || o._id || '').toLowerCase();
+          return product.includes(q) || email.includes(q) || id.includes(q);
+        })
+        .map(o => ({
+          type: 'order',
+          displayName: o['product-name'] || o.product_name || o.product || o.name || `Order ${(o.ids || o.id || o._id || '').slice(0, 8)}`,
+          id: o.ids || o.id || o._id,
+          subtitle: `${o.status || 'Pending'} • ₦${((parseFloat(o.price) || 0) * (parseInt(o.quantity) || 1)).toLocaleString()}`,
+        }))
+        .slice(0, 4);
+
+      const combinedResults = [...filteredProducts, ...filteredServices, ...filteredCustomers, ...filteredOrders]
+        .filter(item => item.id)
+        .slice(0, 12);
+
       setSearchResults(combinedResults);
       setShowSearchResults(true);
     } catch (error) {
@@ -248,8 +304,10 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     try {
       if (result.type === 'product') navigate(`/product/${result.id}`);
       else if (result.type === 'service') navigate('/Bookings', { state: { search: result.displayName } });
+      else if (result.type === 'customer') navigate(`/customer/${result.id}`);
+      else if (result.type === 'order') navigate('/Orders');
       else navigate(`/products?search=${encodeURIComponent(result.displayName)}`);
-    } catch (error) { toast.error('Failed to navigate'); navigate('/products'); }
+    } catch (error) { toast.error('Failed to navigate'); navigate('/Overview'); }
   };
 
   const handleClearSearch = () => { setSearchQuery(''); setSearchResults([]); setShowSearchResults(false); };
@@ -341,7 +399,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
             <div className="max-w-md flex-1 relative" ref={searchResultsRef} data-tour="header-search">
               <form onSubmit={handleSearchSubmit} className="relative">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
-                <Input type="search" placeholder="Search products and services..." className="pl-10 pr-10 w-full bg-gray-50 border-gray-200" value={searchQuery} onChange={handleSearchChange} onFocus={() => searchResults.length > 0 && setShowSearchResults(true)} />
+                <Input type="search" placeholder="Search products, services, customers, orders..." className="pl-10 pr-10 w-full bg-gray-50 border-gray-200" value={searchQuery} onChange={handleSearchChange} onFocus={() => searchResults.length > 0 && setShowSearchResults(true)} />
                 {searchQuery && <button type="button" aria-label="Clear search" onClick={handleClearSearch} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" aria-hidden="true" /></button>}
               </form>
               {showSearchResults && (
@@ -350,17 +408,23 @@ const Header = ({ title = "Botmon Dashboard" }) => {
                     <div className="p-4 text-center text-gray-500"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2" aria-hidden="true"></div>Searching...</div>
                   ) : searchResults.length > 0 ? (
                     <>
-                      {searchResults.map((result) => (
-                        <div key={`${result.type}-${result.id}`} onClick={() => handleSearchResultClick(result)} className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
-                          <div className="flex-shrink-0">{result.type === 'product' ? <Package className="h-5 w-5 text-purple-600" /> : <Briefcase className="h-5 w-5 text-blue-600" />}</div>
-                          <div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{result.displayName}</p><p className="text-xs text-gray-500 capitalize">{result.type} • {result.price ? `₦${result.price}` : 'Price not set'}</p></div>
-                          {result.image && <img src={result.image} alt={result.displayName} className="w-10 h-10 rounded object-cover" onError={(e) => { e.target.style.display = 'none'; }} />}
-                        </div>
-                      ))}
-                      {searchQuery && <div onClick={() => { navigate(`/products?search=${encodeURIComponent(searchQuery)}`); setShowSearchResults(false); setSearchQuery(''); }} className="p-3 text-center text-purple-600 hover:bg-purple-50 cursor-pointer border-t border-gray-100">View all results for "{searchQuery}"</div>}
+                      {searchResults.map((result) => {
+                        const iconMap = { product: <Package className="h-5 w-5 text-purple-600" />, service: <Briefcase className="h-5 w-5 text-blue-600" />, customer: <UserCircle className="h-5 w-5 text-green-600" />, order: <ClipboardList className="h-5 w-5 text-orange-600" /> };
+                        const subtitle = result.subtitle || (result.price ? `₦${Number(result.price).toLocaleString()}` : '');
+                        return (
+                          <div key={`${result.type}-${result.id}`} onClick={() => handleSearchResultClick(result)} className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                            <div className="flex-shrink-0">{iconMap[result.type] || <Package className="h-5 w-5 text-gray-400" />}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{result.displayName}</p>
+                              <p className="text-xs text-gray-500 capitalize">{result.type}{subtitle ? ` • ${subtitle}` : ''}</p>
+                            </div>
+                            {result.image && <img src={result.image} alt={result.displayName} className="w-10 h-10 rounded object-cover" onError={(e) => { e.target.style.display = 'none'; }} />}
+                          </div>
+                        );
+                      })}
                     </>
                   ) : searchQuery ? (
-                    <div className="p-4 text-center text-gray-500"><p>No products or services found for "{searchQuery}"</p><Button variant="link" onClick={() => { navigate('/products'); setShowSearchResults(false); setSearchQuery(''); }} className="mt-2 text-purple-600">Browse all products</Button></div>
+                    <div className="p-4 text-center text-gray-500"><p>No results found for "{searchQuery}"</p></div>
                   ) : null}
                 </div>
               )}
@@ -400,12 +464,20 @@ const Header = ({ title = "Botmon Dashboard" }) => {
                   <div className="p-4 text-center text-gray-500"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2"></div>Searching...</div>
                 ) : searchResults.length > 0 ? (
                   <>
-                    {searchResults.map((result) => (
-                      <div key={`mobile-${result.type}-${result.id}`} onClick={() => handleSearchResultClick(result)} className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
-                        <div className="flex-shrink-0">{result.type === 'product' ? <Package className="h-4 w-4 text-purple-600" /> : <Briefcase className="h-4 w-4 text-blue-600" />}</div>
-                        <div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{result.displayName}</p><p className="text-xs text-gray-500 capitalize">{result.type}</p></div>
-                      </div>
-                    ))}
+                    {searchResults.map((result) => {
+                      const mobileIconMap = { product: <Package className="h-4 w-4 text-purple-600" />, service: <Briefcase className="h-4 w-4 text-blue-600" />, customer: <UserCircle className="h-4 w-4 text-green-600" />, order: <ClipboardList className="h-4 w-4 text-orange-600" /> };
+                      const subtitle = result.subtitle || (result.price ? `₦${Number(result.price).toLocaleString()}` : '');
+                      return (
+                        <div key={`mobile-${result.type}-${result.id}`} onClick={() => handleSearchResultClick(result)} className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                          <div className="flex-shrink-0">{mobileIconMap[result.type] || <Package className="h-4 w-4 text-gray-400" />}</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{result.displayName}</p>
+                            <p className="text-xs text-gray-500 capitalize">{result.type}{subtitle ? ` • ${subtitle}` : ''}</p>
+                          </div>
+                          {result.image && <img src={result.image} alt={result.displayName} className="w-8 h-8 rounded object-cover" onError={(e) => { e.target.style.display = 'none'; }} />}
+                        </div>
+                      );
+                    })}
                     {searchQuery && <div onClick={() => { navigate(`/products?search=${encodeURIComponent(searchQuery)}`); setShowSearchResults(false); setSearchQuery(''); }} className="p-3 text-center text-purple-600 hover:bg-purple-50 cursor-pointer border-t border-gray-100">View all results for "{searchQuery}"</div>}
                   </>
                 ) : searchQuery ? <div className="p-4 text-center text-gray-500">No results found</div> : null}

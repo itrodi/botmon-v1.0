@@ -445,8 +445,8 @@ const NotificationPage = () => {
                         ? `No${filterType !== 'all' ? ` ${filterType}` : ''} notifications in selected range`
                         : filterType === 'all' ? 'No notifications' : `No ${filterType} notifications`}
                     </p>
-                    {date && (
-                      <Button variant="link" className="mt-2" onClick={() => setDate(null)}>
+                    {dateRange?.from && (
+                      <Button variant="link" className="mt-2" onClick={() => setDateRange(undefined)}>
                         Clear date filter
                       </Button>
                     )}

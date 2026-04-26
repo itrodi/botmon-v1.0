@@ -195,6 +195,7 @@ const Payments = () => {
       setBalance(totalBalance);
 
     } catch (error) {
+      console.error('[Payments] fetchTransactions error:', error, error.response?.data);
       toast.error('Failed to load transactions');
     } finally {
       setLoading(false);
