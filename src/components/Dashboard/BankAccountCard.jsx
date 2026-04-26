@@ -129,22 +129,27 @@ const BankAccountCard = () => {
       const raw = response.data;
       console.log('[BankAccountCard] /bank GET response:', raw);
       console.log('[BankAccountCard] /bank response keys:', raw && typeof raw === 'object' ? Object.keys(raw) : 'n/a');
-      // Normalize various possible response shapes
-      const details =
-        raw && (raw.Bank_Name || raw.Account_Name || raw.Account_Number)
-          ? raw
-          : raw?.data && (raw.data.Bank_Name || raw.data.Account_Name)
-          ? raw.data
-          : raw?.bank && (raw.bank.Bank_Name || raw.bank.Account_Name)
-          ? raw.bank
-          : raw && (raw.bank_name || raw.account_name || raw.account_number)
-          ? {
-              Bank_Name: raw.bank_name || raw.bank,
-              Bank_Code: raw.bank_code || '',
-              Account_Name: raw.account_name || raw.account,
-              Account_Number: raw.account_number || raw.number,
-            }
-          : raw || null;
+      // Normalize various possible response shapes from the backend
+      const pick = (obj, ...names) => {
+        for (const n of names) {
+          if (obj && obj[n] !== undefined && obj[n] !== null && obj[n] !== '') return obj[n];
+        }
+        return '';
+      };
+      const source = raw?.data && typeof raw.data === 'object' ? raw.data : raw?.bank && typeof raw.bank === 'object' ? raw.bank : raw;
+      const bankName = pick(source, 'Bank_Name', 'bank_name', 'bankn', 'bank');
+      const accountName = pick(source, 'Account_Name', 'account_name', 'name', 'account');
+      const accountNumber = pick(source, 'Account_Number', 'account_number', 'number');
+      const bankCode = pick(source, 'Bank_Code', 'bank_code', 'code');
+      const hasAnyDetails = Boolean(bankName || accountName || accountNumber);
+      const details = hasAnyDetails
+        ? {
+            Bank_Name: bankName,
+            Bank_Code: bankCode,
+            Account_Name: accountName,
+            Account_Number: accountNumber,
+          }
+        : null;
       console.log('[BankAccountCard] normalized bank details:', details);
       setBankDetails(details);
     } catch (error) {
