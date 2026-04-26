@@ -136,7 +136,20 @@ const Payments = () => {
         throw new Error('Failed to fetch transactions');
       }
 
-      const ordersData = await response.json();
+      const rawData = await response.json();
+
+      const ordersData = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.orders)
+        ? rawData.orders
+        : Array.isArray(rawData?.data)
+        ? rawData.data
+        : Array.isArray(rawData?.data?.orders)
+        ? rawData.data.orders
+        : [];
+
+      console.log('[Payments] raw response shape:', typeof rawData, Array.isArray(rawData) ? 'array' : Object.keys(rawData || {}));
+      console.log('[Payments] normalized orders count:', ordersData.length);
 
       // Transform orders to transactions format
       const transformedTransactions = ordersData.map(order => {
