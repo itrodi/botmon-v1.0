@@ -126,8 +126,29 @@ const BankAccountCard = () => {
       const response = await axios.get(`${API_BASE_URL}/bank`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setBankDetails(response.data || null);
+      const raw = response.data;
+      console.log('[BankAccountCard] /bank GET response:', raw);
+      console.log('[BankAccountCard] /bank response keys:', raw && typeof raw === 'object' ? Object.keys(raw) : 'n/a');
+      // Normalize various possible response shapes
+      const details =
+        raw && (raw.Bank_Name || raw.Account_Name || raw.Account_Number)
+          ? raw
+          : raw?.data && (raw.data.Bank_Name || raw.data.Account_Name)
+          ? raw.data
+          : raw?.bank && (raw.bank.Bank_Name || raw.bank.Account_Name)
+          ? raw.bank
+          : raw && (raw.bank_name || raw.account_name || raw.account_number)
+          ? {
+              Bank_Name: raw.bank_name || raw.bank,
+              Bank_Code: raw.bank_code || '',
+              Account_Name: raw.account_name || raw.account,
+              Account_Number: raw.account_number || raw.number,
+            }
+          : raw || null;
+      console.log('[BankAccountCard] normalized bank details:', details);
+      setBankDetails(details);
     } catch (error) {
+      console.error('[BankAccountCard] /bank fetch error:', error, error.response?.data);
       if (error.response?.status === 404) {
         setBankDetails(null);
       } else if (error.response?.status !== 401) {

@@ -37,8 +37,18 @@ const IndividualServicePage = () => {
         }
       });
 
-      const services = response.data || [];
-      const foundService = services.find(s => s.id === id || s._id === id);
+      const raw = response.data;
+      const services = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.services)
+        ? raw.services
+        : Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw?.data?.services)
+        ? raw.data.services
+        : [];
+      console.log('[IndividualServicePage] response shape:', typeof raw, Array.isArray(raw) ? 'array' : Object.keys(raw || {}), 'count:', services.length);
+      const foundService = services.find(s => String(s.id) === String(id) || String(s._id) === String(id));
 
       if (foundService) {
         setService({

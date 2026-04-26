@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Mail, Phone, MapPin, Package, Instagram, MessageCircle, Download, ArrowLeft, DollarSign, ShoppingCart } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import Sidebar from '../Sidebar';
@@ -6,6 +7,7 @@ import Header from '../Header';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
+import { API_BASE_URL } from '@/config/api';
 
 const SingleCustomerPage = () => {
   const navigate = useNavigate();
@@ -14,15 +16,53 @@ const SingleCustomerPage = () => {
   const [customer, setCustomer] = useState(null);
 
   useEffect(() => {
-    // Get customer data from navigation state
+    // Get customer data from navigation state if available
     if (location.state?.customer) {
       setCustomer(location.state.customer);
-    } else {
-      // If no customer data, redirect back to customers page
-      toast.error('No customer data found');
-      navigate('/customers');
+      return;
     }
-  }, [location, navigate]);
+    // Otherwise fetch the customers list and find by id (used for deep links / search)
+    const fetchCustomer = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          toast.error('Please login first');
+          navigate('/login');
+          return;
+        }
+        const response = await axios.get(API_BASE_URL + '/customers', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const raw = response.data;
+        const customers = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.customers)
+          ? raw.customers
+          : Array.isArray(raw?.data)
+          ? raw.data
+          : Array.isArray(raw?.data?.customers)
+          ? raw.data.customers
+          : [];
+        console.log('[SingleCustomerPage] response shape:', typeof raw, Array.isArray(raw) ? 'array' : Object.keys(raw || {}), 'count:', customers.length);
+        const found = customers.find(c =>
+          String(c.instagram_id) === String(id) ||
+          String(c.id) === String(id) ||
+          String(c._id) === String(id)
+        );
+        if (found) {
+          setCustomer(found);
+        } else {
+          toast.error('Customer not found');
+          navigate('/Customers');
+        }
+      } catch (error) {
+        console.error('[SingleCustomerPage] fetch error:', error);
+        toast.error('Failed to load customer');
+        navigate('/Customers');
+      }
+    };
+    fetchCustomer();
+  }, [location, navigate, id]);
 
   if (!customer) {
     return (
