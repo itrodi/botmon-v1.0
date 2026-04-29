@@ -235,14 +235,16 @@ const BankAccountCard = () => {
         toast.error('Please login first');
         return;
       }
-      await axios.post(
+      const payload = {
+        bankn: form.bank,
+        bank_code: form.bankCode || undefined,
+        name: form.account.trim(),
+        number: form.number.trim(),
+      };
+      console.log('[BankAccountCard] POST /bank payload:', payload);
+      const saveResponse = await axios.post(
         `${API_BASE_URL}/bank`,
-        {
-          bank: form.bank,
-          bank_code: form.bankCode || undefined,
-          account: form.account.trim(),
-          number: form.number.trim(),
-        },
+        payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -250,6 +252,7 @@ const BankAccountCard = () => {
           },
         }
       );
+      console.log('[BankAccountCard] POST /bank response:', saveResponse.data);
       // Optimistically show the saved details immediately so the card
       // updates even if the GET re-fetch is slow or cached.
       setBankDetails({
