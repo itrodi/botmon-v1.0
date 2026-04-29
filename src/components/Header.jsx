@@ -32,7 +32,8 @@ const Header = ({ title = "Botmon Dashboard" }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const searchTimeoutRef = useRef(null);
-  const searchResultsRef = useRef(null);
+  const desktopSearchRef = useRef(null);
+  const mobileSearchRef = useRef(null);
 
   const getCurrentDate = () => {
     const date = new Date();
@@ -142,7 +143,9 @@ const Header = ({ title = "Botmon Dashboard" }) => {
     loadUserData();
 
     const handleClickOutside = (event) => {
-      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target)) {
+      const inDesktop = desktopSearchRef.current && desktopSearchRef.current.contains(event.target);
+      const inMobile = mobileSearchRef.current && mobileSearchRef.current.contains(event.target);
+      if (!inDesktop && !inMobile) {
         setShowSearchResults(false);
       }
     };
@@ -413,7 +416,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
         <div className="hidden md:flex items-center justify-between">
           <div className="flex items-center gap-8 flex-1">
             <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-            <div className="max-w-md flex-1 relative" ref={searchResultsRef} data-tour="header-search">
+            <div className="max-w-md flex-1 relative" ref={desktopSearchRef} data-tour="header-search">
               <form onSubmit={handleSearchSubmit} className="relative">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
                 <Input type="search" placeholder="Search products, services, customers, orders..." className="pl-10 pr-10 w-full bg-gray-50 border-gray-200" value={searchQuery} onChange={handleSearchChange} onFocus={() => searchResults.length > 0 && setShowSearchResults(true)} />
@@ -469,7 +472,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
               <ProfileDropdown />
             </div>
           </div>
-          <div className="relative" ref={searchResultsRef}>
+          <div className="relative" ref={mobileSearchRef}>
             <form onSubmit={handleSearchSubmit} className="relative">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
               <Input type="search" placeholder="Search..." className="pl-10 pr-10 w-full bg-gray-50 border-gray-200" value={searchQuery} onChange={handleSearchChange} onFocus={() => searchResults.length > 0 && setShowSearchResults(true)} />
