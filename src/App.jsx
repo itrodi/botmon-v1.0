@@ -242,11 +242,7 @@ function App() {
                 <SupportPage/>
               </ProtectedRoute>
             }/>
-            <Route exact path="/Documentation" element={
-              <ProtectedRoute>
-                <Documentation/>
-              </ProtectedRoute>
-            }/>
+            <Route exact path="/Documentation" element={<Documentation/>}/>
             {/* 404 catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>

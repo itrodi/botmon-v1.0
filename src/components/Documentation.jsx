@@ -14,8 +14,6 @@ import {
   ChevronRight,
   Search,
 } from 'lucide-react';
-import Sidebar from './Sidebar';
-import Header from './Header';
 import { Input } from '@/components/ui/input';
 
 const SECTIONS = [
@@ -145,9 +143,11 @@ const Documentation = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Documentation" />
+        <header className="w-full bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4">
+          <img src="/Images/botmon-logo.png" alt="Botmon" className="h-8" onError={(e) => { e.target.style.display = 'none'; }} />
+          <h1 className="text-xl font-semibold text-gray-900">Documentation</h1>
+        </header>
         <div className="flex-1 flex overflow-hidden">
           {/* Left section nav */}
           <aside className="hidden lg:flex flex-col w-64 border-r border-gray-200 bg-white overflow-y-auto">
