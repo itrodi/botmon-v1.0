@@ -46,6 +46,7 @@ import AdminAnalytics from './components/Auth/AdminAnalytics';
 import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
 import SupportPage from './components/SupportPage';
+import Documentation from './components/Documentation';
 import Tour from './components/Tour';
 
 function App() {
@@ -239,6 +240,11 @@ function App() {
             <Route exact path="/SupportPage" element={
               <ProtectedRoute>
                 <SupportPage/>
+              </ProtectedRoute>
+            }/>
+            <Route exact path="/Documentation" element={
+              <ProtectedRoute>
+                <Documentation/>
               </ProtectedRoute>
             }/>
             {/* 404 catch-all */}
