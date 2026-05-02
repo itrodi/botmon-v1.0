@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, Settings, HelpCircle, LogOut, Package, Briefcase, X, Menu, Grid, ShoppingBag, MessageSquare, CreditCard, Mail, Users, ClipboardList, BarChart, PlayCircle, UserCircle, BookOpen } from 'lucide-react';
+import { Search, Bell, Settings, HelpCircle, LogOut, Package, Briefcase, X, Menu, Grid, ShoppingBag, MessageSquare, CreditCard, Mail, Users, ClipboardList, BarChart, PlayCircle, UserCircle } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,8 +55,7 @@ const Header = ({ title = "Botmon Dashboard" }) => {
       { href: '/Customers', icon: Users, label: 'Customers' },
       { href: '/Orders', icon: ClipboardList, label: 'Orders' },
       { href: '/Bookings', icon: BarChart, label: 'Bookings' },
-      { href: '/ManageStore', icon: Settings, label: 'Settings' },
-      { href: '/Documentation', icon: BookOpen, label: 'Documentation' }
+      { href: '/ManageStore', icon: Settings, label: 'Settings' }
     ]
   };
 
@@ -403,7 +402,6 @@ const Header = ({ title = "Botmon Dashboard" }) => {
         <DropdownMenuItem className="cursor-pointer"><Link to="/ManageStore" className="flex items-center gap-2 w-full"><Settings className="h-4 w-4" /><span>Settings</span></Link></DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer"><Link to="/Notifications" className="flex items-center gap-2 w-full"><Bell className="h-4 w-4" /><span>Notifications</span>{unreadCount > 0 && <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</Link></DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer"><Link to="/SupportPage" className="flex items-center gap-2 w-full"><HelpCircle className="h-4 w-4" /><span>Support</span></Link></DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer"><Link to="/Documentation" className="flex items-center gap-2 w-full"><BookOpen className="h-4 w-4" /><span>Documentation</span></Link></DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer" onClick={() => window.dispatchEvent(new Event('tour:restart'))}><div className="flex items-center gap-2 w-full"><PlayCircle className="h-4 w-4" /><span>Take a tour</span></div></DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer text-red-600 flex items-center gap-2" onClick={handleLogout}><LogOut className="h-4 w-4" /><span>Logout</span></DropdownMenuItem>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, ShoppingBag, MessageSquare, CreditCard, Bell, Mail, Users, ClipboardList, BarChart, Settings, BookOpen } from 'lucide-react';
+import { Grid, ShoppingBag, MessageSquare, CreditCard, Bell, Mail, Users, ClipboardList, BarChart, Settings } from 'lucide-react';
 
 const SidebarLink = ({ href, icon: Icon, children, isActive, onClick, dataTour }) => {
   const handleClick = (e) => {
@@ -68,8 +68,7 @@ const Sidebar = () => {
       { href: '/Customers', icon: Users, label: 'Customers', dataTour: 'nav-customers' },
       { href: '/Orders', icon: ClipboardList, label: 'Orders', dataTour: 'nav-orders' },
       { href: '/Bookings', icon: BarChart, label: 'Bookings', dataTour: 'nav-bookings' },
-      { href: '/ManageStore', icon: Settings, label: 'Settings', dataTour: 'nav-settings' },
-      { href: '/Documentation', icon: BookOpen, label: 'Documentation', dataTour: 'nav-documentation' }
+      { href: '/ManageStore', icon: Settings, label: 'Settings', dataTour: 'nav-settings' }
     ]
   };
 
