@@ -87,10 +87,10 @@ const AddProductPage = () => {
   const [variantImage, setVariantImage] = useState(null);
   const [variantImagePreview, setVariantImagePreview] = useState(null);
   
-  // Category state
+  // Category state - subs is an array so user can add multiple at once
   const [newCategory, setNewCategory] = useState({
     category: '',
-    sub: ''
+    subs: ['']
   });
   
   // Available categories and subcategories - store full objects with IDs
@@ -434,6 +434,26 @@ const AddProductPage = () => {
     }));
   };
 
+  // Subcategory list handlers (multi-input)
+  const handleSubChange = (index, value) => {
+    setNewCategory(prev => {
+      const next = [...prev.subs];
+      next[index] = value;
+      return { ...prev, subs: next };
+    });
+  };
+
+  const handleAddSubField = () => {
+    setNewCategory(prev => ({ ...prev, subs: [...prev.subs, ''] }));
+  };
+
+  const handleRemoveSubField = (index) => {
+    setNewCategory(prev => {
+      const next = prev.subs.filter((_, i) => i !== index);
+      return { ...prev, subs: next.length ? next : [''] };
+    });
+  };
+
   // Add a new variant (locally, not to backend yet)
   const handleAddVariant = () => {
     // Validate variant data
@@ -483,23 +503,35 @@ const AddProductPage = () => {
     }));
   };
 
-  // Add a new category
+  // Add a new category and/or subcategories
+  // - category + subs  -> POST /add-category (backend accepts array for "sub")
+  // - subs only        -> POST /add-sub
   const handleAddCategory = async () => {
-    // Validate category data
-    if (!newCategory.category) {
-      toast.error('Please provide a category name');
+    const categoryName = newCategory.category.trim();
+    const cleanedSubs = newCategory.subs
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (!categoryName && cleanedSubs.length === 0) {
+      toast.error('Please provide a category name or at least one subcategory');
       return;
     }
 
-    // Check for duplicate category
-    if (categories.some(cat => cat.name === newCategory.category)) {
+    // Duplicate guards
+    if (categoryName && categories.some(cat => cat.name === categoryName)) {
       toast.error('This category already exists');
       return;
     }
 
-    // Check for duplicate subcategory if provided
-    if (newCategory.sub && subs.some(sub => sub.name === newCategory.sub)) {
-      toast.error('This subcategory already exists');
+    const duplicateSub = cleanedSubs.find(s => subs.some(existing => existing.name === s));
+    if (duplicateSub) {
+      toast.error(`Subcategory "${duplicateSub}" already exists`);
+      return;
+    }
+
+    const dupeWithinForm = cleanedSubs.find((s, i) => cleanedSubs.indexOf(s) !== i);
+    if (dupeWithinForm) {
+      toast.error(`Duplicate subcategory in form: "${dupeWithinForm}"`);
       return;
     }
 
@@ -513,17 +545,19 @@ const AddProductPage = () => {
         return;
       }
 
-      const response = await fetch(
-        API_BASE_URL + '/add-category',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newCategory)
-        }
-      );
+      const endpoint = categoryName ? '/add-category' : '/add-sub';
+      const payload = categoryName
+        ? { category: categoryName, sub: cleanedSubs }
+        : { sub: cleanedSubs };
+
+      const response = await fetch(API_BASE_URL + endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -531,28 +565,24 @@ const AddProductPage = () => {
           navigate('/login');
           return;
         }
-        throw new Error('Failed to add category');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add category');
       }
 
-      const result = await response.json();
+      // Reset the form
+      setNewCategory({ category: '', subs: [''] });
+      setShowCategoryModal(false);
 
-      if (result.message === "Category and subcategory added") {
-        // Reset the form
-        setNewCategory({
-          category: '',
-          sub: ''
-        });
-        
-        // Close the modal
-        setShowCategoryModal(false);
-        toast.success('Category added successfully');
-        
-        // Refresh categories to ensure consistency
-        fetchCategories();
-      }
+      const parts = [];
+      if (categoryName) parts.push('category');
+      if (cleanedSubs.length) parts.push(`${cleanedSubs.length} subcategory(ies)`);
+      toast.success(`Added ${parts.join(' and ')}`);
+
+      // Refresh categories to ensure consistency
+      fetchCategories();
     } catch (error) {
       console.error('Error adding category:', error);
-      toast.error('Failed to add category');
+      toast.error(error.message || 'Failed to add category');
     } finally {
       setIsAddingCategory(false);
     }
@@ -1362,7 +1392,13 @@ const AddProductPage = () => {
       </Dialog>
 
       {/* Category Modal */}
-      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+      <Dialog
+        open={showCategoryModal}
+        onOpenChange={(open) => {
+          setShowCategoryModal(open);
+          if (!open) setNewCategory({ category: '', subs: [''] });
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Category</DialogTitle>
@@ -1370,41 +1406,71 @@ const AddProductPage = () => {
           <div className="space-y-4 py-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Name *
+                Category Name (optional)
               </label>
-              <Input 
+              <Input
                 name="category"
                 value={newCategory.category}
                 onChange={handleCategoryInputChange}
                 placeholder="Enter category name"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Leave blank to add subcategories only.
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subcategory Name (optional)
-              </label>
-              <Input 
-                name="sub"
-                value={newCategory.sub}
-                onChange={handleCategoryInputChange}
-                placeholder="Enter subcategory name"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Subcategories (optional)
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-purple-600"
+                  onClick={handleAddSubField}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add another
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {newCategory.subs.map((sub, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={sub}
+                      onChange={(e) => handleSubChange(index, e.target.value)}
+                      placeholder={`Subcategory ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-9 p-0 shrink-0"
+                      onClick={() => handleRemoveSubField(index)}
+                      disabled={newCategory.subs.length === 1 && !sub}
+                      aria-label="Remove subcategory"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button 
+            <Button
               type="button"
               variant="outline"
               onClick={() => setShowCategoryModal(false)}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               className="bg-purple-600 text-white"
               onClick={handleAddCategory}
               disabled={isAddingCategory}
             >
-              {isAddingCategory ? 'Adding...' : 'Add Category'}
+              {isAddingCategory ? 'Adding...' : 'Save'}
             </Button>
           </div>
         </DialogContent>
