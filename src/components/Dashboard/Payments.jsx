@@ -106,9 +106,41 @@ const Payments = () => {
   const [balance, setBalance] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Business name used on the receipt. Seeded from Header's cache to avoid
+  // a flicker on first paint; refreshed from the API on mount.
+  const [businessName, setBusinessName] = useState(() => {
+    try {
+      const userId = localStorage.getItem('userId');
+      if (userId) {
+        const cached = JSON.parse(localStorage.getItem(`businessData_${userId}`) || 'null');
+        if (cached?.bname) return cached.bname;
+      }
+    } catch {
+      // ignore
+    }
+    return localStorage.getItem('userName') || 'Your Business';
+  });
+
   useEffect(() => {
     fetchTransactions();
+    fetchBusinessName();
   }, []);
+
+  const fetchBusinessName = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const response = await fetch(`${API_BASE_URL}/auth/user-header-info`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const name = data['buisness-name'] || data.bname;
+      if (name) setBusinessName(name);
+    } catch {
+      // Keep the seeded value
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -273,13 +305,12 @@ const Payments = () => {
     doc.setFontSize(20);
     doc.text('TRANSACTION RECEIPT', 105, 20, { align: 'center' });
 
-    // Company info (you can customize this)
+    // Business name (from the merchant's profile)
     doc.setFontSize(12);
-    doc.text('Automation365', 105, 30, { align: 'center' });
-    doc.text('support@automation365.io', 105, 37, { align: 'center' });
+    doc.text(businessName, 105, 30, { align: 'center' });
 
     // Line separator
-    doc.line(20, 45, 190, 45);
+    doc.line(20, 38, 190, 38);
 
     // Receipt details
     doc.setFontSize(10);
