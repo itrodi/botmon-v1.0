@@ -88,10 +88,10 @@ const AddServicesPage = () => {
   const [variantImage, setVariantImage] = useState(null);
   const [variantImagePreview, setVariantImagePreview] = useState(null);
   
-  // Category state
+  // Category state - subs is an array so user can add multiple at once
   const [newCategory, setNewCategory] = useState({
     category: '',
-    sub: ''
+    subs: ['']
   });
   
   // Edit category/sub state
@@ -300,6 +300,26 @@ const AddServicesPage = () => {
     }));
   };
 
+  // Subcategory list handlers (multi-input)
+  const handleSubChange = (index, value) => {
+    setNewCategory(prev => {
+      const next = [...prev.subs];
+      next[index] = value;
+      return { ...prev, subs: next };
+    });
+  };
+
+  const handleAddSubField = () => {
+    setNewCategory(prev => ({ ...prev, subs: [...prev.subs, ''] }));
+  };
+
+  const handleRemoveSubField = (index) => {
+    setNewCategory(prev => {
+      const next = prev.subs.filter((_, i) => i !== index);
+      return { ...prev, subs: next.length ? next : [''] };
+    });
+  };
+
   // Add a new variant (locally, will be sent with service)
   const handleAddVariant = () => {
     if (!currentVariant.vname || !currentVariant.vprice) {
@@ -333,10 +353,34 @@ const AddServicesPage = () => {
     }));
   };
 
-  // Add a new category
+  // Add a new category and/or subcategories
+  // - category + subs  -> POST /sadd-category (backend accepts array for "sub")
+  // - subs only        -> POST /sadd-sub
   const handleAddCategory = async () => {
-    if (!newCategory.category) {
-      toast.error('Please provide a category name');
+    const categoryName = newCategory.category.trim();
+    const cleanedSubs = newCategory.subs
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (!categoryName && cleanedSubs.length === 0) {
+      toast.error('Please provide a category name or at least one subcategory');
+      return;
+    }
+
+    if (categoryName && categories.some(cat => cat.name === categoryName)) {
+      toast.error('This category already exists');
+      return;
+    }
+
+    const duplicateSub = cleanedSubs.find(s => subs.some(existing => existing.name === s));
+    if (duplicateSub) {
+      toast.error(`Subcategory "${duplicateSub}" already exists`);
+      return;
+    }
+
+    const dupeWithinForm = cleanedSubs.find((s, i) => cleanedSubs.indexOf(s) !== i);
+    if (dupeWithinForm) {
+      toast.error(`Duplicate subcategory in form: "${dupeWithinForm}"`);
       return;
     }
 
@@ -350,35 +394,34 @@ const AddServicesPage = () => {
         return;
       }
 
-      const response = await axios.post(
-        API_BASE_URL + '/sadd-category',
-        newCategory,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const endpoint = categoryName ? '/sadd-category' : '/sadd-sub';
+      const payload = categoryName
+        ? { category: categoryName, sub: cleanedSubs }
+        : { sub: cleanedSubs };
 
-      if (response.data.message === "Category and subcategory added") {
-        setNewCategory({
-          category: '',
-          sub: ''
-        });
-        
-        setShowCategoryModal(false);
-        toast.success('Category added successfully');
-        
-        await fetchCategories();
-      }
+      await axios.post(API_BASE_URL + endpoint, payload, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setNewCategory({ category: '', subs: [''] });
+      setShowCategoryModal(false);
+
+      const parts = [];
+      if (categoryName) parts.push('category');
+      if (cleanedSubs.length) parts.push(`${cleanedSubs.length} subcategory(ies)`);
+      toast.success(`Added ${parts.join(' and ')}`);
+
+      await fetchCategories();
     } catch (error) {
       console.error('Error adding category:', error);
       if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
         navigate('/login');
       } else {
-        toast.error('Failed to add category');
+        toast.error(error.response?.data?.error || 'Failed to add category');
       }
     } finally {
       setIsAddingCategory(false);
@@ -1209,14 +1252,20 @@ const AddServicesPage = () => {
       </Dialog>
 
       {/* Category Modal */}
-      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+      <Dialog
+        open={showCategoryModal}
+        onOpenChange={(open) => {
+          setShowCategoryModal(open);
+          if (!open) setNewCategory({ category: '', subs: [''] });
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Service Category</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="category">Category Name *</Label>
+              <Label htmlFor="category">Category Name (Optional)</Label>
               <Input
                 id="category"
                 name="category"
@@ -1224,19 +1273,46 @@ const AddServicesPage = () => {
                 onChange={handleCategoryInputChange}
                 placeholder="e.g. Hair Services"
                 className="mt-1"
-                required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Leave blank to add subcategories only.
+              </p>
             </div>
             <div>
-              <Label htmlFor="sub">Subcategory Name (Optional)</Label>
-              <Input
-                id="sub"
-                name="sub"
-                value={newCategory.sub}
-                onChange={handleCategoryInputChange}
-                placeholder="e.g. Coloring"
-                className="mt-1"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <Label>Subcategories (Optional)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-purple-600"
+                  onClick={handleAddSubField}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add another
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {newCategory.subs.map((sub, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={sub}
+                      onChange={(e) => handleSubChange(index, e.target.value)}
+                      placeholder={`Subcategory ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-9 p-0 shrink-0"
+                      onClick={() => handleRemoveSubField(index)}
+                      disabled={newCategory.subs.length === 1 && !sub}
+                      aria-label="Remove subcategory"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">
@@ -1259,7 +1335,7 @@ const AddServicesPage = () => {
                   Adding...
                 </>
               ) : (
-                'Add Category'
+                'Save'
               )}
             </Button>
           </div>
