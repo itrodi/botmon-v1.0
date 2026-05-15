@@ -86,11 +86,11 @@ const ManageStore = () => {
   const [businessData, setBusinessData] = useState({
     bname: '',
     bphone: '',
-    bcountry: '',
+    bcountry: 'Nigeria',
     bemail: '',
     baddress: '',
     bcategory: '',
-    bcurrency: '',
+    bcurrency: 'NGN',
     blogo: '',
     bbanner: '',
     questions: [],
@@ -148,7 +148,10 @@ const ManageStore = () => {
         faqIds: faqs.map(faq => faq.id), // Store IDs for edit/delete operations
         // Handle logo and banner URLs properly
         blogo: response.data.blogo || '',
-        bbanner: response.data.bbanner || ''
+        bbanner: response.data.bbanner || '',
+        // Naira-only locale: keep our defaults if backend returns blanks
+        bcountry: response.data.bcountry || 'Nigeria',
+        bcurrency: response.data.bcurrency || 'NGN'
       }));
 
       // Set preview URLs to existing images
@@ -596,9 +599,6 @@ const ManageStore = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Nigeria">Nigeria</SelectItem>
-                  <SelectItem value="Ghana">Ghana</SelectItem>
-                  <SelectItem value="South Africa">South Africa</SelectItem>
-                  <SelectItem value="Kenya">Kenya</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -656,10 +656,7 @@ const ManageStore = () => {
                   <SelectValue placeholder="Select currency" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="NGN">NGN</SelectItem>
-                  <SelectItem value="Cedis">Cedis</SelectItem>
-                  <SelectItem value="RWD">RWD</SelectItem>
-                  <SelectItem value="KES">KES</SelectItem>
+                  <SelectItem value="NGN">NGN (₦)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

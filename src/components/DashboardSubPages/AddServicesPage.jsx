@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/config/api';
+import { formatNaira } from '@/utils/currency';
 import React, { useState, useEffect } from 'react';
 import { Upload, Plus, X, Loader, ChevronLeft, Edit2, FileText } from 'lucide-react';
 import { Input } from "@/components/ui/input";
@@ -925,7 +926,7 @@ const AddServicesPage = () => {
                             variants.vname.map((name, index) => (
                               <TableRow key={index}>
                                 <TableCell className="font-semibold">{name}</TableCell>
-                                <TableCell>${parseFloat(variants.vprice[index]).toFixed(2)}</TableCell>
+                                <TableCell>{formatNaira(variants.vprice[index])}</TableCell>
                                 <TableCell>
                                   {variants.vimages[index] ? (
                                     <span className="text-green-600 text-sm">✓ Image</span>

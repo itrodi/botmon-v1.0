@@ -92,7 +92,7 @@ const BookingDetails = () => {
                       <span className="text-muted-foreground">
                         Consultation
                       </span>
-                      <span>$250.00</span>
+                      <span>₦250.00</span>
                     </li>
                   </ul>
                   <Separator className="my-2" />
@@ -109,15 +109,15 @@ const BookingDetails = () => {
                   <ul className="grid gap-3">
                     <li className="flex items-center justify-between">
                       <span className="text-muted-foreground">Subtotal</span>
-                      <span>$299.00</span>
+                      <span>₦299.00</span>
                     </li>
                     <li className="flex items-center justify-between">
                       <span className="text-muted-foreground">VAT</span>
-                      <span>$25.00</span>
+                      <span>₦25.00</span>
                     </li>
                     <li className="flex items-center justify-between font-semibold">
                       <span className="text-muted-foreground">Total</span>
-                      <span>$329.00</span>
+                      <span>₦329.00</span>
                     </li>
                   </ul>
                 </div>

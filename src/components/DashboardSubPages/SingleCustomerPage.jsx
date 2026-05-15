@@ -8,6 +8,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { API_BASE_URL } from '@/config/api';
+import { formatNaira } from '@/utils/currency';
 
 const SingleCustomerPage = () => {
   const navigate = useNavigate();
@@ -266,7 +267,7 @@ const SingleCustomerPage = () => {
                         <Package className="w-4 h-4" />
                         <span>Avg. Order Value</span>
                       </div>
-                      <span className="font-semibold">${averageOrderValue}</span>
+                      <span className="font-semibold">{formatNaira(averageOrderValue)}</span>
                     </div>
                   </div>
                 </div>
@@ -326,7 +327,7 @@ const SingleCustomerPage = () => {
                                 </div>
                                 <div className="text-right ml-4">
                                   <p className="font-medium text-lg">
-                                    ${transaction.price?.toFixed(2) || '0.00'}
+                                    {formatNaira(transaction.price)}
                                   </p>
                                   <p className="text-sm text-gray-500">
                                     Qty: {transaction.quantity || 1}
