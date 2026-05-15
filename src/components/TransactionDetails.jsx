@@ -46,28 +46,28 @@ const TransactionDetails = () => {
           <DetailSection title="Order Details">
             <DetailRow 
               label="Glimmer Lamps x 2"
-              value="$250.00"
+              value="₦250.00"
             />
             <DetailRow 
               label="Aqua Filters x 1"
-              value="$49.00"
+              value="₦49.00"
             />
             <div className="border-t mt-4 pt-4 space-y-3">
               <DetailRow 
                 label="Subtotal"
-                value="$299.00"
+                value="₦299.00"
               />
               <DetailRow 
                 label="Shipping"
-                value="$5.00"
+                value="₦5.00"
               />
               <DetailRow 
                 label="Tax"
-                value="$25.00"
+                value="₦25.00"
               />
               <DetailRow 
                 label="Total"
-                value="$329.00"
+                value="₦329.00"
                 bold
               />
             </div>

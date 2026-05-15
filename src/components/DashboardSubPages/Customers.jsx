@@ -11,6 +11,7 @@ import Header from '../Header';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { formatNaira } from '@/utils/currency';
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -94,7 +95,7 @@ const Customers = () => {
           avatar:
             normalizedAvatar ||
             `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${getPlatformColor(platform)}&color=fff`,
-          transactionVolume: totalPrice !== null ? `$${totalPrice.toFixed(2)}` : '—',
+          transactionVolume: totalPrice !== null ? formatNaira(totalPrice) : '—',
           total_price: totalPrice ?? 0,
           completedOrders: totalOrders !== null ? totalOrders : '—',
           address,
