@@ -106,9 +106,49 @@ const Payments = () => {
   const [balance, setBalance] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Merchant business info shown on the receipt. Name is seeded from
+  // Header's localStorage cache to avoid a first-paint flicker; the full
+  // profile (name, email, phone) is refreshed from /settings on mount.
+  const [businessProfile, setBusinessProfile] = useState(() => {
+    let name = 'Your Business';
+    try {
+      const userId = localStorage.getItem('userId');
+      if (userId) {
+        const cached = JSON.parse(localStorage.getItem(`businessData_${userId}`) || 'null');
+        if (cached?.bname) name = cached.bname;
+      }
+    } catch {
+      // ignore
+    }
+    if (name === 'Your Business') {
+      name = localStorage.getItem('userName') || name;
+    }
+    return { name, email: '', phone: '' };
+  });
+
   useEffect(() => {
     fetchTransactions();
+    fetchBusinessProfile();
   }, []);
+
+  const fetchBusinessProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const response = await fetch(`${API_BASE_URL}/settings`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setBusinessProfile(prev => ({
+        name: data.bname || prev.name,
+        email: data.bemail || '',
+        phone: data.bphone || ''
+      }));
+    } catch {
+      // Keep the seeded values
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -273,19 +313,32 @@ const Payments = () => {
     doc.setFontSize(20);
     doc.text('TRANSACTION RECEIPT', 105, 20, { align: 'center' });
 
-    // Company info (you can customize this)
+    // Business name (from the merchant's profile)
     doc.setFontSize(12);
-    doc.text('Automation365', 105, 30, { align: 'center' });
-    doc.text('support@automation365.io', 105, 37, { align: 'center' });
+    doc.text(businessProfile.name, 105, 30, { align: 'center' });
+
+    // Business contact lines — only render the ones the merchant has filled in
+    let contactY = 37;
+    doc.setFontSize(10);
+    if (businessProfile.email) {
+      doc.text(businessProfile.email, 105, contactY, { align: 'center' });
+      contactY += 6;
+    }
+    if (businessProfile.phone) {
+      doc.text(businessProfile.phone, 105, contactY, { align: 'center' });
+      contactY += 6;
+    }
 
     // Line separator
-    doc.line(20, 45, 190, 45);
+    const separatorY = contactY + 2;
+    doc.line(20, separatorY, 190, separatorY);
 
     // Receipt details
+    const detailsY = separatorY + 10;
     doc.setFontSize(10);
-    doc.text(`Receipt No: ${transaction.id}`, 20, 55);
-    doc.text(`Date: ${format(new Date(transaction.date), 'PPP')}`, 20, 62);
-    doc.text(`Status: ${transaction.status}`, 20, 69);
+    doc.text(`Receipt No: ${transaction.id}`, 20, detailsY);
+    doc.text(`Date: ${format(new Date(transaction.date), 'PPP')}`, 20, detailsY + 7);
+    doc.text(`Status: ${transaction.status}`, 20, detailsY + 14);
 
     // Customer details
     doc.setFontSize(12);
