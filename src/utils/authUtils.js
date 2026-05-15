@@ -130,14 +130,26 @@ export const processOAuthCallback = () => {
   const token = urlParams.get('token');
   const refreshToken = urlParams.get('refresh_token');
   const error = urlParams.get('error');
+  const platform = urlParams.get('platform');
+
+  // Social-account-link callbacks (Instagram/Messenger/WhatsApp) come back with
+  // ?success=...&platform=... and no token. They are handled by LinkAccount, not
+  // by the login OAuth flow. Bail out so the URL params survive and the user
+  // is not bounced to /Login.
+  if (platform) {
+    return {
+      success: false,
+      isOAuthCallback: false
+    };
+  }
 
   // Check if this is an OAuth callback
   const hasOAuthParams = success !== null || token !== null || error !== null;
-  
+
   if (!hasOAuthParams) {
-    return { 
-      success: false, 
-      isOAuthCallback: false 
+    return {
+      success: false,
+      isOAuthCallback: false
     };
   }
 
