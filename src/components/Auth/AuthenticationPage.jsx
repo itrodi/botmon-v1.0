@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { clearUserData } from '@/utils/authUtils';
+import { getDeviceName, getApproxLocation } from '@/utils/deviceInfo';
 
 const AuthenticationPage = () => {
   const navigate = useNavigate();
@@ -105,9 +106,12 @@ const AuthenticationPage = () => {
     setLoading(true);
     
     try {
+      const location = await getApproxLocation();
       const response = await axios.post(API_BASE_URL + '/auth/register', {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        device_name: getDeviceName(),
+        location
       });
       
       if (response.data.token) {

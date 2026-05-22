@@ -6,6 +6,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { processOAuthCallback } from '@/utils/authUtils';
+import { getDeviceName, getApproxLocation } from '@/utils/deviceInfo';
 import { API_BASE_URL } from '@/config/api';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -88,9 +89,12 @@ const Login = () => {
     setLoading(true);
     
     try {
+      const location = await getApproxLocation();
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        device_name: getDeviceName(),
+        location
       });
       
       if (response.data.token) {
