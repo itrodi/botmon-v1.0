@@ -39,11 +39,27 @@ const AdminAnalytics = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmText, setConfirmText] = useState('');
 
+  // Bank verification states
+  const [bankUsers, setBankUsers] = useState([]);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankError, setBankError] = useState(null);
+  const [verifyingId, setVerifyingId] = useState(null);
+  const [bankActionMessage, setBankActionMessage] = useState(null);
+
   const COLORS = ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
 
   useEffect(() => {
     fetchAllAnalytics();
   }, []);
+
+  // Refresh the unverified bank-user list whenever the Bank tab is opened,
+  // so admins always see the freshest queue.
+  useEffect(() => {
+    if (activeTab === 'bank') {
+      fetchBankUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // ==================== HELPER FUNCTIONS ====================
 
@@ -68,7 +84,6 @@ const AdminAnalytics = () => {
       setLoading(true);
       setError(null);
 
-      const API_BASE_URL = API_BASE_URL + '';
       const endpoints = [
         { key: 'onboarding', url: `${API_BASE_URL}/user-onboarding-engagement` },
         { key: 'usagePatterns', url: `${API_BASE_URL}/platform-usage-patterns` },
@@ -149,9 +164,8 @@ const AdminAnalytics = () => {
   const handleDeleteDatabase = async () => {
     setDbActionLoading(true);
     setDbActionResult(null);
-    
+
     try {
-      const API_BASE_URL = API_BASE_URL + '';
       const token = localStorage.getItem('token');
       const emailsToKeep = parseEmailList(excludeEmails);
       
@@ -175,9 +189,8 @@ const AdminAnalytics = () => {
   const handleDeleteSpecificUsers = async () => {
     setDbActionLoading(true);
     setDbActionResult(null);
-    
+
     try {
-      const API_BASE_URL = API_BASE_URL + '';
       const token = localStorage.getItem('token');
       const emailsToDelete = parseEmailList(deleteEmails);
       
@@ -214,6 +227,66 @@ const AdminAnalytics = () => {
   const executeConfirmedAction = () => {
     if (confirmAction === 'database') handleDeleteDatabase();
     else if (confirmAction === 'specific') handleDeleteSpecificUsers();
+  };
+
+  // ==================== BANK VERIFICATION FUNCTIONS ====================
+
+  // Flexible field reader — the bank collection stores documents with multiple
+  // possible field names depending on when they were saved.
+  const pickField = (entry, ...names) => {
+    for (const n of names) {
+      const v = entry?.[n];
+      if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return '';
+  };
+
+  const fetchBankUsers = async () => {
+    setBankLoading(true);
+    setBankError(null);
+    setBankActionMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.get(`${API_BASE_URL}/bank-users`, config);
+      const list = Array.isArray(response.data?.data) ? response.data.data : [];
+      setBankUsers(list);
+    } catch (err) {
+      setBankError(err.response?.data?.message || err.message || 'Failed to load unverified bank users');
+      setBankUsers([]);
+    } finally {
+      setBankLoading(false);
+    }
+  };
+
+  const handleVerifyBankUser = async (entry) => {
+    const targetId = entry?._id;
+    if (!targetId) {
+      setBankActionMessage({ type: 'error', text: 'This entry has no _id and cannot be verified.' });
+      return;
+    }
+    setVerifyingId(targetId);
+    setBankActionMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const config = token
+        ? { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+        : { headers: { 'Content-Type': 'application/json' } };
+      await axios.post(`${API_BASE_URL}/verify-users`, { _id: targetId }, config);
+      // The list filters on { verified: false }, so verified rows leave the list.
+      setBankUsers(prev => prev.filter(u => u._id !== targetId));
+      setBankActionMessage({
+        type: 'success',
+        text: `Verified ${pickField(entry, 'Account_Name', 'account_name', 'name', 'account') || 'user'}.`
+      });
+    } catch (err) {
+      setBankActionMessage({
+        type: 'error',
+        text: err.response?.data?.message || err.message || 'Failed to verify user.'
+      });
+    } finally {
+      setVerifyingId(null);
+    }
   };
 
   // ==================== METRIC CARD COMPONENT ====================
@@ -517,6 +590,115 @@ const AdminAnalytics = () => {
       </div>
     );
   };
+
+  // ==================== BANK VERIFICATION TAB ====================
+
+  const renderBankVerification = () => {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">Bank Verification</h2>
+              <p className="text-gray-600">
+                Review and verify pending merchant bank accounts. Verifying an entry marks it as <strong>verified</strong> in the database.
+              </p>
+            </div>
+            <button
+              onClick={fetchBankUsers}
+              disabled={bankLoading}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`w-4 h-4 ${bankLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+
+          {bankActionMessage && (
+            <div
+              className={`mb-4 p-3 rounded-lg text-sm flex items-start gap-2 ${
+                bankActionMessage.type === 'success'
+                  ? 'bg-green-50 text-green-800 border border-green-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}
+            >
+              {bankActionMessage.type === 'success' ? (
+                <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              ) : (
+                <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              )}
+              <span>{bankActionMessage.text}</span>
+            </div>
+          )}
+
+          {bankLoading ? (
+            <div className="flex items-center justify-center py-12 text-gray-500">
+              <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+              Loading unverified bank users…
+            </div>
+          ) : bankError ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {bankError}
+            </div>
+          ) : bankUsers.length === 0 ? (
+            <div className="py-12 text-center text-gray-500">
+              <Shield className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+              <p className="font-medium">No unverified bank users.</p>
+              <p className="text-sm">Everything currently on file has been verified.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b text-gray-600">
+                    <th className="py-2 px-3 font-medium">Account Name</th>
+                    <th className="py-2 px-3 font-medium">Bank</th>
+                    <th className="py-2 px-3 font-medium">Account Number</th>
+                    <th className="py-2 px-3 font-medium">User ID</th>
+                    <th className="py-2 px-3 font-medium text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bankUsers.map((entry) => {
+                    const accountName = pickField(entry, 'Account_Name', 'account_name', 'name', 'account');
+                    const bankName = pickField(entry, 'Bank_Name', 'bank_name', 'bankn', 'bank');
+                    const accountNumber = pickField(entry, 'Account_Number', 'account_number', 'number');
+                    const userid = pickField(entry, 'userid', 'user_id');
+                    const isVerifying = verifyingId === entry._id;
+                    return (
+                      <tr key={entry._id} className="border-b last:border-b-0 hover:bg-gray-50">
+                        <td className="py-3 px-3 font-medium text-gray-900">{accountName || '—'}</td>
+                        <td className="py-3 px-3 text-gray-700">{bankName || '—'}</td>
+                        <td className="py-3 px-3 font-mono text-gray-700">{accountNumber || '—'}</td>
+                        <td className="py-3 px-3 font-mono text-xs text-gray-500" title={userid}>
+                          {userid ? `${String(userid).slice(0, 12)}…` : '—'}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            onClick={() => handleVerifyBankUser(entry)}
+                            disabled={isVerifying || !entry._id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium"
+                          >
+                            {isVerifying ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-3.5 h-3.5" />
+                            )}
+                            {isVerifying ? 'Verifying…' : 'Verify'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // ==================== OVERVIEW ====================
 
   const renderOverview = () => {
@@ -2050,6 +2232,7 @@ const AdminAnalytics = () => {
               { key: 'success', label: 'User Success', icon: Users },
               { key: 'technical', label: 'Technical', icon: Zap },
               { key: 'churn', label: 'Churn Risk', icon: AlertTriangle },
+              { key: 'bank', label: 'Bank Verification', icon: Shield },
               { key: 'database', label: 'Database', icon: Database },
             ].map(tab => (
               <button 
@@ -2080,6 +2263,7 @@ const AdminAnalytics = () => {
           {activeTab === 'success' && renderUserSuccess()}
           {activeTab === 'technical' && renderTechnicalPerformance()}
           {activeTab === 'churn' && renderChurnRisk()}
+          {activeTab === 'bank' && renderBankVerification()}
           {activeTab === 'database' && renderDatabaseManagement()}
         </div>
       </div>
