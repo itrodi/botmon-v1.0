@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import {
@@ -122,6 +122,8 @@ const EditServicePage = () => {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [isEditingSub, setIsEditingSub] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState(null);
+  const [deletingSubId, setDeletingSubId] = useState(null);
 
   // Fetch service data and categories on mount
   useEffect(() => {
@@ -636,6 +638,76 @@ const EditServicePage = () => {
     }
   };
 
+  // Delete a category
+  const handleDeleteCategory = async (cat) => {
+    const catName = typeof cat === 'object' ? cat.name : cat;
+    const catId = typeof cat === 'object' ? cat.id : catName;
+    if (!window.confirm(`Delete category "${catName}"? This cannot be undone.`)) return;
+
+    setDeletingCategoryId(catId);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      await axios.delete(`${API_BASE_URL}/delete-scategory/${catId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setCategories(prev => prev.filter(c => {
+        const id = typeof c === 'object' ? c.id : c;
+        return id !== catId;
+      }));
+      if (serviceData.category === catName) {
+        setServiceData(prev => ({ ...prev, category: '' }));
+      }
+      toast.success('Category deleted');
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete category');
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
+
+  // Delete a subcategory
+  const handleDeleteSubcategory = async (sub) => {
+    const subName = typeof sub === 'object' ? sub.name : sub;
+    const subId = typeof sub === 'object' ? sub.id : subName;
+    if (!window.confirm(`Delete subcategory "${subName}"? This cannot be undone.`)) return;
+
+    setDeletingSubId(subId);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      await axios.delete(`${API_BASE_URL}/delete-ssub/${subId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setSubs(prev => prev.filter(s => {
+        const id = typeof s === 'object' ? s.id : s;
+        return id !== subId;
+      }));
+      if (serviceData.sub === subName) {
+        setServiceData(prev => ({ ...prev, sub: '' }));
+      }
+      toast.success('Subcategory deleted');
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete subcategory');
+    } finally {
+      setDeletingSubId(null);
+    }
+  };
+
   // Open edit category modal
   const openEditCategoryModal = (category) => {
     setEditingCategory({
@@ -758,21 +830,25 @@ const EditServicePage = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
+
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <DashboardHeader title="Edit Service" />
-        
-        <main className="flex-1 overflow-y-auto">
+
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="max-w-4xl mx-auto p-6">
             <div className="flex items-center gap-4 mb-6">
-              <Link to="/products">
-                <Button variant="outline" size="icon" className="h-7 w-7">
-                  <ChevronLeft className="h-4 w-4" />
-                  <span className="sr-only">Back</span>
-                </Button>
-              </Link>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => navigate(-1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Back</span>
+              </Button>
               <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
                 Edit Service
               </h1>
@@ -1407,15 +1483,33 @@ const EditServicePage = () => {
                         <TableRow key={categoryId}>
                           <TableCell>{categoryName}</TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditCategoryModal(
-                                typeof category === 'object' ? category : { id: categoryName, name: categoryName }
-                              )}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditCategoryModal(
+                                  typeof category === 'object' ? category : { id: categoryName, name: categoryName }
+                                )}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteCategory(
+                                  typeof category === 'object' ? category : { id: categoryName, name: categoryName }
+                                )}
+                                disabled={deletingCategoryId === categoryId}
+                                aria-label={`Delete ${categoryName}`}
+                              >
+                                {deletingCategoryId === categoryId ? (
+                                  <Loader className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -1449,15 +1543,33 @@ const EditServicePage = () => {
                         <TableRow key={subId}>
                           <TableCell>{subName}</TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditSubModal(
-                                typeof sub === 'object' ? sub : { id: subName, name: subName }
-                              )}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditSubModal(
+                                  typeof sub === 'object' ? sub : { id: subName, name: subName }
+                                )}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteSubcategory(
+                                  typeof sub === 'object' ? sub : { id: subName, name: subName }
+                                )}
+                                disabled={deletingSubId === subId}
+                                aria-label={`Delete ${subName}`}
+                              >
+                                {deletingSubId === subId ? (
+                                  <Loader className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

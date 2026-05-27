@@ -128,7 +128,7 @@ const IndividualProductPage = () => {
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <p className="text-gray-700 mb-4">{error}</p>
               <div className="flex gap-2 justify-center">
-                <Button onClick={() => navigate('/products')} variant="outline">
+                <Button onClick={() => navigate(-1)} variant="outline">
                   Back to Products
                 </Button>
                 <Button onClick={fetchProductDetails}>
@@ -152,7 +152,7 @@ const IndividualProductPage = () => {
             <div className="text-center">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-700 mb-4">Product not found</p>
-              <Button onClick={() => navigate('/products')} variant="outline">
+              <Button onClick={() => navigate(-1)} variant="outline">
                 Back to Products
               </Button>
             </div>
@@ -175,7 +175,7 @@ const IndividualProductPage = () => {
             <div className="flex items-center gap-4 mb-6">
               <Button
                 variant="outline"
-                onClick={() => navigate('/products')}
+                onClick={() => navigate(-1)}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />

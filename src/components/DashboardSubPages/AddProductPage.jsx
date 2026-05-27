@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/config/api';
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, X, Edit2, Settings, FileText, Loader2 } from 'lucide-react';
+import { Upload, Plus, X, Edit2, Settings, FileText, Loader2, Trash2, Loader } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,6 +102,8 @@ const AddProductPage = () => {
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isEditingCategory, setIsEditingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState(null);
+  const [deletingSubId, setDeletingSubId] = useState(null);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -330,6 +332,78 @@ const AddProductPage = () => {
       toast.error(error.message || 'Failed to edit subcategory');
     } finally {
       setIsEditingCategory(false);
+    }
+  };
+
+  // Delete a category
+  const handleDeleteCategory = async (cat) => {
+    if (!window.confirm(`Delete category "${cat.name}"? This cannot be undone.`)) return;
+
+    setDeletingCategoryId(cat.id);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/delete-category/${cat.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to delete category');
+      }
+
+      setCategories(prev => prev.filter(c => c.id !== cat.id));
+      if (productData.category === cat.name) {
+        setProductData(prev => ({ ...prev, category: '' }));
+      }
+      toast.success('Category deleted');
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast.error(error.message || 'Failed to delete category');
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
+
+  // Delete a subcategory
+  const handleDeleteSubcategory = async (sub) => {
+    if (!window.confirm(`Delete subcategory "${sub.name}"? This cannot be undone.`)) return;
+
+    setDeletingSubId(sub.id);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/delete-sub/${sub.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to delete subcategory');
+      }
+
+      setSubs(prev => prev.filter(s => s.id !== sub.id));
+      if (productData.sub === sub.name) {
+        setProductData(prev => ({ ...prev, sub: '' }));
+      }
+      toast.success('Subcategory deleted');
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+      toast.error(error.message || 'Failed to delete subcategory');
+    } finally {
+      setDeletingSubId(null);
     }
   };
 
@@ -707,13 +781,13 @@ const AddProductPage = () => {
   const isDraft = productData.statusOption === 'draft';
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
+
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <DashboardHeader title="Add Product" />
-        
-        <main className="flex-1 overflow-y-auto">
+
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="max-w-4xl mx-auto p-6">
             <div className="space-y-8">
               
@@ -1170,21 +1244,37 @@ const AddProductPage = () => {
                       ) : (
                         <>
                           <span className="font-medium">{category.name}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingCategory(category.id);
-                              setEditCategoryForm({
-                                cat_id: category.id,
-                                category: category.name,
-                                sub_id: '',
-                                sub: ''
-                              });
-                            }}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCategory(category.id);
+                                setEditCategoryForm({
+                                  cat_id: category.id,
+                                  category: category.name,
+                                  sub_id: '',
+                                  sub: ''
+                                });
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteCategory(category)}
+                              disabled={deletingCategoryId === category.id}
+                              aria-label={`Delete ${category.name}`}
+                            >
+                              {deletingCategoryId === category.id ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -1237,21 +1327,37 @@ const AddProductPage = () => {
                       ) : (
                         <>
                           <span className="font-medium">{sub.name}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingSubcategory(sub.id);
-                              setEditCategoryForm({
-                                cat_id: '',
-                                category: '',
-                                sub_id: sub.id,
-                                sub: sub.name
-                              });
-                            }}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingSubcategory(sub.id);
+                                setEditCategoryForm({
+                                  cat_id: '',
+                                  category: '',
+                                  sub_id: sub.id,
+                                  sub: sub.name
+                                });
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteSubcategory(sub)}
+                              disabled={deletingSubId === sub.id}
+                              aria-label={`Delete ${sub.name}`}
+                            >
+                              {deletingSubId === sub.id ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </>
                       )}
                     </div>
