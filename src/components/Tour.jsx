@@ -42,7 +42,7 @@ const Tour = () => {
     {
       selector: '[data-tour="nav-chatbot"]',
       title: 'AI chatbot',
-      body: 'Your AI-powered assistant replies to customers automatically across all your channels.',
+      body: 'A page for testing chatbots deployed to your social accounts so you can get the feel of how the chatbot responds.',
       icon: '🤖',
     },
     {

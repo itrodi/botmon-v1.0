@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '@/config/api';
 import { formatNaira } from '@/utils/currency';
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, X, Loader, ChevronLeft, Edit2, FileText } from 'lucide-react';
+import { Upload, Plus, X, Loader, ChevronLeft, Edit2, FileText, Trash2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -116,6 +116,8 @@ const AddServicesPage = () => {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [isEditingSub, setIsEditingSub] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState(null);
+  const [deletingSubId, setDeletingSubId] = useState(null);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -547,6 +549,66 @@ const AddServicesPage = () => {
     }
   };
 
+  // Delete a category
+  const handleDeleteCategory = async (cat) => {
+    if (!window.confirm(`Delete category "${cat.name}"? This cannot be undone.`)) return;
+
+    setDeletingCategoryId(cat.id);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      await axios.delete(`${API_BASE_URL}/delete-scategory/${cat.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setCategories(prev => prev.filter(c => c.id !== cat.id));
+      if (serviceData.category === cat.name) {
+        setServiceData(prev => ({ ...prev, category: '' }));
+      }
+      toast.success('Category deleted');
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete category');
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
+
+  // Delete a subcategory
+  const handleDeleteSubcategory = async (sub) => {
+    if (!window.confirm(`Delete subcategory "${sub.name}"? This cannot be undone.`)) return;
+
+    setDeletingSubId(sub.id);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      await axios.delete(`${API_BASE_URL}/delete-ssub/${sub.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setSubs(prev => prev.filter(s => s.id !== sub.id));
+      if (serviceData.sub === sub.name) {
+        setServiceData(prev => ({ ...prev, sub: '' }));
+      }
+      toast.success('Subcategory deleted');
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete subcategory');
+    } finally {
+      setDeletingSubId(null);
+    }
+  };
+
   // Open edit category modal
   const openEditCategoryModal = (category) => {
     setEditingCategory({
@@ -674,13 +736,13 @@ const AddServicesPage = () => {
   const isDraft = serviceData.statusOption === 'draft';
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
+
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <DashboardHeader title="Add Service" />
-        
-        <main className="flex-1 overflow-y-auto">
+
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="max-w-4xl mx-auto p-6">
             <div className="flex items-center gap-4 mb-6">
               <Button 
@@ -1375,13 +1437,29 @@ const AddServicesPage = () => {
                       <TableRow key={category.id}>
                         <TableCell>{category.name}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditCategoryModal(category)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditCategoryModal(category)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteCategory(category)}
+                              disabled={deletingCategoryId === category.id}
+                              aria-label={`Delete ${category.name}`}
+                            >
+                              {deletingCategoryId === category.id ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -1410,13 +1488,29 @@ const AddServicesPage = () => {
                       <TableRow key={sub.id}>
                         <TableCell>{sub.name}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditSubModal(sub)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditSubModal(sub)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteSubcategory(sub)}
+                              disabled={deletingSubId === sub.id}
+                              aria-label={`Delete ${sub.name}`}
+                            >
+                              {deletingSubId === sub.id ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
