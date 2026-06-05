@@ -109,7 +109,10 @@ const AddServicesPage = () => {
   // Available categories and subcategories with IDs
   const [categories, setCategories] = useState([]);
   const [subs, setSubs] = useState([]);
-  
+
+  // Existing service names (lowercased) for duplicate detection
+  const [existingServiceNames, setExistingServiceNames] = useState([]);
+
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
@@ -119,10 +122,43 @@ const AddServicesPage = () => {
   const [deletingCategoryId, setDeletingCategoryId] = useState(null);
   const [deletingSubId, setDeletingSubId] = useState(null);
 
-  // Fetch categories on mount
+  // Fetch categories and existing services on mount
   useEffect(() => {
     fetchCategories();
+    fetchExistingServiceNames();
   }, []);
+
+  // Fetch existing service names so we can block duplicates
+  const fetchExistingServiceNames = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(API_BASE_URL + '/services', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const payload = response.data;
+      const raw =
+        payload?.data?.services ??
+        payload?.services ??
+        payload?.data ??
+        payload;
+      const list = Array.isArray(raw) ? raw : [];
+      const names = list
+        .map(s => (s?.name || '').trim().toLowerCase())
+        .filter(Boolean);
+      setExistingServiceNames(names);
+    } catch (error) {
+      console.error('Error fetching existing services:', error);
+    }
+  };
+
+  const isDuplicateName = (name) => {
+    const normalized = (name || '').trim().toLowerCase();
+    if (!normalized) return false;
+    return existingServiceNames.includes(normalized);
+  };
 
   // Fetch categories and subcategories
   const fetchCategories = async () => {
@@ -655,6 +691,11 @@ const AddServicesPage = () => {
       }
     }
 
+    if (isDuplicateName(serviceData.name)) {
+      toast.error('A service with this name already exists. Please choose a different name.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -898,9 +939,14 @@ const AddServicesPage = () => {
                             value={serviceData.name}
                             onChange={handleInputChange}
                             placeholder="Enter service name"
-                            className="w-full"
+                            className={`w-full ${isDuplicateName(serviceData.name) ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                             required
                           />
+                          {isDuplicateName(serviceData.name) && (
+                            <p className="text-sm text-red-600">
+                              A service with this name already exists.
+                            </p>
+                          )}
                         </div>
                         <div className="grid gap-3">
                           <Label htmlFor="description">Service Description</Label>
