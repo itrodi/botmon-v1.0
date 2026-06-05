@@ -114,7 +114,10 @@ const EditServicePage = () => {
   // Available categories and subcategories with IDs
   const [categories, setCategories] = useState([]);
   const [subs, setSubs] = useState([]);
-  
+
+  // Existing service names (lowercased) excluding the one being edited
+  const [existingServiceNames, setExistingServiceNames] = useState([]);
+
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -130,11 +133,45 @@ const EditServicePage = () => {
     if (serviceId) {
       fetchServiceData();
       fetchCategories();
+      fetchExistingServiceNames();
     } else {
       toast.error("No service ID provided");
       navigate('/ProductPage?tab=services');
     }
   }, [serviceId]);
+
+  // Fetch other service names to block duplicates (exclude current service)
+  const fetchExistingServiceNames = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(API_BASE_URL + '/services', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const payload = response.data;
+      const raw =
+        payload?.data?.services ??
+        payload?.services ??
+        payload?.data ??
+        payload;
+      const list = Array.isArray(raw) ? raw : [];
+      const names = list
+        .filter(s => String(s?.id || s?._id || '') !== String(serviceId))
+        .map(s => (s?.name || '').trim().toLowerCase())
+        .filter(Boolean);
+      setExistingServiceNames(names);
+    } catch (error) {
+      console.error('Error fetching existing services:', error);
+    }
+  };
+
+  const isDuplicateName = (name) => {
+    const normalized = (name || '').trim().toLowerCase();
+    if (!normalized) return false;
+    return existingServiceNames.includes(normalized);
+  };
 
   // Fetch service data
   const fetchServiceData = async () => {
@@ -736,6 +773,11 @@ const EditServicePage = () => {
       return;
     }
 
+    if (isDuplicateName(serviceData.name)) {
+      toast.error('A service with this name already exists. Please choose a different name.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -902,9 +944,14 @@ const EditServicePage = () => {
                             value={serviceData.name}
                             onChange={handleInputChange}
                             placeholder="Enter service name"
-                            className="w-full"
+                            className={`w-full ${isDuplicateName(serviceData.name) ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                             required
                           />
+                          {isDuplicateName(serviceData.name) && (
+                            <p className="text-sm text-red-600">
+                              Another service with this name already exists.
+                            </p>
+                          )}
                         </div>
                         <div className="grid gap-3">
                           <Label htmlFor="description">Service Description</Label>

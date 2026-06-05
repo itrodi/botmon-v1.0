@@ -102,7 +102,10 @@ const EditProductPage = () => {
   // Available categories and subcategories - store full objects with IDs
   const [categories, setCategories] = useState([]);
   const [subs, setSubs] = useState([]);
-  
+
+  // Existing product names (lowercased) excluding the one being edited
+  const [existingProductNames, setExistingProductNames] = useState([]);
+
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -116,13 +119,47 @@ const EditProductPage = () => {
   useEffect(() => {
     if (productId) {
       fetchProductData();
+      fetchExistingProductNames();
     } else {
       toast.error("No product ID provided");
       navigate('/ProductPage?tab=products');
     }
-    
+
     fetchCategories();
   }, [productId]);
+
+  // Fetch other product names to block duplicates (exclude current product)
+  const fetchExistingProductNames = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(API_BASE_URL + '/products', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const payload = response.data;
+      const raw =
+        payload?.data?.products ??
+        payload?.products ??
+        payload?.data ??
+        payload;
+      const list = Array.isArray(raw) ? raw : [];
+      const names = list
+        .filter(p => String(p?.id || p?._id || '') !== String(productId))
+        .map(p => (p?.name || '').trim().toLowerCase())
+        .filter(Boolean);
+      setExistingProductNames(names);
+    } catch (error) {
+      console.error('Error fetching existing products:', error);
+    }
+  };
+
+  const isDuplicateName = (name) => {
+    const normalized = (name || '').trim().toLowerCase();
+    if (!normalized) return false;
+    return existingProductNames.includes(normalized);
+  };
 
   // Fetch product data
   const fetchProductData = async () => {
@@ -673,6 +710,11 @@ const EditProductPage = () => {
       return;
     }
 
+    if (isDuplicateName(productData.name)) {
+      toast.error('A product with this name already exists. Please choose a different name.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -805,13 +847,19 @@ const EditProductPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Product Name *
                   </label>
-                  <Input 
+                  <Input
                     name="name"
                     value={productData.name}
                     onChange={handleInputChange}
-                    placeholder="Enter product name" 
+                    placeholder="Enter product name"
                     required
+                    className={isDuplicateName(productData.name) ? 'border-red-500 focus-visible:ring-red-500' : ''}
                   />
+                  {isDuplicateName(productData.name) && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Another product with this name already exists.
+                    </p>
+                  )}
                 </div>
 
                 <div>

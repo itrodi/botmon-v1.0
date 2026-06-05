@@ -222,8 +222,8 @@ const Payments = () => {
           actualName: customerName, // Keep actual name for tooltip
           amount: (parseFloat(order.price) || 0) * (parseInt(order.quantity) || 1),
           status: transactionStatus,
-          product: order['product-name'] || order.product_name || order.product || 
-                  order.item || order.item_name || order.name || order.pname || 'Product',
+          product: order.pname || order['product-name'] || order.product_name ||
+                  order.product || order.item || order.item_name || 'Product',
           platform: platform,
           email: customerEmail,
           phone: customerPhone,
