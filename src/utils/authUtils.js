@@ -131,12 +131,29 @@ export const processOAuthCallback = () => {
   const refreshToken = urlParams.get('refresh_token');
   const error = urlParams.get('error');
   const platform = urlParams.get('platform');
+  const username = urlParams.get('username');
+  const pageName = urlParams.get('page_name');
+  const profilePicture = urlParams.get('profile_picture');
 
-  // Social-account-link callbacks (Instagram/Messenger/WhatsApp) come back with
-  // ?success=...&platform=... and no token. They are handled by LinkAccount, not
-  // by the login OAuth flow. Bail out so the URL params survive and the user
-  // is not bounced to /Login.
-  if (platform) {
+  // Social-account-link callbacks (Instagram/Messenger/WhatsApp) come back to the
+  // /Link settings page with ?success=...&platform=... and never carry a login
+  // token. They are consumed by LinkAccount, not the login OAuth flow. The
+  // Instagram callback in particular sometimes omits the platform param (the
+  // LinkAccount handler defaults to Instagram), so relying on ?platform= alone
+  // let those callbacks fall through to the "Invalid OAuth response" branch
+  // below, which strips the params and reports auth failure -- bouncing the user
+  // to /Login even though their token is still in localStorage. Detect the
+  // social-link case by the /Link path or any social-specific param and bail out
+  // so the URL params survive untouched.
+  const path = (window.location.pathname || '').toLowerCase();
+  const isSocialLinkCallback =
+    path === '/link' ||
+    !!platform ||
+    !!username ||
+    !!pageName ||
+    !!profilePicture;
+
+  if (isSocialLinkCallback) {
     return {
       success: false,
       isOAuthCallback: false
