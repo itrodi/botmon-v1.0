@@ -70,6 +70,9 @@ const TransactionRow = ({ transaction, onView, onDownload }) => {
       </td>
       <td className="py-4 px-4">
         <span className="text-gray-600">{transaction.product}</span>
+        {transaction.type && (
+          <p className="text-xs text-gray-400">{transaction.type}</p>
+        )}
       </td>
       <td className="py-4 px-4">
         <div className="flex items-center gap-2">
@@ -93,6 +96,61 @@ const TransactionRow = ({ transaction, onView, onDownload }) => {
       </td>
     </tr>
   );
+};
+
+// Map an order/service status (which varies across products and bookings on
+// every platform) onto the three transaction states used by the page's tabs
+// and badges. Confirmed orders and accepted bookings count as Successful;
+// rejected/cancelled either count as Failed; everything else is Pending.
+const mapToTransactionStatus = (raw) => {
+  const s = (raw || '').toString().trim().toLowerCase();
+  if (['confirmed', 'confirm', 'accepted', 'accept', 'successful', 'success', 'completed', 'paid'].includes(s)) {
+    return 'Successful';
+  }
+  if (['rejected', 'reject', 'declined', 'decline', 'cancelled', 'canceled', 'failed'].includes(s)) {
+    return 'Failed';
+  }
+  return 'Pending';
+};
+
+// Normalize a single record from /payment — which merges product orders and
+// service bookings from all three platforms — into the transaction shape the UI
+// renders. The backend already coerces NaN prices to 0 and sorts by timestamp.
+const transformOrder = (order) => {
+  const isService = Boolean(
+    order['service-name'] || order.service_name || order.serviceName || order.sname || order.service
+  );
+
+  const customerEmail = order.email || order.customer_email || order.user_email ||
+    order.buyer_email || 'No email provided';
+  const customerName = order.name || order.customer_name || order.customer ||
+    order.user_name || order.buyer_name || order.client_name || 'Guest Customer';
+  const customerPhone = order.phone || order.customer_phone || order.mobile ||
+    order.contact || order.phone_number || 'No phone provided';
+
+  const itemName = order.pname || order['product-name'] || order.product_name || order.product ||
+    order['service-name'] || order.service_name || order.serviceName || order.sname || order.service ||
+    order.item || order.item_name || (isService ? 'Service' : 'Product');
+
+  return {
+    id: order.ids || order.id || order._id,
+    customerName: customerEmail, // Email is shown as the primary customer label
+    actualName: customerName, // Full name kept for the tooltip / receipt
+    amount: (parseFloat(order.price) || 0) * (parseInt(order.quantity) || 1),
+    status: mapToTransactionStatus(order.status),
+    type: isService ? 'Service' : 'Product',
+    product: itemName,
+    platform: order.platform || 'Multi-Platform',
+    email: customerEmail,
+    phone: customerPhone,
+    address: order.address || order.delivery_address || order.shipping_address ||
+      order.location || 'No address provided',
+    quantity: parseInt(order.quantity) || 1,
+    price: parseFloat(order.price) || 0,
+    // Backend sorts by `timestamp`, so prefer it for chronological accuracy.
+    date: order.timestamp || order.created_at || order.date || order.order_date || new Date().toISOString(),
+    orderStatus: order.status || 'Pending', // Original backend status
+  };
 };
 
 const Payments = () => {
@@ -160,81 +218,60 @@ const Payments = () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/orders`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      // The backend `/payment` endpoint returns product orders AND service
+      // bookings merged across every platform, paginated server-side. We page
+      // through the whole set so the status tabs, search, and date filters
+      // below stay accurate over the complete dataset.
+      const LIMIT = 100;
+      const MAX_PAGES = 50; // safety cap (~5,000 records)
+      const rawOrders = [];
+      let page = 1;
+      let totalPages = 1;
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          return;
-        }
-        throw new Error('Failed to fetch transactions');
-      }
+      do {
+        const response = await fetch(`${API_BASE_URL}/payment?page=${page}&limit=${LIMIT}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
-      const rawData = await response.json();
-
-      const ordersData = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.orders)
-        ? rawData.orders
-        : Array.isArray(rawData?.data)
-        ? rawData.data
-        : Array.isArray(rawData?.data?.orders)
-        ? rawData.data.orders
-        : [];
-
-      console.log('[Payments] raw response shape:', typeof rawData, Array.isArray(rawData) ? 'array' : Object.keys(rawData || {}));
-      console.log('[Payments] normalized orders count:', ordersData.length);
-
-      // Transform orders to transactions format
-      const transformedTransactions = ordersData.map(order => {
-        // Map order status to transaction status
-        let transactionStatus = 'Pending';
-        if (order.status === 'Confirmed') {
-          transactionStatus = 'Successful';
-        } else if (order.status === 'Rejected') {
-          transactionStatus = 'Failed';
+        if (!response.ok) {
+          if (response.status === 401) {
+            toast.error('Session expired. Please login again.');
+            return;
+          }
+          throw new Error('Failed to fetch transactions');
         }
 
-        // Get customer email (this will be displayed as the customer name)
-        const customerEmail = order.email || order.customer_email || order.user_email || 
-                             order.buyer_email || 'No email provided';
+        const payload = await response.json();
 
-        // Get customer name for tooltip/additional info
-        const customerName = order.name || order.customer_name || order.customer || 
-                            order.user_name || order.buyer_name || order.client_name || 'Guest Customer';
+        // Expected shape: { status, data: { orders: [...], pagination: {...} } }
+        const pageOrders = Array.isArray(payload?.data?.orders)
+          ? payload.data.orders
+          : Array.isArray(payload?.orders)
+          ? payload.orders
+          : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : [];
 
-        // Get phone from various possible fields
-        const customerPhone = order.phone || order.customer_phone || order.mobile || 
-                             order.contact || order.phone_number || 'No phone provided';
+        rawOrders.push(...pageOrders);
 
-        // Determine platform (set default since backend doesn't provide this)
-        const platform = order.platform || 'Multi-Platform';
+        const pagination = payload?.data?.pagination;
+        if (pagination && Number.isFinite(Number(pagination.total_pages))) {
+          totalPages = Number(pagination.total_pages);
+        } else {
+          // No pagination metadata — keep going only while pages stay full.
+          totalPages = pageOrders.length < LIMIT ? page : page + 1;
+        }
+        page += 1;
+      } while (page <= totalPages && page <= MAX_PAGES);
 
-        return {
-          id: order.ids || order.id || order._id,
-          customerName: customerEmail, // Using email as the customer name as requested
-          actualName: customerName, // Keep actual name for tooltip
-          amount: (parseFloat(order.price) || 0) * (parseInt(order.quantity) || 1),
-          status: transactionStatus,
-          product: order.pname || order['product-name'] || order.product_name ||
-                  order.product || order.item || order.item_name || 'Product',
-          platform: platform,
-          email: customerEmail,
-          phone: customerPhone,
-          address: order.address || order.delivery_address || order.shipping_address || 
-                  order.location || 'No address provided',
-          quantity: parseInt(order.quantity) || 1,
-          price: parseFloat(order.price) || 0,
-          date: order.created_at || order.timestamp || order.date || order.order_date || new Date().toISOString(),
-          orderStatus: order.status || 'Pending' // Keep original order status
-        };
-      });
+      // Transform combined orders + services into the transaction format
+      const transformedTransactions = rawOrders.map(transformOrder);
 
       // Sort by date (newest first)
       transformedTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
