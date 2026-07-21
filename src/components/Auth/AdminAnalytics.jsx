@@ -30,6 +30,66 @@ const TAB_DATA_KEYS = {
   churn: ['churnRisk'],
 };
 
+// Number of path steps shown before a flow is collapsed behind "See full path".
+const USER_FLOW_COLLAPSED_STEPS = 5;
+
+// A single row in the "User Flow Insights" list. Manages its own expand state so
+// long paths can be revealed on demand instead of being truncated with a
+// "+N more" tag.
+const UserFlowCard = ({ flow }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const allSteps = typeof flow.path === 'string'
+    ? flow.path.split(' → ')
+    : (Array.isArray(flow.path) ? flow.path : []);
+  const isTruncated = allSteps.length > USER_FLOW_COLLAPSED_STEPS;
+  const steps = expanded ? allSteps : allSteps.slice(0, USER_FLOW_COLLAPSED_STEPS);
+  const flowUsers = Array.isArray(flow.users) ? flow.users : [];
+
+  return (
+    <div className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
+      <div className="flex items-center flex-wrap mb-2">
+        {steps.map((step, stepIdx) => (
+          <React.Fragment key={stepIdx}>
+            <span className="bg-white px-2 py-1 rounded-md text-xs font-medium text-gray-700 border border-gray-200 mb-1">{step}</span>
+            {stepIdx < steps.length - 1 && <span className="mx-1 text-gray-400 text-xs">→</span>}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-500 font-medium">{flow.count} {flow.count === 1 ? 'user' : 'users'}</span>
+        {isTruncated && (
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            {expanded ? 'See less' : `See full path (${allSteps.length} steps)`}
+          </button>
+        )}
+      </div>
+
+      {/* Users who followed this exact flow (name + email) */}
+      {flowUsers.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+          {flowUsers.map((user, userIdx) => {
+            const name = (user?.name || '').trim();
+            const email = (user?.email || '').trim();
+            return (
+              <div key={userIdx} className="flex items-center gap-2 text-xs">
+                <UserCheck className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                <span className="font-medium text-gray-800">{name || 'Unknown user'}</span>
+                {email && <span className="text-gray-500 truncate" title={email}>{email}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminAnalytics = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -968,47 +1028,9 @@ const AdminAnalytics = () => {
             <h4 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">User Flow Insights</h4>
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {userFlows.length > 0 ? (
-                userFlows.map((flow, idx) => {
-                  const allSteps = typeof flow.path === 'string'
-                    ? flow.path.split(' → ')
-                    : (Array.isArray(flow.path) ? flow.path : []);
-                  const steps = allSteps.slice(0, 5);
-                  const extraSteps = allSteps.length - steps.length;
-                  const flowUsers = Array.isArray(flow.users) ? flow.users : [];
-                  return (
-                    <div key={idx} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
-                      <div className="flex items-center flex-wrap mb-2">
-                        {steps.map((step, stepIdx) => (
-                          <React.Fragment key={stepIdx}>
-                            <span className="bg-white px-2 py-1 rounded-md text-xs font-medium text-gray-700 border border-gray-200 mb-1">{step}</span>
-                            {stepIdx < steps.length - 1 && <span className="mx-1 text-gray-400 text-xs">→</span>}
-                          </React.Fragment>
-                        ))}
-                        {extraSteps > 0 && (
-                          <span className="ml-1 text-xs text-gray-400 mb-1">+{extraSteps} more</span>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-500 font-medium">{flow.count} {flow.count === 1 ? 'user' : 'users'}</span>
-
-                      {/* Users who followed this exact flow (name + email) */}
-                      {flowUsers.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
-                          {flowUsers.map((user, userIdx) => {
-                            const name = (user?.name || '').trim();
-                            const email = (user?.email || '').trim();
-                            return (
-                              <div key={userIdx} className="flex items-center gap-2 text-xs">
-                                <UserCheck className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                                <span className="font-medium text-gray-800">{name || 'Unknown user'}</span>
-                                {email && <span className="text-gray-500 truncate" title={email}>{email}</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                userFlows.map((flow, idx) => (
+                  <UserFlowCard key={idx} flow={flow} />
+                ))
               ) : (
                 <p className="text-gray-500">No user flow data available</p>
               )}
