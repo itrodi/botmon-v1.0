@@ -15,6 +15,21 @@ import {
   Database, Trash2, Shield, X, CheckCircle, XCircle
 } from 'lucide-react';
 
+// Which analyticsData keys each tab needs before it can render its content.
+// Used to show a per-tab spinner only until *that* tab's data has arrived,
+// instead of blocking the whole page until every endpoint resolves.
+// Tabs not listed here (bank, database) manage their own loading / need no data.
+const TAB_DATA_KEYS = {
+  overview: ['onboarding', 'businessMetrics', 'userSuccess', 'churnRisk'],
+  onboarding: ['onboarding'],
+  usage: ['usagePatterns'],
+  chatbot: ['chatbotPerformance'],
+  business: ['businessMetrics'],
+  success: ['userSuccess'],
+  technical: ['technicalPerformance'],
+  churn: ['churnRisk'],
+};
+
 const AdminAnalytics = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -102,19 +117,22 @@ const AdminAnalytics = () => {
         }
       } : {};
 
-      const requests = endpoints.map(endpoint => 
-        axios.get(endpoint.url, config)
-          .then(res => ({ key: endpoint.key, data: res.data }))
-          .catch(err => ({ key: endpoint.key, data: null, error: err.message }))
+      // Fire every request in parallel, but commit each response to state the
+      // moment it arrives instead of waiting for the slowest endpoint. This lets
+      // the active tab render as soon as *its* data is ready, rather than
+      // blocking the whole page behind the slowest of all seven requests.
+      await Promise.allSettled(
+        endpoints.map(endpoint =>
+          axios.get(endpoint.url, config)
+            .then(res => {
+              setAnalyticsData(prev => ({ ...prev, [endpoint.key]: res.data }));
+            })
+            .catch(err => {
+              console.error(`Analytics fetch error (${endpoint.key}):`, err.message);
+              setAnalyticsData(prev => ({ ...prev, [endpoint.key]: null }));
+            })
+        )
       );
-
-      const results = await Promise.all(requests);
-      const newData = {};
-      results.forEach(result => {
-        newData[result.key] = result.data;
-      });
-
-      setAnalyticsData(newData);
     } catch (err) {
       setError('Failed to fetch analytics data');
       console.error('Analytics fetch error:', err);
@@ -951,7 +969,12 @@ const AdminAnalytics = () => {
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {userFlows.length > 0 ? (
                 userFlows.map((flow, idx) => {
-                  const steps = typeof flow.path === 'string' ? flow.path.split(' → ').slice(0, 5) : (flow.path || []).slice(0, 5);
+                  const allSteps = typeof flow.path === 'string'
+                    ? flow.path.split(' → ')
+                    : (Array.isArray(flow.path) ? flow.path : []);
+                  const steps = allSteps.slice(0, 5);
+                  const extraSteps = allSteps.length - steps.length;
+                  const flowUsers = Array.isArray(flow.users) ? flow.users : [];
                   return (
                     <div key={idx} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
                       <div className="flex items-center flex-wrap mb-2">
@@ -961,8 +984,28 @@ const AdminAnalytics = () => {
                             {stepIdx < steps.length - 1 && <span className="mx-1 text-gray-400 text-xs">→</span>}
                           </React.Fragment>
                         ))}
+                        {extraSteps > 0 && (
+                          <span className="ml-1 text-xs text-gray-400 mb-1">+{extraSteps} more</span>
+                        )}
                       </div>
-                      <span className="text-xs text-gray-500 font-medium">{flow.count} users</span>
+                      <span className="text-xs text-gray-500 font-medium">{flow.count} {flow.count === 1 ? 'user' : 'users'}</span>
+
+                      {/* Users who followed this exact flow (name + email) */}
+                      {flowUsers.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                          {flowUsers.map((user, userIdx) => {
+                            const name = (user?.name || '').trim();
+                            const email = (user?.email || '').trim();
+                            return (
+                              <div key={userIdx} className="flex items-center gap-2 text-xs">
+                                <UserCheck className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                <span className="font-medium text-gray-800">{name || 'Unknown user'}</span>
+                                {email && <span className="text-gray-500 truncate" title={email}>{email}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -2166,17 +2209,15 @@ const AdminAnalytics = () => {
   };
 
   // ==================== LOADING & ERROR STATES ====================
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 lg:p-6">
-        <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-xl shadow-lg">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading analytics data...</p>
-        </div>
-      </div>
-    );
-  }
+
+  // A tab is ready once all of its required data keys have arrived. Tabs with no
+  // required keys (bank, database) are always ready. Once the initial fetch is
+  // done we render regardless, so a failed endpoint falls back to its own
+  // "no data" state instead of spinning forever.
+  const tabReady = (tabKey) => {
+    const keys = TAB_DATA_KEYS[tabKey] || [];
+    return keys.every((key) => analyticsData[key] != null);
+  };
 
   if (error) {
     return (
@@ -2261,16 +2302,25 @@ const AdminAnalytics = () => {
 
         {/* Content */}
         <div>
-          {activeTab === 'overview' && renderOverview()}
-          {activeTab === 'onboarding' && renderOnboarding()}
-          {activeTab === 'usage' && renderUsagePatterns()}
-          {activeTab === 'chatbot' && renderChatbotPerformance()}
-          {activeTab === 'business' && renderBusinessMetrics()}
-          {activeTab === 'success' && renderUserSuccess()}
-          {activeTab === 'technical' && renderTechnicalPerformance()}
-          {activeTab === 'churn' && renderChurnRisk()}
-          {activeTab === 'bank' && renderBankVerification()}
-          {activeTab === 'database' && renderDatabaseManagement()}
+          {loading && !tabReady(activeTab) ? (
+            <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-xl shadow-lg">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <p className="mt-4 text-gray-600">Loading analytics data...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'overview' && renderOverview()}
+              {activeTab === 'onboarding' && renderOnboarding()}
+              {activeTab === 'usage' && renderUsagePatterns()}
+              {activeTab === 'chatbot' && renderChatbotPerformance()}
+              {activeTab === 'business' && renderBusinessMetrics()}
+              {activeTab === 'success' && renderUserSuccess()}
+              {activeTab === 'technical' && renderTechnicalPerformance()}
+              {activeTab === 'churn' && renderChurnRisk()}
+              {activeTab === 'bank' && renderBankVerification()}
+              {activeTab === 'database' && renderDatabaseManagement()}
+            </>
+          )}
         </div>
       </div>
     </div>
