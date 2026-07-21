@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../Sidebar';
 import DashboardHeader from '../Header';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, Package, Users, Eye, Loader2, ShoppingBag, User } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, Users, Eye, Loader2, Bell } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -44,145 +44,10 @@ const StatCard = ({ title, value, trend, trendValue, icon: Icon, iconBg, loading
   </div>
 );
 
-const normalizeImageUrl = (value) => {
-  if (!value || typeof value !== 'string') return null;
-  if (value.startsWith('data:')) return value;
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  if (value.startsWith('//')) return `https:${value}`;
-  return `https://${value}`;
-};
-
-const getObjectIdTimestamp = (value) => {
-  if (typeof value !== 'string' || value.length < 8) return null;
-  const ts = parseInt(value.slice(0, 8), 16);
-  if (Number.isNaN(ts)) return null;
-  return new Date(ts * 1000).toISOString();
-};
-
-const getActivityTitle = (notif) => {
-  if (notif.title || notif.subject) return notif.title || notif.subject;
-  const customerName = notif.username || notif.name || 'Customer';
-  return customerName;
-};
-
-const getActivityMessage = (notif) => {
-  if (notif.message || notif.body || notif.description) return notif.message || notif.body || notif.description;
-  const productName = notif.pname || 'Product';
-  const quantity = notif.quantity || '1';
-  const price = notif.price || '0';
-  const status = notif.status || 'Pending';
-  if (notif.Type === 'Product') {
-    const formattedPrice = typeof price === 'string' && (price.includes('$') || price.includes('₦')) ? price : `₦${price}`;
-    return `Order for ${productName} (Qty: ${quantity}) - ${formattedPrice} • Status: ${status}`;
-  }
-  return 'New activity recorded';
-};
-
-const getPlatformBadgeClass = (platform) => {
-  switch (platform?.toLowerCase()) {
-    case 'instagram':
-      return 'bg-pink-100 text-pink-700';
-    case 'whatsapp':
-      return 'bg-green-100 text-green-700';
-    case 'facebook':
-    case 'messenger':
-      return 'bg-blue-100 text-blue-700';
-    default:
-      return 'bg-gray-100 text-gray-700';
-  }
-};
-
-const formatRelativeTime = (timestamp) => {
-  if (!timestamp) return 'Unknown time';
-  try {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes} minutes ago`;
-    if (hours < 24) return `${hours} hours ago`;
-    if (days < 7) return `${days} days ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch {
-    return 'Invalid date';
-  }
-};
-
-const getActivityAvatar = (notif) => {
-  const direct =
-    notif.profile_image ||
-    notif['profile-image'] ||
-    notif.profileImage ||
-    notif.profile_picture ||
-    notif.avatar ||
-    notif.image;
-  const normalized = normalizeImageUrl(direct);
-  if (normalized) return normalized;
-  const name = notif.username || notif.name || 'User';
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6B7280&color=fff`;
-};
-
-const ActivityItem = ({ notification, onClick }) => {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full text-left flex items-center gap-3 py-3 border-b last:border-b-0 hover:bg-gray-50 rounded-lg px-2"
-    >
-      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-        <img
-          src={getActivityAvatar(notification)}
-          alt=""
-          className="w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            const fallbackName = notification.username || notification.name || 'User';
-            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=6B7280&color=fff`;
-          }}
-        />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-medium text-gray-900 truncate">
-          {getActivityTitle(notification)}
-        </h4>
-        <p className="text-xs text-gray-600 mt-0.5 truncate">
-          {getActivityMessage(notification)}
-        </p>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-xs text-gray-500">
-            {formatRelativeTime(notification.timestamp)}
-          </p>
-          {notification.platform && (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${getPlatformBadgeClass(notification.platform)}`}>
-              {notification.platform}
-            </span>
-          )}
-          {notification.status && (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              notification.status === 'Confirmed' 
-                ? 'bg-green-100 text-green-700' 
-                : notification.status === 'Rejected'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-yellow-100 text-yellow-700'
-            }`}>
-              {notification.status}
-            </span>
-          )}
-        </div>
-      </div>
-    </button>
-  );
-};
-
 const Overview = () => {
   const navigate = useNavigate();
   const [analyticsData, setAnalyticsData] = useState(null);
-  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartPeriod, setChartPeriod] = useState('week');
   
@@ -207,9 +72,10 @@ const Overview = () => {
       }
     }
     
-    // Fetch data (ProtectedRoute ensures we have a token)
+    // Fetch data (ProtectedRoute ensures we have a token).
+    // Note: recent activity is NOT fetched here — the /notifications route
+    // belongs to the Notifications page, not this overview page.
     fetchAnalytics();
-    fetchNotifications();
   }, []);
 
   const fetchAnalytics = async () => {
@@ -258,116 +124,6 @@ const Overview = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchNotifications = async () => {
-    try {
-      setNotificationsLoading(true);
-
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        return;
-      }
-
-      const response = await fetch(API_BASE_URL + '/notifications?limit=10', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          return;
-        }
-        throw new Error('Failed to fetch notifications');
-      }
-
-      const result = await response.json();
-      const list = Array.isArray(result?.notifications)
-        ? result.notifications
-        : Array.isArray(result?.data)
-        ? result.data
-        : Array.isArray(result?.data?.notifications)
-        ? result.data.notifications
-        : [];
-
-      if (result.status === 'success') {
-        const processed = list.map((notif) => ({
-          ...notif,
-          timestamp:
-            notif.timestamp ||
-            notif.created_at ||
-            notif.time ||
-            notif.date ||
-            getObjectIdTimestamp(notif._id || notif.id) ||
-            new Date().toISOString(),
-          id: notif._id || notif.ids || notif.id,
-          title: getActivityTitle(notif),
-          message: getActivityMessage(notif),
-        }));
-        const sortedNotifications = processed
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-          .slice(0, 7);
-        setNotifications(sortedNotifications);
-      } else {
-        setNotifications([]);
-      }
-    } catch (err) {
-      console.error('Error fetching notifications:', err);
-    } finally {
-      setNotificationsLoading(false);
-    }
-  };
-
-  const getNotificationAction = (notification) => {
-    const action = notification.action || {};
-    if (action.type) return { type: action.type, ...action };
-    const type = (notification.Type || notification.type || '').toLowerCase();
-    if (type.includes('service') || type.includes('booking') || type.includes('appointment')) {
-      return { type: 'booking' };
-    }
-    if (type === 'product' || notification.pname || notification.price) {
-      return { type: 'order' };
-    }
-    if (notification.username || notification.platform) {
-      return { type: 'chat' };
-    }
-    return { type: 'none' };
-  };
-
-  const handleActivityClick = (notification) => {
-    const action = getNotificationAction(notification);
-
-    if (action.type === 'chat') {
-      const username = action.username || notification.username || notification.name;
-      const conversationId = action.conversation_id || action.conversationId || notification.conversation_id || notification.chat_id || null;
-      if (username || conversationId) {
-        navigate('/Messages', { state: { username, conversationId } });
-        return;
-      }
-    }
-
-    if (action.type === 'order') {
-      const orderId = action.order_id || action.orderId || notification.ids || notification.id || notification._id;
-      if (orderId) {
-        navigate('/Orders', { state: { orderId } });
-        return;
-      }
-    }
-
-    if (action.type === 'booking') {
-      const bookingId = action.booking_id || action.bookingId || notification.ids || notification.id || notification._id;
-      const search = notification['service-name'] || notification.service_name || notification.serviceName || null;
-      if (bookingId || search) {
-        navigate('/Bookings', { state: { bookingId, search } });
-        return;
-      }
-    }
-
-    navigate('/notifications');
   };
 
   const getChartData = () => {
@@ -519,11 +275,8 @@ const Overview = () => {
           <main className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <p className="text-red-500 mb-4">{error}</p>
-              <button 
-                onClick={() => {
-                  fetchAnalytics();
-                  fetchNotifications();
-                }}
+              <button
+                onClick={fetchAnalytics}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
                 Retry
@@ -678,45 +431,24 @@ const Overview = () => {
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold">Recent Activities</h3>
-                    <button 
-                      onClick={fetchNotifications}
-                      disabled={notificationsLoading}
-                      className="text-sm text-purple-600 hover:text-purple-700 disabled:opacity-50"
+                  </div>
+                  <div className="flex flex-col items-center justify-center text-center py-10">
+                    <div className="p-3 rounded-full bg-purple-50 mb-3">
+                      <Bell className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Stay on top of your latest orders and messages.
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 mb-4">
+                      Your recent activity lives on the Notifications page.
+                    </p>
+                    <button
+                      onClick={() => navigate('/notifications')}
+                      className="text-sm font-medium text-purple-600 hover:text-purple-700"
                     >
-                      {notificationsLoading ? 'Loading...' : 'Refresh'}
+                      View Notifications →
                     </button>
                   </div>
-                  <div className="space-y-1 max-h-[350px] overflow-y-auto">
-                    {notificationsLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                      </div>
-                    ) : notifications.length > 0 ? (
-                      notifications.map((notification, index) => (
-                        <ActivityItem 
-                          key={notification.ids || notification.id || index} 
-                          notification={notification}
-                          onClick={() => handleActivityClick(notification)}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm">No recent activities</p>
-                        <p className="text-xs mt-1">Activities will appear here when customers interact with your store</p>
-                      </div>
-                    )}
-                  </div>
-                  {notifications.length > 0 && (
-                    <div className="mt-4 pt-4 border-t">
-                      <button 
-                        onClick={() => navigate('/notifications')}
-                        className="w-full text-sm text-purple-600 hover:text-purple-700 py-2"
-                      >
-                        View All Activities →
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
