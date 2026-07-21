@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/config/api';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Download, Plus, Edit2, Filter, Search, X, FileText, Package, Wrench, FileX } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,11 @@ const ProductPage = () => {
 
   const productsPerPage = 8;
 
+  // Tracks whether the /services route has already been requested, so switching
+  // tabs (or React StrictMode's dev double-invoke) doesn't fire duplicate calls.
+  // Reset to false on failure so a later tab switch can retry.
+  const servicesRequestedRef = useRef(false);
+
   // Helper function to normalize status values
   const normalizeStatus = (status) => {
     if (status === true || 
@@ -101,11 +106,21 @@ const ProductPage = () => {
     }
   }, [location]);
 
-  // Fetch products and services on component mount
+  // Fetch products on mount — they power the default "Products" tab and are also
+  // needed by the "Drafts" tab, so they're always loaded up front.
   useEffect(() => {
     fetchProducts();
-    fetchServices();
   }, []);
+
+  // Lazily fetch services only when a tab that actually needs them becomes active
+  // (the "Services" tab, or "Drafts" which combines products and services). This
+  // keeps merely opening the Products page from also calling the /services route.
+  useEffect(() => {
+    if ((activeTab === 'services' || activeTab === 'drafts') && !servicesRequestedRef.current) {
+      servicesRequestedRef.current = true;
+      fetchServices();
+    }
+  }, [activeTab]);
 
   // Apply filters and pagination when data or filters change
   useEffect(() => {
@@ -217,6 +232,8 @@ const ProductPage = () => {
       setAllServices(services);
     } catch (error) {
       console.error('Error fetching services:', error);
+      // Allow a retry the next time a services-dependent tab is opened.
+      servicesRequestedRef.current = false;
       if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
         localStorage.removeItem('token');
