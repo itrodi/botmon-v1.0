@@ -906,7 +906,13 @@ const AdminAnalytics = () => {
     
     const userFlowData = data.user_flow_analysis || {};
     const userFlows = userFlowData.top_user_flows || [];
-    
+
+    // Debug: log the JSON that feeds the "User Flow Insights" section below.
+    // `userFlowData` is the raw `user_flow_analysis` object; `userFlows`
+    // (`top_user_flows`) is the array the flow cards actually render.
+    console.log('[AdminAnalytics] User Flow Insights — user_flow_analysis:', userFlowData);
+    console.log('[AdminAnalytics] User Flow Insights — top_user_flows:', userFlows);
+
     const featureDiscoveryExtracted = extractData(data.feature_discovery);
     const featureDiscovery = getDataArray(featureDiscoveryExtracted);
     
